@@ -28,7 +28,7 @@ has not been released - the last stable upstream release is v0.13.0.
 
 | Option | What it does |
 |--------|--------------|
-| [`statistics`](#statistics) | Read a series from Home Assistant's statistics instead of raw history. Pre-aggregated server side, so a wide graph costs a fraction of the rows: a 14-day dashboard here went from ~13s to ~1s. Also adds the `change` type and a `year` period, and picks a type the entity actually has. ([upstream PR #1423](https://github.com/kalkih/mini-graph-card/pull/1423)) |
+| [`statistics`](#statistics) | Read a series from Home Assistant's statistics instead of raw history. Pre-aggregated server side, so a long graph fetches orders of magnitude fewer points and gets much faster to load. Also adds the `change` type and a `year` period, and picks a type the entity actually has. ([upstream PR #1423](https://github.com/kalkih/mini-graph-card/pull/1423)) |
 | [`align_state`](#card-size) corners | `top-left`, `top-right`, `bottom-left`, `bottom-right` pin the current state to a corner, out of the flow, so it takes no row of its own and the graph gets the space. ([upstream #1153](https://github.com/kalkih/mini-graph-card/issues/1153)) |
 | `font_size_state` | Size the current state on its own, without scaling extrema and axis labels along with it. ([upstream #752](https://github.com/kalkih/mini-graph-card/issues/752)) |
 
@@ -129,7 +129,7 @@ If you configure Lovelace via YAML, add a reference inside your
 
   ```yaml
   resources:
-    - url: /local/mini-graph-card-bundle.js?v=2026.8.3
+    - url: /local/mini-graph-card-bundle.js?v=2026.8.4
       type: module
   ```
 
@@ -159,7 +159,7 @@ know about.
 
   ```yaml
   resources:
-    - url: /local/mini-graph-card-bundle.js?v=2026.8.3
+    - url: /local/mini-graph-card-bundle.js?v=2026.8.4
       type: module
   ```
 
@@ -455,6 +455,19 @@ spans - every state row in the window is fetched and then bucketed client side.
 Setting `statistics` reads the series from Home Assistant's statistics
 instead. Those are pre-aggregated server side and kept far longer than raw
 history, so a wide graph costs a fraction of the rows.
+
+The difference grows with the window. A two-week graph on a frequently updated
+sensor fetches every recorded state - tens of thousands of rows per entity,
+which the card then buckets in the browser. The same graph from hourly
+statistics is a few hundred points, already aggregated. On a dashboard with
+many graphs, or a card with several tabs at different time ranges, that is the
+difference between a page that takes a long time to become usable and one that
+loads promptly, and between switching a tab being a noticeable wait and being
+immediate.
+
+It is worth it for long windows only. Short ones are cheap from raw history
+anyway, and statistics would cost accuracy and freshness for nothing - see the
+notes below.
 
 ```yaml
 type: custom:mini-graph-card
