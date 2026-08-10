@@ -2,13 +2,18 @@ import { css } from 'lit-element';
 
 const style = css`
   :host {
-    display: block;
-    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
   ha-card {
     flex-direction: column;
     box-sizing: border-box;
-    height: 100%;
+    /* Not "height: 100%": a card is stretched by a Sections grid, and
+       stretching accounts for a margin while a percentage height does not -
+       a card with a margin would overflow its cell by exactly that margin.
+       No "min-height: 0" either: a card must not shrink below its content &
+       clip it with "overflow: hidden" - a graph is what absorbs a shrinking. */
+    flex: 1;
     padding: 16px 0 0 0;
     position: relative;
     overflow: hidden;
@@ -243,7 +248,6 @@ const style = css`
     flex-grow: 1;
     flex-shrink: 1;
     flex-direction: column;
-    margin-top: auto;
     min-height: 0;
     width: 100%;
   }
@@ -261,6 +265,11 @@ const style = css`
     display: block;
     width: 100%;
     height: 100%;
+    /* An svg with a viewBox has an intrinsic aspect ratio, so a default
+       "min-height: auto" floors this box at width/aspect & it refuses to
+       shrink into its grid area - a graph then overflows a card & is cut off
+       by "overflow: hidden". */
+    min-height: 0;
     grid-column: 1;
     grid-row: 1;
   }

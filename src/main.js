@@ -311,13 +311,16 @@ class MiniGraphCard extends LitElement {
   observeGraphSize() {
     if (this.resizeObserver || typeof ResizeObserver === 'undefined') return;
     this.resizeObserver = new ResizeObserver((entries) => {
+      // Exact, not rounded: a viewBox matching an element to a fraction of a
+      // pixel keeps preserveAspectRatio a no-op. Rounding it up makes a
+      // drawing be scaled down to fit & letterboxed by a pixel or two.
       const { width, height } = entries[0].contentRect;
-      const [w, h] = [Math.round(width), Math.round(height)];
       // A sub-pixel jitter must not start a resize/redraw loop
-      if (w <= 0 || h <= 0
-        || (Math.abs(h - this.graphHeight) < 1 && Math.abs(w - this.graphWidth) < 1)) return;
-      [this._graphWidth, this._graphHeight] = [w, h];
-      this.Graph.forEach(graph => graph.setSize(w, h));
+      if (width <= 0 || height <= 0
+        || (Math.abs(height - this.graphHeight) < 0.5
+          && Math.abs(width - this.graphWidth) < 0.5)) return;
+      [this._graphWidth, this._graphHeight] = [width, height];
+      this.Graph.forEach(graph => graph.setSize(width, height));
       this.updateGraphPaths();
       this.requestUpdate();
     });
