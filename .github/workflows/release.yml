@@ -1,33 +1,91 @@
-name: Release
+---
+name: "Auto Release"
 
-on: workflow_dispatch
+# Keyed on a successful "Test & Lint" run on olen, so a release can only be cut
+# from a commit that linted, tested and built.
+on:
+  workflow_run:
+    workflows: ["Test & Lint"]
+    types: [completed]
+    branches: [olen]
+
+permissions:
+  contents: write
 
 jobs:
-  release-bundle:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
-
-    outputs:
-      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
-      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
-
+  release:
+    name: "Create Release"
+    runs-on: "ubuntu-latest"
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js 12.x
-        uses: actions/setup-node@v4
+      - name: "✏️ Checkout code"
+        uses: actions/checkout@v7
         with:
-          node-version: 12.x
-      - name: Cache Node.js modules
-        uses: actions/cache@v4
+          fetch-depth: 0
+          # A SHA from this repository's own workflow run
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: "📋 Did package.json change?"
+        id: check_package
+        run: |
+          BEFORE_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          if [ -z "$BEFORE_SHA" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$(git diff --name-only "$BEFORE_SHA" HEAD -- package.json)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "🏷️ Read the version"
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+        if: steps.check_package.outputs.changed == 'true'
+
+      - name: "🏷️ Does the tag exist already?"
+        uses: mukunku/tag-exists-action@v1.7.0
+        id: check_tag
         with:
-          path: ~/.npm # npm cache files are stored in `~/.npm` on Linux/macOS
-          key: ${{ runner.OS }}-node-12.x-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.OS }}-node-12.x
-            ${{ runner.OS }}-
-      - name: Install dependencies
+          tag: "v${{ steps.version.outputs.version }}"
+        if: steps.check_package.outputs.changed == 'true'
+
+      - name: "⏭️ Nothing to release"
+        run: echo "package.json unchanged, or the tag exists already"
+        if: steps.check_package.outputs.changed != 'true' || steps.check_tag.outputs.exists == 'true'
+
+      - name: "📦 Setup Node.js"
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+
+      - name: "📥 Install dependencies"
         run: npm ci
-      - name: Release
-        run: npx semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+
+      # "dist" is gitignored: the bundle is built here & attached to the
+      # release, which is where HACS reads it from. Nothing built is committed.
+      - name: "🔨 Build"
+        run: npm run build
+        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+
+      - name: "🏷️ Create the tag"
+        uses: rickstaa/action-create-tag@v1
+        with:
+          tag: "v${{ steps.version.outputs.version }}"
+          tag_exists_error: false
+          message: "Version ${{ steps.version.outputs.version }}"
+        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+
+      # A version containing "beta" is published as a prerelease, which HACS
+      # only offers to users who opted into betas.
+      - name: "🚀 Publish the release"
+        uses: softprops/action-gh-release@v3
+        with:
+          prerelease: ${{ contains(steps.version.outputs.version, 'beta') }}
+          generate_release_notes: true
+          name: "Version ${{ steps.version.outputs.version }}"
+          tag_name: "v${{ steps.version.outputs.version }}"
+          files: dist/mini-graph-card-bundle.js
+        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'

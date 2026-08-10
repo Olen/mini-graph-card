@@ -1,3 +1,17 @@
+> [!WARNING]
+> ## This is an experimental fork
+>
+> This branch is **not** the official [kalkih/mini-graph-card](https://github.com/kalkih/mini-graph-card).
+> It is a fast-moving personal fork used to try out new features and fixes, and
+> it is released early and often. Expect breaking changes, expect things to be
+> broken for a while, and expect options to change name or behaviour between
+> releases. Breaking changes are noted in the release notes.
+>
+> It tracks the upstream `dev` branch, and the goal is for the work here to end
+> up upstream: everything is written to be merged back, and PRs are opened for
+> the parts that are ready. If you want something stable, install the official
+> card instead.
+
 # Lovelace Mini Graph Card
 A minimalistic and customizable graph card for [Home Assistant](https://github.com/home-assistant/home-assistant) Lovelace UI.
 
