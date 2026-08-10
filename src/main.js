@@ -24,6 +24,7 @@ import {
   DEFAULT_GRAPH_HEIGHT,
   DEFAULT_GRAPH_WIDTH,
   STATE_UOM_RATIO,
+  CARD_PADDING,
   DEFAULT_MARGIN,
   NBSP,
   STATISTICS_PERIOD_THRESHOLDS,
@@ -31,6 +32,7 @@ import {
 } from './const';
 import {
   isNumeric, getStatisticsType, getCardHeight, getCardSizeUnits, getGridOptions,
+  getInfoHeight, isStateInCorner,
 } from './others';
 import {
   getMin, getAvg, getMax,
@@ -202,8 +204,10 @@ class MiniGraphCard extends LitElement {
           : [min_line_width, max_line_width];
       this.Graph = this.config.entities.map(
         (entity, index) => new Graph({
-          width: DEFAULT_GRAPH_WIDTH,
-          height: this.config.height,
+          // The measured size, when there is one: the viewBox is drawn from it,
+          // and a Graph built for another size would plot outside that box.
+          width: this.graphWidth,
+          height: this.graphHeight,
           margin,
           hours: this.config.hours_to_show,
           points: this.config.points_per_hour,
@@ -301,6 +305,10 @@ class MiniGraphCard extends LitElement {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = undefined;
+      // The element survives in the shadow root, so without forgetting it here
+      // updateGraphSizeObserver() would take it for "already observed" and a
+      // reconnected card would never learn its size again.
+      this.observedElement = undefined;
     }
     super.disconnectedCallback();
   }
@@ -321,10 +329,39 @@ class MiniGraphCard extends LitElement {
         || (Math.abs(height - this.graphHeight) < 0.5
           && Math.abs(width - this.graphWidth) < 0.5)) return;
       [this._graphWidth, this._graphHeight] = [width, height];
-      this.Graph.forEach(graph => graph.setSize(width, height));
-      this.updateGraphPaths();
+      this.redrawForSize(width, height);
       this.requestUpdate();
     });
+  }
+
+  /**
+   * A flex basis from "height", and no growing at all when it is 0: "height: 0"
+   * is the documented way to show a card without a graph, and a growing box
+   * would fill a stretched card instead.
+   * @returns {string} Style string
+   */
+  getGraphStyle() {
+    const { height } = this.config;
+    return height === 0
+      ? 'flex-basis: 0px; flex-grow: 0;'
+      : `flex-basis: ${height}px;`;
+  }
+
+  /**
+   * Redraw the graphs for a new size. X coordinates come from Graph.update(),
+   * which bins the history against Graph.width, so setting the size and
+   * recomputing the paths alone would leave the points at the old width while
+   * the viewBox describes the new one.
+   * @param {number} width Width in pixels
+   * @param {number} height Height in pixels
+   */
+  redrawForSize(width, height) {
+    this.Graph.forEach((graph) => {
+      graph.setSize(width, height);
+      graph.update();
+    });
+    this.updateBounds();
+    this.updateGraphPaths();
   }
 
   /** (Re)attach a size observer to a currently rendered graph area. */
@@ -505,7 +542,7 @@ class MiniGraphCard extends LitElement {
       <div
         class="states flex"
         loc="${this.config.align_state}"
-        style="${this.getStateFontSize()}"
+        style="${this.getStateStyle()}"
       >
         ${this.renderState(0)}
         ${this.config.entities.length > 1 ? html`
@@ -521,11 +558,19 @@ class MiniGraphCard extends LitElement {
    * An inline font size for a state value & its unit, if font_size_state is set.
    * @returns {string} Style string, empty if the option is not set
    */
-  getStateFontSize() {
-    const size = this.config.font_size_state;
-    if (size === undefined) return '';
-    const uom = Math.round(size * STATE_UOM_RATIO * 100) / 100;
-    return `--mcg-state-value-size: ${size}px; --mcg-state-uom-size: ${uom}px;`;
+  getStateStyle() {
+    const { font_size_state: size, align_state: align, show } = this.config;
+    let css = '';
+    if (size !== undefined) {
+      const uom = Math.round(size * STATE_UOM_RATIO * 100) / 100;
+      css += `--mcg-state-value-size: ${size}px; --mcg-state-uom-size: ${uom}px;`;
+    }
+    // A state in a bottom corner is out of the flow & would otherwise be drawn
+    // on top of the extrema row, which sits at the bottom of the card.
+    if (show.extrema && isStateInCorner(align) && align.startsWith('bottom-')) {
+      css += ` --mcg-state-bottom: ${Math.round(CARD_PADDING + getInfoHeight(this.config))}px;`;
+    }
+    return css;
   }
 
   /**
@@ -674,7 +719,7 @@ class MiniGraphCard extends LitElement {
     /* eslint-disable indent */
     return this.config.show.graph
       ? html`
-          <div class="graph" style="flex-basis: ${this.config.height}px;">
+          <div class="graph" style="${this.getGraphStyle()}">
             ${ready
               ? html`
                   <div class="graph__container">

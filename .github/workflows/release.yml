@@ -16,7 +16,14 @@ jobs:
   release:
     name: "Create Release"
     runs-on: "ubuntu-latest"
-    if: github.event.workflow_run.conclusion == 'success'
+    # "branches" above matches the HEAD branch name, which anyone can pick in
+    # their own fork. Without the two checks below, a pull request from a fork
+    # whose branch is called "olen" would be checked out & built here - in this
+    # repository's context, holding a write-scoped token.
+    if: >-
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.head_repository.full_name == github.repository
     steps:
       - name: "✏️ Checkout code"
         uses: actions/checkout@v7
@@ -25,50 +32,39 @@ jobs:
           # A SHA from this repository's own workflow run
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: "📋 Did package.json change?"
-        id: check_package
-        run: |
-          BEFORE_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
-          if [ -z "$BEFORE_SHA" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          elif [ -n "$(git diff --name-only "$BEFORE_SHA" HEAD -- package.json)" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: "🏷️ Read the version"
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
-        if: steps.check_package.outputs.changed == 'true'
 
+      # The question is "has this version been released yet", not "did the tip
+      # commit touch package.json" - a bump pushed together with later commits
+      # is still an unreleased version.
       - name: "🏷️ Does the tag exist already?"
         uses: mukunku/tag-exists-action@v1.7.0
         id: check_tag
         with:
           tag: "v${{ steps.version.outputs.version }}"
-        if: steps.check_package.outputs.changed == 'true'
 
       - name: "⏭️ Nothing to release"
-        run: echo "package.json unchanged, or the tag exists already"
-        if: steps.check_package.outputs.changed != 'true' || steps.check_tag.outputs.exists == 'true'
+        run: echo "v${{ steps.version.outputs.version }} is released already"
+        if: steps.check_tag.outputs.exists == 'true'
 
       - name: "📦 Setup Node.js"
         uses: actions/setup-node@v7
         with:
           node-version: '20.x'
           cache: 'npm'
-        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+        if: steps.check_tag.outputs.exists != 'true'
 
       - name: "📥 Install dependencies"
         run: npm ci
-        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+        if: steps.check_tag.outputs.exists != 'true'
 
       # "dist" is gitignored: the bundle is built here & attached to the
       # release, which is where HACS reads it from. Nothing built is committed.
       - name: "🔨 Build"
         run: npm run build
-        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+        if: steps.check_tag.outputs.exists != 'true'
 
       # GitHub's own release notes list merged PRs, and this branch is committed
       # to directly - they come out empty. Build them from the commits instead,
@@ -113,7 +109,7 @@ jobs:
           cat release-notes.md
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+        if: steps.check_tag.outputs.exists != 'true'
 
       - name: "🏷️ Create the tag"
         uses: rickstaa/action-create-tag@v1
@@ -121,7 +117,7 @@ jobs:
           tag: "v${{ steps.version.outputs.version }}"
           tag_exists_error: false
           message: "Version ${{ steps.version.outputs.version }}"
-        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+        if: steps.check_tag.outputs.exists != 'true'
 
       # A version containing "beta" is published as a prerelease, which HACS
       # only offers to users who opted into betas.
@@ -133,4 +129,4 @@ jobs:
           name: "Version ${{ steps.version.outputs.version }}"
           tag_name: "v${{ steps.version.outputs.version }}"
           files: dist/mini-graph-card-bundle.js
-        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+        if: steps.check_tag.outputs.exists != 'true'

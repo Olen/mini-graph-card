@@ -164,7 +164,7 @@ const style = css`
     flex: none;
   }
   .states[loc^="top-"] { top: 16px; }
-  .states[loc^="bottom-"] { bottom: 16px; }
+  .states[loc^="bottom-"] { bottom: var(--mcg-state-bottom, 16px); }
   .states[loc$="-left"] { justify-content: flex-start; }
   .states[loc$="-right"] { justify-content: flex-end; }
   /* Mirror a right corner: an icon leads, and the gap goes on its other side */
@@ -202,6 +202,11 @@ const style = css`
     width: 2em !important;
   }
   .states--secondary {
+    /* An absolute size set for the primary state must not be inherited here:
+       secondary states are scaled down relative to their own wrapper, and
+       "initial" makes the custom property invalid so the var() fallback wins. */
+    --mcg-state-value-size: initial;
+    --mcg-state-uom-size: initial;
     display: flex;
     flex-flow: column;
     flex-wrap: wrap;

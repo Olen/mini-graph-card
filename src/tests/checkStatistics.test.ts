@@ -91,17 +91,35 @@ describe('checkStatistics', () => {
     expect(config.entities[0].statistics.period).toBeUndefined();
   });
 
-  ['minute', '5MINUTE', 'decade', '', 123, null].forEach((period) => {
-    it(`checkStatistics: invalid period [${JSON.stringify(period)}] -> throws`, () => {
+  // A typo warns & falls back to "work it out from the data", as every other
+  // option does; it does not replace the card with a config error.
+  ['minute', '5MINUTE', 'decade', '', 123].forEach((period) => {
+    it(`checkStatistics: invalid period [${JSON.stringify(period)}] -> warns & unsets`, () => {
+      const warn = mockWarn();
       const config = makeConfig({ entity: ENTITY, statistics: { period } });
-      expect(() => checkStatistics(config, 0)).toThrowError(/statistics.period/);
+      checkStatistics(config, 0);
+      expect(config.entities[0].statistics).toEqual({});
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0].join(' ')).toContain('period');
     });
   });
 
-  ['average', 'MEAN', 'median', 'last_reset', '', 123, null].forEach((type) => {
-    it(`checkStatistics: invalid type [${JSON.stringify(type)}] -> throws`, () => {
+  ['average', 'MEAN', 'median', 'last_reset', '', 123].forEach((type) => {
+    it(`checkStatistics: invalid type [${JSON.stringify(type)}] -> warns & unsets`, () => {
+      const warn = mockWarn();
       const config = makeConfig({ entity: ENTITY, statistics: { type } });
-      expect(() => checkStatistics(config, 0)).toThrowError(/statistics.type/);
+      checkStatistics(config, 0);
+      expect(config.entities[0].statistics).toEqual({});
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0].join(' ')).toContain('type');
+    });
+  });
+
+  ['period', 'type'].forEach((option) => {
+    it(`checkStatistics: [${option}: null] is treated as not set`, () => {
+      const config = makeConfig({ entity: ENTITY, statistics: { [option]: null } });
+      checkStatistics(config, 0);
+      expect(config.entities[0].statistics).toEqual({});
     });
   });
 

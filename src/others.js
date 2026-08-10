@@ -14,6 +14,7 @@ import {
   MASONRY_SIZE_UNIT,
   HEADER_HEIGHT_EM,
   STATE_HEIGHT_EM,
+  STATE_LINE_HEIGHT,
   LEGEND_HEIGHT_EM,
   INFO_HEIGHT_EM,
   CARD_PADDING,
@@ -194,6 +195,13 @@ const isStateInCorner = alignState => typeof alignState === 'string'
   && (alignState.startsWith('top-') || alignState.startsWith('bottom-'));
 
 /**
+ * Height of the extrema row in pixels.
+ * @param {object} config A built config
+ * @returns {number} Height in pixels
+ */
+const getInfoHeight = config => config.font_size * INFO_HEIGHT_EM + CARD_PADDING;
+
+/**
  * Height of a card in pixels, for a given graph height.
  * Used to tell HA which size a card would like to take.
  * @param {object} config A built config
@@ -209,7 +217,9 @@ const getCardHeight = (config, graphHeight = config.height) => {
   }
   if (show.state && !isStateInCorner(config.align_state)) {
     // a corner state is out of a flow & takes no height of its own
-    height += config.font_size * STATE_HEIGHT_EM + CARD_PADDING;
+    height += (config.font_size_state !== undefined
+      ? config.font_size_state * STATE_LINE_HEIGHT
+      : config.font_size * STATE_HEIGHT_EM) + CARD_PADDING;
   }
   if (show.graph) {
     height += graphHeight + CARD_PADDING;
@@ -218,7 +228,7 @@ const getCardHeight = (config, graphHeight = config.height) => {
     }
   }
   if (show.extrema) {
-    height += config.font_size * INFO_HEIGHT_EM + CARD_PADDING;
+    height += getInfoHeight(config);
   }
   return height;
 };
@@ -260,6 +270,7 @@ export {
   isNumeric,
   getStatisticsType,
   isStateInCorner,
+  getInfoHeight,
   getCardHeight,
   getGridRows,
   getCardSizeUnits,

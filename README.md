@@ -129,7 +129,7 @@ If you configure Lovelace via YAML, add a reference inside your
 
   ```yaml
   resources:
-    - url: /local/mini-graph-card-bundle.js?v=2026.8.4
+    - url: /local/mini-graph-card-bundle.js?v=2026.8.5
       type: module
   ```
 
@@ -159,7 +159,7 @@ know about.
 
   ```yaml
   resources:
-    - url: /local/mini-graph-card-bundle.js?v=2026.8.4
+    - url: /local/mini-graph-card-bundle.js?v=2026.8.5
       type: module
   ```
 

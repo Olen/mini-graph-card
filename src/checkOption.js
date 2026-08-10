@@ -273,12 +273,17 @@ const checkStatistics = (config, index) => {
   const opts = stats === true ? {} : stats;
   if (typeof opts !== 'object' || Array.isArray(opts))
     throw new Error(`"statistics" must be a boolean or an object.\n See ${URL_DOCS}`);
-  if (opts.period !== undefined && !STATISTICS_PERIODS.includes(opts.period))
-    throw new Error(`"statistics.period" must be one of ${STATISTICS_PERIODS.join(', ')}.\n See ${URL_DOCS}`);
-  if (opts.type !== undefined && !STATISTICS_TYPES.includes(opts.type))
-    throw new Error(`"statistics.type" must be one of ${STATISTICS_TYPES.join(', ')}.\n See ${URL_DOCS}`);
 
+  // A typo warns & falls back, as every other option does. Throwing would
+  // replace the whole card with a config error over one wrong letter, and the
+  // fallbacks are both "work it out from the data" - see getStatisticsType().
   entity.statistics = { ...opts };
+  if (opts.period !== undefined)
+    entity.statistics.period = checkStringOption(opts, 'period', STATISTICS_PERIODS, undefined);
+  if (opts.type !== undefined)
+    entity.statistics.type = checkStringOption(opts, 'type', STATISTICS_TYPES, undefined);
+  if (entity.statistics.period === undefined) delete entity.statistics.period;
+  if (entity.statistics.type === undefined) delete entity.statistics.type;
 };
 /* eslint-enable no-param-reassign */
 

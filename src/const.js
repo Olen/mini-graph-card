@@ -2,7 +2,8 @@ const URL_DOCS = 'https://github.com/kalkih/mini-graph-card/blob/master/README.m
 const MAX_BARS = 96;
 const DEFAULT_FONT_SIZE = 14;
 const DEFAULT_FONT_SIZE_HEADER = 14;
-// A state value is 2.4em & its unit 1.4em, see style.js
+// A state value is 2.4em with a 1.2em line height & its unit 1.4em, see style.js
+const STATE_LINE_HEIGHT = 1.2;
 const STATE_UOM_RATIO = 1.4 / 2.4;
 // "top-*"/"bottom-*" take a state out of a flow & pin it to a corner of a card
 const ALIGN_STATE = [
@@ -75,7 +76,7 @@ const MASONRY_SIZE_UNIT = 50;
 // A card's chrome, in "em" of a corresponding font size (see style.js):
 // an icon is 1.7em, a state value is 2.4em with a 1.2em line height.
 const HEADER_HEIGHT_EM = 1.7;
-const STATE_HEIGHT_EM = 2.4 * 1.2;
+const STATE_HEIGHT_EM = 2.4 * STATE_LINE_HEIGHT;
 const LEGEND_HEIGHT_EM = 1.2;
 const INFO_HEIGHT_EM = 1.2;
 // "ha-card" padding-top & a padding-bottom of each "ha-card > div".
@@ -112,6 +113,7 @@ export {
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_SIZE_HEADER,
   STATE_UOM_RATIO,
+  STATE_LINE_HEIGHT,
   ALIGN_STATE,
   DEFAULT_ALIGN_STATE,
   DEFAULT_BAR_SPACING,
