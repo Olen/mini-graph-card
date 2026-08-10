@@ -508,9 +508,10 @@ class MiniGraphCard extends LitElement {
         style="${this.getStateFontSize()}"
       >
         ${this.renderState(0)}
-        <div class="states--secondary">
-          ${this.config.entities.slice(1).map((entityConfig, i) => this.renderState(i + 1))}
-        </div>
+        ${this.config.entities.length > 1 ? html`
+          <div class="states--secondary">
+            ${this.config.entities.slice(1).map((entityConfig, i) => this.renderState(i + 1))}
+          </div>` : ''}
         ${this.config.align_icon === 'state' ? this.renderIcon() : html``}
       </div>
     `;

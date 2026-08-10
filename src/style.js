@@ -135,21 +135,33 @@ const style = css`
     justify-content: space-evenly;
   }
   /* A corner state is taken out of a flow & pinned to a card, so it takes no
-     row of its own - a graph gets that space instead. "ha-card" is the
-     containing block (position: relative), and its padding box starts at the
-     border, hence the 16px offsets matching a card's own padding. */
+     row of its own - a graph gets that space instead. The box spans the card
+     and keeps the same 16px side padding as every other row, so a value lines
+     up with the extrema & the header rather than with a hand-picked offset. */
   .states[loc^="top-"],
   .states[loc^="bottom-"] {
     position: absolute;
+    left: 0;
+    right: 0;
     margin: 0;
-    padding: 0;
-    width: auto;
+    padding: 0 16px;
     z-index: 1;
+    /* the box spans a card, so it must not swallow hover over a graph */
+    pointer-events: none;
+  }
+  .states[loc^="top-"] > *,
+  .states[loc^="bottom-"] > * {
+    pointer-events: auto;
+  }
+  .states[loc^="top-"] .state__uom,
+  .states[loc^="bottom-"] .state__uom {
+    /* A unit fills a row by default; in a corner it must not grow either. */
+    flex: none;
   }
   .states[loc^="top-"] { top: 16px; }
   .states[loc^="bottom-"] { bottom: 16px; }
-  .states[loc$="-left"] { left: 16px; }
-  .states[loc$="-right"] { right: 16px; }
+  .states[loc$="-left"] { justify-content: flex-start; }
+  .states[loc$="-right"] { justify-content: flex-end; }
   .states[loc$="-right"] .states--secondary {
     align-items: flex-end;
   }
