@@ -2,12 +2,13 @@ import { css } from 'lit-element';
 
 const style = css`
   :host {
-    display: flex;
-    flex-direction: column;
+    display: block;
+    height: 100%;
   }
   ha-card {
     flex-direction: column;
-    flex: 1;
+    box-sizing: border-box;
+    height: 100%;
     padding: 16px 0 0 0;
     position: relative;
     overflow: hidden;
@@ -236,11 +237,19 @@ const style = css`
     align-self: flex-end;
     box-sizing: border-box;
     display: flex;
+    /* flex-basis is set inline from "height": it is a desired height, so a
+       graph is exactly that high in a Masonry view (where a card has no
+       height of its own) & grows/shrinks to a cell in a Sections view. */
+    flex-grow: 1;
+    flex-shrink: 1;
     flex-direction: column;
     margin-top: auto;
+    min-height: 0;
     width: 100%;
   }
   .graph__container {
+    flex: 1 1 auto;
+    min-height: 0;
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;

@@ -22,6 +22,7 @@ import {
   X, Y, V,
   ONE_HOUR,
   DEFAULT_GRAPH_HEIGHT,
+  DEFAULT_GRAPH_WIDTH,
   DEFAULT_MARGIN,
   NBSP,
   STATISTICS_PERIOD_THRESHOLDS,
@@ -67,6 +68,10 @@ class MiniGraphCard extends LitElement {
     this.initial = true;
     this._md5Config = undefined;
     this.loggedMessages = new Set();
+    // A size a graph is actually drawn in: "height" from a config & a default
+    // width until a card is measured, see observeGraphSize().
+    this._graphHeight = undefined;
+    this._graphWidth = undefined;
 
     // update datetime settings periodically
     this.updateHour24 = true;
@@ -196,7 +201,7 @@ class MiniGraphCard extends LitElement {
           : [min_line_width, max_line_width];
       this.Graph = this.config.entities.map(
         (entity, index) => new Graph({
-          width: 500,
+          width: DEFAULT_GRAPH_WIDTH,
           height: this.config.height,
           margin,
           hours: this.config.hours_to_show,
@@ -292,7 +297,41 @@ class MiniGraphCard extends LitElement {
     if (this.interval) {
       clearInterval(this.interval);
     }
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = undefined;
+    }
     super.disconnectedCallback();
+  }
+
+  /**
+   * Watch a size of a graph area & redraw a graph for the height it really got:
+   * in a Sections view a card follows its cell, not a configured "height".
+   */
+  observeGraphSize() {
+    if (this.resizeObserver || typeof ResizeObserver === 'undefined') return;
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      const [w, h] = [Math.round(width), Math.round(height)];
+      // A sub-pixel jitter must not start a resize/redraw loop
+      if (w <= 0 || h <= 0
+        || (Math.abs(h - this.graphHeight) < 1 && Math.abs(w - this.graphWidth) < 1)) return;
+      [this._graphWidth, this._graphHeight] = [w, h];
+      this.Graph.forEach(graph => graph.setSize(w, h));
+      this.updateGraphPaths();
+      this.requestUpdate();
+    });
+  }
+
+  /** (Re)attach a size observer to a currently rendered graph area. */
+  updateGraphSizeObserver() {
+    if (!this.config.show.graph) return;
+    this.observeGraphSize();
+    const element = this.shadowRoot && this.shadowRoot.querySelector('.graph__container__svg');
+    if (!this.resizeObserver || !element || element === this.observedElement) return;
+    if (this.observedElement) this.resizeObserver.unobserve(this.observedElement);
+    this.resizeObserver.observe(element);
+    this.observedElement = element;
   }
 
   shouldUpdate(changedProps) {
@@ -309,10 +348,12 @@ class MiniGraphCard extends LitElement {
   firstUpdated() {
     this.initial = false;
     this.updateFormatFromLocale(true);
+    this.updateGraphSizeObserver();
   }
 
   updated(changedProperties) {
     super.updated(changedProperties);
+    this.updateGraphSizeObserver();
 
     if (this.config.animate && changedProperties.has('line')) {
       if (this.length.length < this.entity.length) {
@@ -616,7 +657,7 @@ class MiniGraphCard extends LitElement {
     /* eslint-disable indent */
     return this.config.show.graph
       ? html`
-          <div class="graph">
+          <div class="graph" style="flex-basis: ${this.config.height}px;">
             ${ready
               ? html`
                   <div class="graph__container">
@@ -706,8 +747,8 @@ class MiniGraphCard extends LitElement {
       return html``;
     }
 
-    const graphHeight = this.config.height !== undefined
-      ? this.config.height : DEFAULT_GRAPH_HEIGHT;
+    const graphHeight = this.graphHeight !== undefined
+      ? this.graphHeight : DEFAULT_GRAPH_HEIGHT;
     if (!isNumeric(graphHeight) || graphHeight <= 0) {
       return html``;
     }
@@ -967,7 +1008,7 @@ class MiniGraphCard extends LitElement {
     const items = bars.map((bar, i) => {
       const animation = this.config.animate
         ? svg`
-          <animate attributeName='y' from=${this.config.height} to=${bar.y} dur='1s' fill='remove'
+          <animate attributeName='y' from=${this.graphHeight} to=${bar.y} dur='1s' fill='remove'
             calcMode='spline' keyTimes='0; 1' keySplines='0.215 0.61 0.355 1'>
           </animate>`
         : '';
@@ -1018,10 +1059,12 @@ class MiniGraphCard extends LitElement {
   * @returns {SVGTemplateResult} SVG element
   */
   renderSvg() {
-    const { height, show } = this.config;
+    const { show } = this.config;
+    const height = this.graphHeight;
+    const width = this.graphWidth;
     const reversed = show.graph_order === 'reversed';
     return svg`
-      <svg width='100%' height=${height !== 0 ? '100%' : 0} viewBox='0 0 500 ${height}'
+      <svg width='100%' height=${height !== 0 ? '100%' : 0} viewBox='0 0 ${width} ${height}'
         @click=${e => e.stopPropagation()}>
         <g>
           <defs>
@@ -1649,6 +1692,16 @@ class MiniGraphCard extends LitElement {
 
     this.updateBounds();
 
+    this.updateGraphPaths();
+    this.updating = false;
+    this.setNextUpdate();
+  }
+
+  /**
+   * Recompute lines/bars/fills/points from already binned data.
+   * Called after new data & after a card is resized.
+   */
+  updateGraphPaths({ config } = this) {
     if (config.show.graph) {
       // index of a bar (only used for bars & only increments if a particular graph to be shown)
       let graphPos = 0;
@@ -1679,8 +1732,6 @@ class MiniGraphCard extends LitElement {
       });
       this.line = [...this.line]; // force the card's re-rendering
     }
-    this.updating = false;
-    this.setNextUpdate();
   }
 
   getBoundary(type, series, configVal, fallback) {
@@ -2004,6 +2055,16 @@ class MiniGraphCard extends LitElement {
         if (!this.updating) this.updateData();
       }, interval * ONE_HOUR);
     }
+  }
+
+  /** A height a graph is drawn in: a measured one, or "height" from a config. */
+  get graphHeight() {
+    return this._graphHeight !== undefined ? this._graphHeight : this.config.height;
+  }
+
+  /** A width a graph is drawn in: a measured one, or a default. */
+  get graphWidth() {
+    return this._graphWidth !== undefined ? this._graphWidth : DEFAULT_GRAPH_WIDTH;
   }
 
   getCardSize() {

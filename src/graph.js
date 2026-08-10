@@ -36,9 +36,8 @@ export default class Graph {
 
     this._history = undefined;
     this.coords = [];
-    this.width = width - margin[X] * 2;
-    this.height = height - margin[Y] * 4;
     this.margin = margin;
+    this.setSize(width, height);
     this._max = 0;
     this._min = 0;
     this.points = points; // stands for "points_per_hour"
@@ -64,6 +63,18 @@ export default class Graph {
   set min(min) { this._min = min; }
 
   set history(data) { this._history = data; }
+
+
+  /**
+   * Set a size a graph is drawn in, in pixels: a card follows a size of its
+   * cell, and a viewBox matches an element 1:1 so nothing is scaled.
+   * @param {number} width Width in pixels
+   * @param {number} height Height in pixels
+   */
+  setSize(width, height) {
+    this.width = width - this.margin[X] * 2;
+    this.height = height - this.margin[Y] * 4;
+  }
 
   update(history = undefined) {
     if (history) {

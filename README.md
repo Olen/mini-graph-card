@@ -326,7 +326,14 @@ without a manual `grid_options` in a Sections view or a `card_mod` height.
   instead of a fixed `3` as before.
 
 `height` is a *desired* height, not a fixed one: it decides which cell the card
-asks for. A card placed in a cell of a different size follows the cell.
+asks for, and a card placed in a cell of a different size follows the cell. In a
+Masonry view, where a card has no height of its own, a graph is exactly `height`
+high as before.
+
+A graph is redrawn for the size it really got, so nothing is scaled: a `viewBox`
+matches its element 1:1. `line_width`, `bar_spacing` and a point radius are
+therefore in real pixels; previously they were in units of a 500-wide drawing
+stretched to a card, so they grew on a wide card and shrank on a narrow one.
 
 ### Statistics
 
