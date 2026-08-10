@@ -6,7 +6,19 @@
  */
 
 import { log } from './utils';
-import { STATISTICS_TYPES, DEFAULT_STATISTICS_TYPES } from './const';
+import {
+  STATISTICS_TYPES,
+  DEFAULT_STATISTICS_TYPES,
+  GRID_ROW_HEIGHT,
+  GRID_ROW_GAP,
+  MASONRY_SIZE_UNIT,
+  HEADER_HEIGHT_EM,
+  STATE_HEIGHT_EM,
+  LEGEND_HEIGHT_EM,
+  INFO_HEIGHT_EM,
+  CARD_PADDING,
+  MIN_GRAPH_HEIGHT,
+} from './const';
 
 /**
   * Check if a value is a valid number
@@ -173,9 +185,75 @@ const getStatisticsType = (stats, requested) => {
   return DEFAULT_STATISTICS_TYPES.find(type => available.includes(type)) || available[0];
 };
 
+/**
+ * Height of a card in pixels, for a given graph height.
+ * Used to tell HA which size a card would like to take.
+ * @param {object} config A built config
+ * @param {number} [graphHeight] A graph height to count with
+ * @returns {number} Height in pixels
+ */
+const getCardHeight = (config, graphHeight = config.height) => {
+  const show = config.show || {};
+  // "ha-card" padding-top; each "ha-card > div" adds its own padding-bottom
+  let height = CARD_PADDING;
+  if (show.name || show.icon) {
+    height += config.font_size_header * HEADER_HEIGHT_EM + CARD_PADDING;
+  }
+  if (show.state) {
+    height += config.font_size * STATE_HEIGHT_EM + CARD_PADDING;
+  }
+  if (show.graph) {
+    height += graphHeight + CARD_PADDING;
+    if (show.legend && (config.entities || []).length > 1) {
+      height += config.font_size * LEGEND_HEIGHT_EM;
+    }
+  }
+  if (show.extrema) {
+    height += config.font_size * INFO_HEIGHT_EM + CARD_PADDING;
+  }
+  return height;
+};
+
+/**
+ * Number of grid rows a height takes in a Sections view.
+ * @param {number} height Height in pixels
+ * @returns {number} Number of rows, at least 1
+ */
+const getGridRows = height => Math.max(
+  1,
+  Math.round((height + GRID_ROW_GAP) / (GRID_ROW_HEIGHT + GRID_ROW_GAP)),
+);
+
+/**
+ * Number of masonry card size units a height takes.
+ * @param {number} height Height in pixels
+ * @returns {number} Number of units, at least 1
+ */
+const getCardSizeUnits = height => Math.max(1, Math.ceil(height / MASONRY_SIZE_UNIT));
+
+/**
+ * Grid options telling HA a desired & a minimal size of a card,
+ * see https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/
+ * @param {object} config A built config
+ * @returns {object} Grid options
+ */
+const getGridOptions = (config) => {
+  const rows = getGridRows(getCardHeight(config));
+  const minRows = getGridRows(getCardHeight(config, config.show.graph ? MIN_GRAPH_HEIGHT : 0));
+  return {
+    rows,
+    min_rows: Math.min(minRows, rows),
+    columns: 12,
+  };
+};
+
 export {
   isNumeric,
   getStatisticsType,
+  getCardHeight,
+  getGridRows,
+  getCardSizeUnits,
+  getGridOptions,
   logStringWarning,
   getFactor,
   getBound,

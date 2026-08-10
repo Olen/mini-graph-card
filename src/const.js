@@ -57,6 +57,22 @@ const Y = 1;
 const V = 2;
 const ONE_HOUR = 1000 * 3600;
 
+// Sections grid: a cell is 56px high with an 8px gap, so N rows take 64*N-8 px.
+const GRID_ROW_HEIGHT = 56;
+const GRID_ROW_GAP = 8;
+// Masonry view: a card size unit is 50px.
+const MASONRY_SIZE_UNIT = 50;
+// A card's chrome, in "em" of a corresponding font size (see style.js):
+// an icon is 1.7em, a state value is 2.4em with a 1.2em line height.
+const HEADER_HEIGHT_EM = 1.7;
+const STATE_HEIGHT_EM = 2.4 * 1.2;
+const LEGEND_HEIGHT_EM = 1.2;
+const INFO_HEIGHT_EM = 1.2;
+// "ha-card" padding-top & a padding-bottom of each "ha-card > div".
+const CARD_PADDING = 16;
+// A graph is allowed to shrink to this height when a card is resized.
+const MIN_GRAPH_HEIGHT = 32;
+
 // Statistics
 const STATISTICS_PERIODS = ['5minute', 'hour', 'day', 'week', 'month', 'year'];
 // "mean" statistics hold mean/min/max, "sum" ones - sum/state/change
@@ -73,6 +89,15 @@ const STATISTICS_PERIOD_FALLBACK = 'month';
 
 export {
   URL_DOCS,
+  GRID_ROW_HEIGHT,
+  GRID_ROW_GAP,
+  MASONRY_SIZE_UNIT,
+  HEADER_HEIGHT_EM,
+  STATE_HEIGHT_EM,
+  LEGEND_HEIGHT_EM,
+  INFO_HEIGHT_EM,
+  CARD_PADDING,
+  MIN_GRAPH_HEIGHT,
   MAX_BARS,
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_SIZE_HEADER,

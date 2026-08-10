@@ -97,7 +97,7 @@ We recommend looking at the [Example usage section](#example-usage) to understan
 | statistics | boolean *or* object |  |  | Read the series from statistics instead of raw history, see [Statistics](#statistics).
 | show | list |  | v0.2.0 | List of UI elements to display/hide, for available items see [available show options](#available-show-options).
 | animate | boolean | `false` | v0.2.0 | Add a reveal animation to the graph.
-| height | number | `150` | v0.0.1 | Set a custom height of the line graph.
+| height | number | `150` | v0.0.1 | Set a desired height of the graph, see [Card size](#card-size).
 | bar_spacing | number | `4` | v0.9.0 | Set the spacing between bars in bar graph. Value `-1` is used to place bars on each other. See [examples](#bar-spacing-examples).
 | bar_spacing_group | number |   | 0.14.0 | Set an additional spacing between bar groups (multiple entities) in bar graph. Fallback to `bar_spacing` if undefined; if `bar_spacing: -1` - then a default `4` value is used. See [examples](#bar-spacing-examples).
 | line_width | number | `5` | v0.0.1 | Set the thickness of the line.
@@ -312,6 +312,21 @@ These buckets are converted later to single point/bar on the graph. Aggregate fu
 | `sum` | v0.9.2 |
 | `delta` | v0.9.4 | Calculates difference between max and min value
 | `diff` | v0.11.0 | Calculates difference between first and last value
+
+### Card size
+
+The card reports its size to Home Assistant, so it is laid out correctly
+without a manual `grid_options` in a Sections view or a `card_mod` height.
+
+- In a **Sections view** `getGridOptions()` reports a desired number of rows,
+  counted from `height` plus whatever the card shows - a header, a state, a
+  legend, extrema. `min_rows` allows the card to be resized smaller. A
+  `grid_options` in a config still wins over both.
+- In a **Masonry view** `getCardSize()` reports the same height in 50px units,
+  instead of a fixed `3` as before.
+
+`height` is a *desired* height, not a fixed one: it decides which cell the card
+asks for. A card placed in a cell of a different size follows the cell.
 
 ### Statistics
 

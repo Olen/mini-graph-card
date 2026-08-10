@@ -27,7 +27,9 @@ import {
   STATISTICS_PERIOD_THRESHOLDS,
   STATISTICS_PERIOD_FALLBACK,
 } from './const';
-import { isNumeric, getStatisticsType } from './others';
+import {
+  isNumeric, getStatisticsType, getCardHeight, getCardSizeUnits, getGridOptions,
+} from './others';
 import {
   getMin, getAvg, getMax,
   getMilli,
@@ -2005,7 +2007,13 @@ class MiniGraphCard extends LitElement {
   }
 
   getCardSize() {
-    return 3;
+    if (!this.config) return 3;
+    return getCardSizeUnits(getCardHeight(this.config));
+  }
+
+  getGridOptions() {
+    if (!this.config) return {};
+    return getGridOptions(this.config);
   }
 }
 
