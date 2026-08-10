@@ -1,6 +1,11 @@
 import { log } from './utils';
 import { NBSP } from './const';
 
+// Whether a language uses AM/PM, per language; resolving it builds a formatter
+const hour12Cache = new Map();
+// A browser time zone, resolved once per session
+let browserTimeZoneCache;
+
 /**
  * HA Frontend time format settings
  */
@@ -88,10 +93,15 @@ const useAmPm = (localeOptions, hour24) => {
 
     // check for some languages
     let isHour12 = false;
-    try {
-      isHour12 = Intl.DateTimeFormat(testLanguage).resolvedOptions().hour12 === true;
-    } catch (e) {
-      log('useAmPm(): error');
+    if (hour12Cache.has(testLanguage)) {
+      isHour12 = hour12Cache.get(testLanguage);
+    } else {
+      try {
+        isHour12 = Intl.DateTimeFormat(testLanguage).resolvedOptions().hour12 === true;
+      } catch (e) {
+        log('useAmPm(): error');
+      }
+      hour12Cache.set(testLanguage, isHour12);
     }
 
     // try testing a "Date" object
@@ -114,12 +124,16 @@ const useAmPm = (localeOptions, hour24) => {
  * @returns {string} Resolved time zone
  */
 const resolveTimeZone = (option, serverTimeZone) => {
-  // attempting to determine a browser time zone from Intl
-  const browserTimeZone = (typeof Intl !== 'undefined'
-    && Intl.DateTimeFormat
-    && Intl.DateTimeFormat().resolvedOptions)
-    ? Intl.DateTimeFormat().resolvedOptions().timeZone
-    : null;
+  // attempting to determine a browser time zone from Intl; it does not change
+  // while a page is open, so it is resolved once
+  if (browserTimeZoneCache === undefined) {
+    browserTimeZoneCache = (typeof Intl !== 'undefined'
+      && Intl.DateTimeFormat
+      && Intl.DateTimeFormat().resolvedOptions)
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : null;
+  }
+  const browserTimeZone = browserTimeZoneCache;
   const timeZone = (option === TimeZone.local)
     ? browserTimeZone || serverTimeZone || 'UTC'
     : serverTimeZone || browserTimeZone || 'UTC';
@@ -355,6 +369,30 @@ const composeTimeString = (
 };
 
 /**
+ * Cache of Intl.DateTimeFormat instances.
+ * Constructing one resolves locale data & costs far more than formatting with
+ * it, and a card formats a value per point on every render. The key space is
+ * bounded by the locales & option sets a card actually uses.
+ */
+const dateTimeFormatCache = new Map();
+
+/**
+ * An Intl.DateTimeFormat for a locale & options, constructed once.
+ * @param {string|undefined} locale A locale, or undefined for a system one
+ * @param {Intl.DateTimeFormatOptions} options Format options
+ * @returns {Intl.DateTimeFormat} A formatter
+ */
+const getDateTimeFormat = (locale, options) => {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let formatter = dateTimeFormatCache.get(key);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat(locale, options);
+    dateTimeFormatCache.set(key, formatter);
+  }
+  return formatter;
+};
+
+/**
  * Returns a formatted string for a date value dependently on a locale,
  * time zone & formatting options
  * @param {Date} dateObj "Date" object representing a date & time value
@@ -382,7 +420,7 @@ const formatDate = (
 
   if (!datetime_format) {
     // follow global HA Frontend settings
-    formatter = new Intl.DateTimeFormat(localeDate, datetimeFormatDateOptions);
+    formatter = getDateTimeFormat(localeDate, datetimeFormatDateOptions);
     if (localeOptions.date_format === DateFormat.language
         || localeOptions.date_format === DateFormat.system) {
       // use default auto-generated presentation
@@ -403,12 +441,12 @@ const formatDate = (
   // use formatting settings from a card config
   if ((datetimeFormatFromCfgParsed && datetimeFormatFromCfgParsed.day_weekday)
     || !datetimeFormatFromCfgParsed) {
-    formatter = new Intl.DateTimeFormat(localeDate, datetimeFormatDateOptions);
+    formatter = getDateTimeFormat(localeDate, datetimeFormatDateOptions);
     formatted = formatter.format(dateObj);
     return formatted;
   }
 
-  formatter = new Intl.DateTimeFormat(undefined, datetimeFormatDateOptions);
+  formatter = getDateTimeFormat(undefined, datetimeFormatDateOptions);
   parts = formatter.formatToParts(dateObj);
   // re-compose a string with a required order
   composed = composeDateString(
@@ -445,7 +483,7 @@ const formatTime = (
 
   if (!datetime_format) {
     // follow global HA Frontend settings
-    formatter = new Intl.DateTimeFormat(localeTime, datetimeFormatTimeOptions);
+    formatter = getDateTimeFormat(localeTime, datetimeFormatTimeOptions);
     formatted = formatter.format(dateObj);
     return formatted;
   }
@@ -453,12 +491,12 @@ const formatTime = (
   // use formatting settings from a card config
   if ((datetimeFormatFromCfgParsed && datetimeFormatFromCfgParsed.day_weekday)
     || !datetimeFormatFromCfgParsed) {
-    formatter = new Intl.DateTimeFormat(localeTime, datetimeFormatTimeOptions);
+    formatter = getDateTimeFormat(localeTime, datetimeFormatTimeOptions);
     formatted = formatter.format(dateObj);
     return formatted;
   }
 
-  formatter = new Intl.DateTimeFormat(undefined, datetimeFormatTimeOptions);
+  formatter = getDateTimeFormat(undefined, datetimeFormatTimeOptions);
   const parts = formatter.formatToParts(dateObj);
   // re-compose a string with a possibly needed fix for "hour" value
   const composed = composeTimeString(
