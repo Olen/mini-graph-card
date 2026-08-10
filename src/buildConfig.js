@@ -3,6 +3,8 @@ import {
   MAX_BARS,
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_SIZE_HEADER,
+  ALIGN_STATE,
+  DEFAULT_ALIGN_STATE,
   DEFAULT_BAR_SPACING,
   DEFAULT_GRAPH_HEIGHT,
   DEFAULT_MARGIN,
@@ -19,6 +21,7 @@ import {
   checkBounds,
   checkColorThresholds,
   checkStatistics,
+  checkStringOption,
 } from './checkOption';
 import { getFactor } from './others';
 
@@ -165,6 +168,9 @@ export default (config) => {
   // check numeric options for validity
   conf.font_size = checkNumericOption(conf, 'font_size', 100, 0.1, undefined, true);
   conf.font_size_header = checkNumericOption(conf, 'font_size_header', DEFAULT_FONT_SIZE_HEADER, 0.1, undefined, true);
+  conf.font_size_state = checkNumericOption(conf, 'font_size_state', undefined, 0.1, undefined, true);
+
+  conf.align_state = checkStringOption(conf, 'align_state', ALIGN_STATE, DEFAULT_ALIGN_STATE);
 
   conf.bar_spacing = checkNumericOption(conf, 'bar_spacing', DEFAULT_BAR_SPACING, -1, undefined, true);
   conf.bar_spacing_group = checkNumericOption(conf, 'bar_spacing_group', undefined, 0, undefined, true);

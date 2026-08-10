@@ -186,6 +186,14 @@ const getStatisticsType = (stats, requested) => {
 };
 
 /**
+ * Is a state pinned to a corner of a card (& thus out of a flow)?
+ * @param {string} [alignState] An align_state option
+ * @returns {boolean} True if a state takes no row of its own
+ */
+const isStateInCorner = alignState => typeof alignState === 'string'
+  && (alignState.startsWith('top-') || alignState.startsWith('bottom-'));
+
+/**
  * Height of a card in pixels, for a given graph height.
  * Used to tell HA which size a card would like to take.
  * @param {object} config A built config
@@ -199,7 +207,8 @@ const getCardHeight = (config, graphHeight = config.height) => {
   if (show.name || show.icon) {
     height += config.font_size_header * HEADER_HEIGHT_EM + CARD_PADDING;
   }
-  if (show.state) {
+  if (show.state && !isStateInCorner(config.align_state)) {
+    // a corner state is out of a flow & takes no height of its own
     height += config.font_size * STATE_HEIGHT_EM + CARD_PADDING;
   }
   if (show.graph) {
@@ -250,6 +259,7 @@ const getGridOptions = (config) => {
 export {
   isNumeric,
   getStatisticsType,
+  isStateInCorner,
   getCardHeight,
   getGridRows,
   getCardSizeUnits,

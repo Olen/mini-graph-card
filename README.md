@@ -112,9 +112,10 @@ We recommend looking at the [Example usage section](#example-usage) to understan
 | datetime_format | string | | v.0.14.0 | Set a custom [format](#custom-format-for-datetime-values) for datetime values.
 | font_size | number | `100` | v0.0.3 | Adjust the font size of the state, as percentage of the original size.
 | font_size_header | number | `14` | v0.3.1 | Adjust the font size of the header, size in pixels.
+| font_size_state | number |  |  | Adjust the font size of the current state, size in pixels. The unit follows at the same proportion as by default.
 | align_header | string | `default` | v0.2.0 | Set the alignment of the header, `left`, `right`, `center` or `default`.
 | align_icon | string | `right` | v0.2.0 | Set the alignment of the icon, `left`, `right` or `state`.
-| align_state | string | `left` | v0.2.0 | Set the alignment of the current state, `left`, `right` or `center`.
+| align_state | string | `left` | v0.2.0 | Set the alignment of the current state: `left`, `right`, `center`, or `top-left`, `top-right`, `bottom-left`, `bottom-right` to pin it to a corner of the card, see [Card size](#card-size).
 | lower_bound | number *or* string |  | v0.2.3 | Set a fixed lower bound for the graph Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
 | upper_bound | number *or* string |  | v0.2.3 | Set a fixed upper bound for the graph Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
 | min_bound_range | number |  | v0.x.x | Applied after everything, makes sure there's a minimum range that the Y-axis will have. Useful for not making small changes look large because of scale.
@@ -324,6 +325,17 @@ without a manual `grid_options` in a Sections view or a `card_mod` height.
   `grid_options` in a config still wins over both.
 - In a **Masonry view** `getCardSize()` reports the same height in 50px units,
   instead of a fixed `3` as before.
+
+A state pinned to a corner with `align_state` is taken out of the flow, so it
+takes no row of its own and the graph gets that space:
+
+```yaml
+type: custom:mini-graph-card
+align_state: top-right
+font_size_state: 21
+entities:
+  - sensor.outside_temperature
+```
 
 `height` is a *desired* height, not a fixed one: it decides which cell the card
 asks for, and a card placed in a cell of a different size follows the cell. In a

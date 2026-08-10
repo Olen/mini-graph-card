@@ -23,6 +23,7 @@ import {
   ONE_HOUR,
   DEFAULT_GRAPH_HEIGHT,
   DEFAULT_GRAPH_WIDTH,
+  STATE_UOM_RATIO,
   DEFAULT_MARGIN,
   NBSP,
   STATISTICS_PERIOD_THRESHOLDS,
@@ -504,6 +505,7 @@ class MiniGraphCard extends LitElement {
       <div
         class="states flex"
         loc="${this.config.align_state}"
+        style="${this.getStateFontSize()}"
       >
         ${this.renderState(0)}
         <div class="states--secondary">
@@ -512,6 +514,17 @@ class MiniGraphCard extends LitElement {
         ${this.config.align_icon === 'state' ? this.renderIcon() : html``}
       </div>
     `;
+  }
+
+  /**
+   * An inline font size for a state value & its unit, if font_size_state is set.
+   * @returns {string} Style string, empty if the option is not set
+   */
+  getStateFontSize() {
+    const size = this.config.font_size_state;
+    if (size === undefined) return '';
+    const uom = Math.round(size * STATE_UOM_RATIO * 100) / 100;
+    return `--mcg-state-value-size: ${size}px; --mcg-state-uom-size: ${uom}px;`;
   }
 
   /**

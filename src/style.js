@@ -134,6 +134,25 @@ const style = css`
   .states[loc="center"] {
     justify-content: space-evenly;
   }
+  /* A corner state is taken out of a flow & pinned to a card, so it takes no
+     row of its own - a graph gets that space instead. "ha-card" is the
+     containing block (position: relative), and its padding box starts at the
+     border, hence the 16px offsets matching a card's own padding. */
+  .states[loc^="top-"],
+  .states[loc^="bottom-"] {
+    position: absolute;
+    margin: 0;
+    padding: 0;
+    width: auto;
+    z-index: 1;
+  }
+  .states[loc^="top-"] { top: 16px; }
+  .states[loc^="bottom-"] { bottom: 16px; }
+  .states[loc$="-left"] { left: 16px; }
+  .states[loc$="-right"] { right: 16px; }
+  .states[loc$="-right"] .states--secondary {
+    align-items: flex-end;
+  }
   .states[loc="right"] > .state {
     margin-left: auto;
     order: 2;
@@ -204,7 +223,7 @@ const style = css`
   }
   .state__value {
     display: inline-block;
-    font-size: 2.4em;
+    font-size: var(--mcg-state-value-size, 2.4em);
     line-height: 1.2em;
   }
   .state[reversed="true"] .state__value {
@@ -214,7 +233,7 @@ const style = css`
     flex: 1;
     align-self: flex-end;
     display: inline-block;
-    font-size: 1.4em;
+    font-size: var(--mcg-state-uom-size, 1.4em);
     font-weight: 400;
     line-height: 1.6em;
     margin-top: .1em;

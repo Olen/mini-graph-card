@@ -2,6 +2,14 @@ const URL_DOCS = 'https://github.com/kalkih/mini-graph-card/blob/master/README.m
 const MAX_BARS = 96;
 const DEFAULT_FONT_SIZE = 14;
 const DEFAULT_FONT_SIZE_HEADER = 14;
+// A state value is 2.4em & its unit 1.4em, see style.js
+const STATE_UOM_RATIO = 1.4 / 2.4;
+// "top-*"/"bottom-*" take a state out of a flow & pin it to a corner of a card
+const ALIGN_STATE = [
+  'left', 'right', 'center',
+  'top-left', 'top-right', 'bottom-left', 'bottom-right',
+];
+const DEFAULT_ALIGN_STATE = 'left';
 const DEFAULT_BAR_SPACING = 4;
 const DEFAULT_GRAPH_HEIGHT = 100;
 // A width a graph is drawn in until a card is measured
@@ -103,6 +111,9 @@ export {
   MAX_BARS,
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_SIZE_HEADER,
+  STATE_UOM_RATIO,
+  ALIGN_STATE,
+  DEFAULT_ALIGN_STATE,
   DEFAULT_BAR_SPACING,
   DEFAULT_GRAPH_HEIGHT,
   DEFAULT_GRAPH_WIDTH,

@@ -7,7 +7,7 @@
 
 import { expect, describe, it } from 'vitest';
 import {
-  getCardHeight, getGridRows, getCardSizeUnits, getGridOptions,
+  getCardHeight, getGridRows, getCardSizeUnits, getGridOptions, isStateInCorner,
 } from '../others';
 import { GRID_ROW_HEIGHT, GRID_ROW_GAP, CARD_PADDING } from '../const';
 
@@ -45,6 +45,21 @@ describe('getGridRows', () => {
   [0, -100].forEach((height) => {
     it(`getGridRows: [${height}] is still a row`, () => {
       expect(getGridRows(height)).toBe(1);
+    });
+  });
+});
+
+describe('isStateInCorner', () => {
+
+  ['top-left', 'top-right', 'bottom-left', 'bottom-right'].forEach((align) => {
+    it(`isStateInCorner: [${align}] is out of a flow`, () => {
+      expect(isStateInCorner(align)).toBe(true);
+    });
+  });
+
+  ['left', 'right', 'center', undefined, null, 123].forEach((align) => {
+    it(`isStateInCorner: [${JSON.stringify(align)}] takes a row`, () => {
+      expect(isStateInCorner(align)).toBe(false);
     });
   });
 });
@@ -114,6 +129,13 @@ describe('getCardHeight', () => {
     expect(getCardHeight(noGraph)).toBe(CARD_PADDING);
   });
 
+  it('getCardHeight: a corner state takes no row', () => {
+    const inFlow = makeConfig({ state: true }, { align_state: 'right' });
+    const corner = makeConfig({ state: true }, { align_state: 'top-right' });
+    expect(getCardHeight(corner)).toBe(CARD_PADDING);
+    expect(getCardHeight(inFlow)).toBeGreaterThan(getCardHeight(corner));
+  });
+
   it('getCardHeight: extrema adds an info row', () => {
     expect(getCardHeight(makeConfig({ extrema: true })))
       .toBeGreaterThan(getCardHeight(makeConfig()));
@@ -140,6 +162,16 @@ describe('getGridOptions', () => {
   it('getGridOptions: min_rows never exceeds rows', () => {
     const options = getGridOptions(makeConfig({ graph: 'line' }, { height: 1 }));
     expect(options.min_rows).toBeLessThanOrEqual(options.rows);
+  });
+
+  it('getGridOptions: a corner state needs fewer rows', () => {
+    // a height where a state row crosses a row boundary; rounding can
+    // otherwise land both on the same number of rows
+    const inFlow = getGridOptions(makeConfig({ graph: 'line', state: true }, { height: 300 }));
+    const corner = getGridOptions(makeConfig(
+      { graph: 'line', state: true }, { height: 300, align_state: 'top-right' },
+    ));
+    expect(corner.rows).toBeLessThan(inFlow.rows);
   });
 
   it('getGridOptions: a graph-less card has no shrinking room', () => {

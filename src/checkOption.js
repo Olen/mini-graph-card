@@ -96,6 +96,30 @@ const checkIntegerOption = (
 };
 
 /**
+ * Check that an option is one of the allowed values;
+ * fallback to a default value otherwise.
+ * @param {object} config Config object
+ * @param {string} option Name of option to be checked
+ * @param {Array<string>} allowed Allowed values
+ * @param {string} defaultValue Default fallback value
+ * @returns {string} Cleared value
+ */
+const checkStringOption = (config, option, allowed, defaultValue) => {
+  const value = config[option];
+
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+  if (allowed.includes(value)) {
+    return value;
+  }
+
+  const invalidValue = typeof value === 'object' ? JSON.stringify(value) : value;
+  log(`Invalid option ${option}: [${invalidValue}] (expected one of ${allowed.join(', ')}); adjusting value to ${defaultValue}`);
+  return defaultValue;
+};
+
+/**
  * Check if a bound option is valid (accounting for an optional "~" prefix).
  * @param {object} config Config object
  * @param {string} option Name of the option to be checked
@@ -258,6 +282,7 @@ const checkStatistics = (config, index) => {
 
 export {
   checkStatistics,
+  checkStringOption,
   checkNumericOption,
   checkIntegerOption,
   checkBoundOption,
