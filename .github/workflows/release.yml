@@ -70,6 +70,51 @@ jobs:
         run: npm run build
         if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
 
+      # GitHub's own release notes list merged PRs, and this branch is committed
+      # to directly - they come out empty. Build them from the commits instead,
+      # which are conventional ("feat:", "fix:", ...).
+      - name: "📝 Build the release notes"
+        run: |
+          PREV=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          if [ -n "$PREV" ]; then RANGE="$PREV..HEAD"; else RANGE="HEAD"; fi
+          emit() {
+            OUT=$(git log --no-merges --format='%s' $RANGE \
+              | grep -E "^($2)(\(.+\))?!?: " \
+              | sed -E "s/^($2)(\(.+\))?!?: //" \
+              | sed 's/^./\U&/' | sed 's/^/- /')
+            [ -n "$OUT" ] && printf '### %s\n\n%s\n\n' "$1" "$OUT"
+            return 0
+          }
+          # One heading for all of them, and drop commit trailers & blank lines
+          BREAKING=$(git log --no-merges --format='%H%x09%s' $RANGE \
+            | while IFS="$(printf '\t')" read -r SHA SUBJECT; do
+              BODY=$(git log -1 --format='%b' "$SHA")
+              case "$BODY" in
+                *"BREAKING CHANGE:"*)
+                  printf -- '- **%s**\n' "${SUBJECT#*: }"
+                  echo "$BODY" | awk '/^BREAKING CHANGE:/{f=1} f' \
+                    | grep -vE '^[A-Za-z-]+-[Bb]y: ' \
+                    | grep -v '^[[:space:]]*$' \
+                    | sed 's/^BREAKING CHANGE: //' | sed 's/^/  /'
+                  ;;
+              esac
+            done)
+          {
+            [ -n "$BREAKING" ] && printf '### ⚠️ Breaking changes\n\n%s\n\n' "$BREAKING"
+            emit "Features" "feat"
+            emit "Fixes" "fix"
+            emit "Performance" "perf"
+            emit "Documentation" "docs"
+            emit "Internal" "test|ci|chore|refactor|style|build"
+            if [ -n "$PREV" ]; then
+              echo "**Full changelog**: https://github.com/$GITHUB_REPOSITORY/compare/$PREV...v$VERSION"
+            fi
+          } > release-notes.md
+          cat release-notes.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        if: steps.check_package.outputs.changed == 'true' && steps.check_tag.outputs.exists != 'true'
+
       - name: "🏷️ Create the tag"
         uses: rickstaa/action-create-tag@v1
         with:
@@ -84,7 +129,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ contains(steps.version.outputs.version, 'beta') }}
-          generate_release_notes: true
+          body_path: release-notes.md
           name: "Version ${{ steps.version.outputs.version }}"
           tag_name: "v${{ steps.version.outputs.version }}"
           files: dist/mini-graph-card-bundle.js

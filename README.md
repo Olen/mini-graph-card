@@ -19,6 +19,67 @@ The card works with entities from within the **sensor** & **binary_sensor** doma
 
 ![Preview](https://user-images.githubusercontent.com/457678/52977264-edf34980-33cc-11e9-903b-cee43b307ed8.png)
 
+## What this fork changes
+
+Everything below is on top of upstream `dev`, which itself carries a lot that
+has not been released - the last stable upstream release is v0.13.0.
+
+### New options
+
+| Option | What it does |
+|--------|--------------|
+| [`statistics`](#statistics) | Read a series from Home Assistant's statistics instead of raw history. Pre-aggregated server side, so a wide graph costs a fraction of the rows: a 14-day dashboard here went from ~13s to ~1s. Also adds the `change` type and a `year` period, and picks a type the entity actually has. ([upstream PR #1423](https://github.com/kalkih/mini-graph-card/pull/1423)) |
+| [`align_state`](#card-size) corners | `top-left`, `top-right`, `bottom-left`, `bottom-right` pin the current state to a corner, out of the flow, so it takes no row of its own and the graph gets the space. ([upstream #1153](https://github.com/kalkih/mini-graph-card/issues/1153)) |
+| `font_size_state` | Size the current state on its own, without scaling extrema and axis labels along with it. ([upstream #752](https://github.com/kalkih/mini-graph-card/issues/752)) |
+
+### The card sizes itself
+
+The card implements `getGridOptions()`, so Home Assistant lays it out from
+`height` and whatever else it shows, and it fills the cell it is given instead
+of leaving dead space. A graph is redrawn for the size it really got, so a
+`viewBox` matches its element 1:1 and nothing is scaled. `getCardSize()`
+counts the same height instead of returning a fixed `3`.
+
+In practice: no more `grid_options` and `card_mod` heights to make cards line
+up. See [Card size](#card-size). ([upstream #1111](https://github.com/kalkih/mini-graph-card/issues/1111),
+and where [#1155](https://github.com/kalkih/mini-graph-card/pull/1155) /
+[#1199](https://github.com/kalkih/mini-graph-card/pull/1199) were heading)
+
+### Fixes
+
+- `aggregate_func: median` sorted the items rather than their states, so every
+  comparison was `NaN` and the list was never sorted: it returned the middle
+  value **in time order**. Broken since v0.11.0.
+- A graph could not shrink into its card and was cut off at the bottom.
+- A single-entity card reserved 19.6px on the right for a states container that
+  was never filled.
+- `npm run build` failed on a clean checkout, because it runs the linter and
+  the linter did not pass.
+
+### Faster
+
+`Intl.DateTimeFormat` is built once per locale and options instead of on every
+call. A card formats a timestamp per tooltip, axis label and extrema entry, on
+every render. The test suite - almost entirely datetime formatting - went from
+9.0s to 1.7s.
+
+### Breaking changes
+
+- **`height` is a desired height, not a fixed one.** It decides which cell the
+  card asks for; a card in a cell of another size follows the cell. A Masonry
+  view is unchanged.
+- **`line_width`, `bar_spacing` and the point radius are in real pixels.** They
+  used to be units of a 500-wide drawing stretched to the card, so they grew on
+  a wide card and shrank on a narrow one.
+- **`getCardSize()` no longer returns a fixed `3`**, so cards take a different
+  amount of space in a Masonry view.
+
+### Development
+
+The tests upstream ships are disabled and cannot be run where they are
+committed. Here they run with `npm test` (7800+ tests, ~2s) in any timezone,
+and CI runs lint, tests and a build on every push.
+
 ## Install
 
 > [!IMPORTANT]
@@ -68,7 +129,7 @@ If you configure Lovelace via YAML, add a reference inside your
 
   ```yaml
   resources:
-    - url: /local/mini-graph-card-bundle.js?v=2026.8.2
+    - url: /local/mini-graph-card-bundle.js?v=2026.8.3
       type: module
   ```
 
@@ -98,7 +159,7 @@ know about.
 
   ```yaml
   resources:
-    - url: /local/mini-graph-card-bundle.js?v=2026.8.2
+    - url: /local/mini-graph-card-bundle.js?v=2026.8.3
       type: module
   ```
 
