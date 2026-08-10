@@ -21,50 +21,71 @@ The card works with entities from within the **sensor** & **binary_sensor** doma
 
 ## Install
 
-### HACS (recommended)
+> [!IMPORTANT]
+> This fork registers the same card name, `custom:mini-graph-card`. **Remove or
+> uninstall the official card first** - two copies both define
+> `<mini-graph-card>`, and whichever loads second is ignored, so you may be
+> testing the one you did not mean to. In HACS: uninstall *mini-graph-card*,
+> and delete any leftover `www/community/mini-graph-card/` files, including
+> `mini-graph-card-bundle.js.gz` (Home Assistant serves the `.gz` in preference
+> to the `.js`, so a stale one keeps being used).
 
-This card is available in [HACS](https://hacs.xyz/) (Home Assistant Community Store).
+### HACS custom repository (recommended)
 
-<small>*HACS is a third party community store and is not included in Home Assistant out of the box.*</small>
+1. HACS → three-dot menu → **Custom repositories**.
+2. Repository: `https://github.com/Olen/mini-graph-card`, type: **Dashboard**
+   (called *Lovelace* in older HACS versions).
+3. Install **mini-graph-card** from the list, and reload your browser.
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=kalkih&repository=mini-graph-card)
+HACS installs the bundle to `/hacsfiles/mini-graph-card/mini-graph-card-bundle.js`
+and adds the resource for you.
 
 ### Manual install
 
-1. Download and copy `mini-graph-card-bundle.js` from the [latest release](https://github.com/kalkih/mini-graph-card/releases/latest) into your `config/www` directory.
-
-2. Add the resource reference as decribed below.
-
+1. Download `mini-graph-card-bundle.js` from the
+   [latest release](https://github.com/Olen/mini-graph-card/releases/latest)
+   into your `config/www` directory.
+2. Add the resource reference as described below.
 
 ### CLI install
 
 1. Move into your `config/www` directory.
-
-2. Grab `mini-graph-card-bundle.js`:
+2. Grab the bundle:
 
   ```console
-  $ wget https://github.com/kalkih/mini-graph-card/releases/download/v0.13.0/mini-graph-card-bundle.js
+  $ wget $(curl -s https://api.github.com/repos/Olen/mini-graph-card/releases/latest \
+      | grep browser_download_url | cut -d '"' -f 4)
   ```
 
-3. Add the resource reference as decribed below.
+3. Add the resource reference as described below.
 
 ### Add resource reference
 
-If you configure Lovelace via YAML, add a reference to `mini-graph-card-bundle.js` inside your `configuration.yaml`:
+Not needed for a HACS install - HACS registers the resource itself.
+
+If you configure Lovelace via YAML, add a reference inside your
+`configuration.yaml`:
 
   ```yaml
   resources:
-    - url: /local/mini-graph-card-bundle.js?v=0.13.0
+    - url: /local/mini-graph-card-bundle.js?v=2026.8.2
       type: module
   ```
 
 Else, if you prefer the graphical editor, use the menu to add the resource:
 
-1. Make sure, advanced mode is enabled in your user profile (click on your user name to get there)
-2. Navigate to Configuration -> Lovelace Dashboards -> Resources Tab. Hit orange (+) icon
+1. Make sure advanced mode is enabled in your user profile (click on your user name to get there)
+2. Navigate to Settings -> Dashboards -> Resources tab. Hit the orange (+) icon
 3. Enter URL `/local/mini-graph-card-bundle.js` and select type "JavaScript Module".
-(Use `/hacsfiles/mini-graph-card/mini-graph-card-bundle.js` and select "JavaScript Module" for HACS install)
-4. Restart Home Assistant.
+(Use `/hacsfiles/mini-graph-card/mini-graph-card-bundle.js` for a HACS install)
+4. Reload your browser.
+
+### Going back to the official card
+
+Uninstall this one in HACS, remove the custom repository, then install
+*mini-graph-card* from HACS as usual. The card config itself needs no changes -
+unless you used an option this fork added, which the official card does not
+know about.
 
 ## Updating
 **If you have a version older than v0.0.8 installed, please delete the current files and follow the installation instructions again.**
@@ -77,7 +98,7 @@ Else, if you prefer the graphical editor, use the menu to add the resource:
 
   ```yaml
   resources:
-    - url: /local/mini-graph-card-bundle.js?v=0.13.0
+    - url: /local/mini-graph-card-bundle.js?v=2026.8.2
       type: module
   ```
 
