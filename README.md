@@ -327,7 +327,10 @@ without a manual `grid_options` in a Sections view or a `card_mod` height.
   instead of a fixed `3` as before.
 
 A state pinned to a corner with `align_state` is taken out of the flow, so it
-takes no row of its own and the graph gets that space:
+takes no row of its own and the graph gets that space. It overlays the card, so
+`top-right` is the one that fits alongside a header; `top-left` shares its row
+with the name and icon, and a `bottom-*` state sits over the graph. Combine
+those with `show.name: false` or a series that stays clear of that corner:
 
 ```yaml
 type: custom:mini-graph-card

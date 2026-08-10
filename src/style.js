@@ -131,6 +131,11 @@ const style = css`
     align-self: center;
     margin-left: 0;
   }
+  /* The gap used to come from the "states--secondary" container, which was
+     rendered even when empty; keep it where the icon follows a state. */
+  .states > .state + .icon {
+    margin-left: 1.4em;
+  }
   .states[loc="center"] {
     justify-content: space-evenly;
   }
@@ -162,6 +167,15 @@ const style = css`
   .states[loc^="bottom-"] { bottom: 16px; }
   .states[loc$="-left"] { justify-content: flex-start; }
   .states[loc$="-right"] { justify-content: flex-end; }
+  /* Mirror a right corner: an icon leads, and the gap goes on its other side */
+  .states[loc$="-left"] > .icon {
+    order: -1;
+    margin-left: 0;
+    margin-right: 1.4em;
+  }
+  .states[loc$="-left"] > .state + .icon {
+    margin-left: 0;
+  }
   .states[loc$="-right"] .states--secondary {
     align-items: flex-end;
   }
