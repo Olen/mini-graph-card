@@ -1,8 +1,5 @@
 /**
  * Tests for checkColorThresholds().
- *
- * The file is disabled (renamed to *.dis) & thus is not used during a build process;
- * remove the "dis" extension to use it locally in your VSCode devcontainer.
  */
 
 import { expect, describe, it } from 'vitest';

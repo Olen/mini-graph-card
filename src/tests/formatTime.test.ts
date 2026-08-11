@@ -1,9 +1,6 @@
 /**
  * Tests for formatDateTime().
  *
- * The file is disabled (renamed to *.dis) & thus is not used during a build process;
- * remove the "dis" extension to use it locally in your VSCode devcontainer.
- *
  * Note that tests for "TimeFormat.system" & "DateFormat.system" are commmented out:
  * with these settings a "system locale" is supposed to be used - and it seems to depend on
  * how these tests are executed: for instance, with vitest in a devcontainer in VSCode a system
