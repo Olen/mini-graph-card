@@ -234,9 +234,6 @@ const style = css`
     min-width: 0;
     margin-left: 1.4em;
   }
-  .states--secondary:empty {
-    display: none;
-  }
   .state {
     position: relative;
     display: flex;

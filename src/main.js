@@ -585,6 +585,19 @@ class MiniGraphCard extends LitElement {
   * Renders states
   * @returns {TemplateResult} Lit template result
   */
+  /**
+   * Is there a secondary state to show at all? More than one entity is not
+   * enough: an entity past the first only shows a state when asked to. The
+   * wrapper reserves 1.4em to its left, so rendering an empty one shifts the
+   * primary state - invisibly, until the state is pinned to a right corner.
+   * ":empty" cannot guard it: lit keeps a template's whitespace, so the
+   * element always holds a text node.
+   * @returns {boolean} True if the secondary wrapper has something to hold
+   */
+  get hasSecondaryStates() {
+    return this.config.entities.some((entity, index) => index > 0 && entity.show_state);
+  }
+
   renderStates() {
     if (!this.config.show.state) {
       return html``;
@@ -596,7 +609,7 @@ class MiniGraphCard extends LitElement {
         style="${this.getStateStyle()}"
       >
         ${this.renderState(0)}
-        ${this.config.entities.length > 1 ? html`
+        ${this.hasSecondaryStates ? html`
           <div class="states--secondary">
             ${this.config.entities.slice(1).map((entityConfig, i) => this.renderState(i + 1))}
           </div>` : ''}
