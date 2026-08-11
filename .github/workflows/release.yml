@@ -87,7 +87,7 @@ jobs:
               BODY=$(git log -1 --format='%b' "$SHA")
               case "$BODY" in
                 *"BREAKING CHANGE:"*)
-                  printf -- '- **%s**\n' "${SUBJECT#*: }"
+                  printf -- '- **%s**\n' "$(echo "${SUBJECT#*: }" | sed 's/^./\U&/')"
                   echo "$BODY" | awk '/^BREAKING CHANGE:/{f=1} f' \
                     | grep -vE '^[A-Za-z-]+-[Bb]y: ' \
                     | grep -v '^[[:space:]]*$' \
