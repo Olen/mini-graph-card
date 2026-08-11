@@ -1393,12 +1393,19 @@ class MiniGraphCard extends LitElement {
     return this._visibleLegendsCache;
   }
 
+  /* A series with nothing plotted must not set an axis. Its min & max are 0
+     until it is given data, so an entity with no history in the window would
+     otherwise drag the axis down to zero for every other entity on it. */
   get primaryYaxisSeries() {
-    return this.primaryYaxisEntities.map(entity => this.Graph[entity.index]);
+    return this.primaryYaxisEntities
+      .map(entity => this.Graph[entity.index])
+      .filter(graph => graph && graph.coords.length > 0);
   }
 
   get secondaryYaxisSeries() {
-    return this.secondaryYaxisEntities.map(entity => this.Graph[entity.index]);
+    return this.secondaryYaxisEntities
+      .map(entity => this.Graph[entity.index])
+      .filter(graph => graph && graph.coords.length > 0);
   }
 
   /**
@@ -1882,6 +1889,9 @@ class MiniGraphCard extends LitElement {
 
     if (configVal === undefined) {
       // dynamic boundary depending on values
+      // Math.min() of nothing is Infinity, which is truthy & would sail past
+      // the fallback below - so no series at all has to be handled first.
+      if (series.length === 0) return fallback;
       return Math[type](...series.map(ele => ele[type])) || fallback;
     }
     if (configVal[0] !== '~') {
@@ -1979,14 +1989,15 @@ class MiniGraphCard extends LitElement {
       const period = statistics.period || this.statisticsPeriod();
       const stats = await this.fetchStatistics(entity.entity_id, initStart, end, period);
       if (stats.length === 0) {
-        this.logOnce(`No ${period} statistics for ${entity.entity_id} in a shown period`);
+        this.applyHistory(entity, index, [],
+          `No ${period} statistics for ${entity.entity_id} in a shown period`);
         return;
       }
       // A type is resolved here & not in buildConfig(): only a response tells
       // whether an entity has "mean" or "sum" statistics.
       const type = getStatisticsType(stats, statistics.type);
       if (type === undefined) {
-        this.logOnce(`No statistics types for ${entity.entity_id}`);
+        this.applyHistory(entity, index, [], `No statistics types for ${entity.entity_id}`);
         return;
       }
       if (statistics.type !== undefined && statistics.type !== type) {
@@ -2099,9 +2110,21 @@ class MiniGraphCard extends LitElement {
   /**
    * Pass a [{last_changed, state}] series to the graph;
    * used by both the history & the statistics paths.
+   * @param {string} [reason] Why a series is empty, when the caller knows
+   * better than "there is nothing in the window" - logged instead of it.
    */
-  applyHistory(entity, index, stateHistory) {
-    if (stateHistory.length === 0) return;
+  applyHistory(entity, index, stateHistory, reason) {
+    if (stateHistory.length === 0) {
+      // A series which draws nothing is otherwise indistinguishable from a
+      // misconfigured one, so say so - once, since this runs on every update.
+      this.logOnce(reason
+        || `No values for ${entity && entity.entity_id} in a shown period; nothing is plotted`);
+      // Hand the graph an empty history rather than none at all. A graph which
+      // was never given one is what the loading indicator keys on, so an entity
+      // with nothing in the window used to spin for ever (upstream #1326).
+      this.Graph[index].history = [];
+      return;
+    }
 
     if (this.entity[0] && entity.entity_id === this.entity[0].entity_id) {
       this.updateExtrema(stateHistory);

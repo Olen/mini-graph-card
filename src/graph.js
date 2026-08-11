@@ -81,6 +81,16 @@ export default class Graph {
       this._history = history;
     }
     if (!this._history) return;
+    // An entity can have no state change inside the shown window: its history
+    // was purged, it went unavailable long ago, or its value simply has not
+    // moved. There is nothing to plot & nothing to carry forward into the
+    // empty buckets either - _calcPoints() would take a "last value" off an
+    // undefined item. The history stays SET, so the card can tell this apart
+    // from one which has not loaded yet.
+    if (this._history.length === 0) {
+      this.coords = [];
+      return;
+    }
     this._updateEndTime();
 
     const histGroups = this._history.reduce((res, item) => this._reducer(res, item), []);
