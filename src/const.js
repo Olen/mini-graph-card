@@ -84,6 +84,12 @@ const CARD_PADDING = 16;
 // A graph is allowed to shrink to this height when a card is resized.
 const MIN_GRAPH_HEIGHT = 32;
 
+// How a point is selected on hover:
+// "nearest" - the point nearest to the cursor anywhere in the graph,
+// "point" - only when the cursor is over the point itself (the classic behaviour).
+const HOVER_MODES = ['nearest', 'point'];
+const DEFAULT_HOVER_MODE = 'nearest';
+
 // Statistics
 const STATISTICS_PERIODS = ['5minute', 'hour', 'day', 'week', 'month', 'year'];
 // "mean" statistics hold mean/min/max, "sum" ones - sum/state/change
@@ -132,6 +138,8 @@ export {
   Y,
   V,
   ONE_HOUR,
+  HOVER_MODES,
+  DEFAULT_HOVER_MODE,
   STATISTICS_PERIODS,
   STATISTICS_TYPES,
   DEFAULT_STATISTICS_TYPES,

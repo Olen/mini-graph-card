@@ -5,6 +5,8 @@ import {
   DEFAULT_FONT_SIZE_HEADER,
   ALIGN_STATE,
   DEFAULT_ALIGN_STATE,
+  HOVER_MODES,
+  DEFAULT_HOVER_MODE,
   DEFAULT_BAR_SPACING,
   DEFAULT_GRAPH_HEIGHT,
   DEFAULT_MARGIN,
@@ -171,6 +173,8 @@ export default (config) => {
   conf.font_size_state = checkNumericOption(conf, 'font_size_state', undefined, 0.1, undefined, true);
 
   conf.align_state = checkStringOption(conf, 'align_state', ALIGN_STATE, DEFAULT_ALIGN_STATE);
+
+  conf.hover_mode = checkStringOption(conf, 'hover_mode', HOVER_MODES, DEFAULT_HOVER_MODE);
 
   conf.bar_spacing = checkNumericOption(conf, 'bar_spacing', DEFAULT_BAR_SPACING, -1, undefined, true);
   conf.bar_spacing_group = checkNumericOption(conf, 'bar_spacing_group', undefined, 0, undefined, true);

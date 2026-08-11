@@ -40,6 +40,13 @@ const style = css`
   ha-card:hover .graph__labels.--secondary {
       opacity: 1;
   }
+  /* "show.points: hover" reveals the points while the CARD is hovered, header
+     included. With "hover_mode: nearest" a hovered graph shows the one selected
+     point, so revealing all of them from elsewhere on the card is just noise:
+     reveal the selected entity's group only. */
+  ha-card[points][nearest]:hover .line--points:not([tooltip]) {
+    opacity: 0;
+  }
   ha-card[fill] path {
     stroke-linecap: initial;
     stroke-linejoin: initial;
@@ -341,10 +348,19 @@ const style = css`
   .line[anim="false"] {
     animation: pop .25s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
   }
-  .line--points[inactive],
+  /* A series which is not the selected one. Its line & bars stay faintly
+     visible so a curve can still be followed across the graph: with several
+     entities the selection changes wherever curves cross, and blanking the
+     others outright makes the graph jump about. Its fill & points do go, they
+     only add noise. Set --mcg-inactive-opacity to 0 to hide them as well. */
   .line--rect[inactive],
-  .fill--rect[inactive],
   .bars[inactive] {
+    opacity: var(--mcg-inactive-opacity, 0.2) !important;
+    animation: none !important;
+    transition: all .15s !important;
+  }
+  .line--points[inactive],
+  .fill--rect[inactive] {
     opacity: 0 !important;
     animation: none !important;
     transition: all .15s !important;
@@ -360,6 +376,17 @@ const style = css`
   }
   .line--point:hover {
     fill: var(--mcg-hover, inherit) !important;
+  }
+  /* "hover_mode: nearest": an overlay catching pointer moves anywhere in the
+     graph. A transparent fill is still a painted one, so it does receive
+     events - "fill: none" would not. */
+  .hover-area {
+    fill: transparent;
+    pointer-events: all;
+  }
+  .line--point--selected {
+    pointer-events: none;
+    transition: none;
   }
   .bars {
     animation: pop .25s cubic-bezier(0.215, 0.61, 0.355, 1);

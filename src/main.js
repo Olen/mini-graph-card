@@ -32,7 +32,7 @@ import {
 } from './const';
 import {
   isNumeric, getStatisticsType, getCardHeight, getCardSizeUnits, getGridOptions,
-  getInfoHeight, isStateInCorner,
+  getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
 } from './others';
 import {
   getMin, getAvg, getMax,
@@ -424,6 +424,7 @@ class MiniGraphCard extends LitElement {
         ?group=${config.group}
         ?fill=${config.show.graph && config.show.fill}
         ?points=${config.show.points === 'hover'}
+        ?nearest=${config.hover_mode === 'nearest'}
         ?labels=${config.show.labels === 'hover'}
         ?labels-secondary=${config.show.labels_secondary === 'hover'}
         ?hover=${config.tap_action.action !== 'none'}
@@ -625,8 +626,9 @@ class MiniGraphCard extends LitElement {
       // last "bar" value
       return this.bar[index][this.bar[index].length - 1].value;
     } else if (this.config.show.state === 'last' && this.points[index] && this.points[index].length) {
-      // last "point" value
-      // only if "points" exist (show_points: true)
+      // last "point" value; the coordinates now exist regardless of
+      // "show.points", so this no longer silently falls through to a current
+      // state when the points are not drawn
       return this.points[index][this.points[index].length - 1][V];
     } else if (this.isStaticValue(index)) {
       return this.config.entities[index].static_value;
@@ -935,8 +937,10 @@ class MiniGraphCard extends LitElement {
   * @param {Array} point Point for a particular entity/static value
   * @param {number} index Index of an entry in config.entities
   * @param {number} radius Previously calculated radius of a point
+  * @param {boolean} hoverable Whether the point selects itself on hover
+  * ("hover_mode: point"); with "nearest" the overlay does the selecting
   */
-  renderSvgPoint(point, index, radius) {
+  renderSvgPoint(point, index, radius, hoverable) {
     const color = this.gradient[index]
       ? this.computeColor(point[V], index)
       : 'inherit';
@@ -948,10 +952,79 @@ class MiniGraphCard extends LitElement {
         stroke=${color}
         fill=${color}
         cx=${point[X]} cy=${point[Y]} r=${radius}
-        @mouseover=${() => this.setTooltip(index, point[3], point[V])}
-        @mouseout=${() => (this.tooltip = {})}
+        @mouseover=${hoverable ? () => this.setTooltip(index, point[3], point[V]) : undefined}
+        @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}
       />
     `;
+  }
+
+  /**
+  * Renders a marker for a point selected by "hover_mode: nearest".
+  * The point itself may be hidden ("show.points: false") or, being as small as
+  * a line is wide, hard to tell from its neighbours.
+  * @returns {SVGTemplateResult|undefined} SVG element
+  */
+  renderSvgHoverMarker() {
+    const { entity, index } = this.tooltip;
+    if (this.config.hover_mode !== 'nearest'
+      || this.config.show.graph === 'bar'
+      || entity === undefined) return;
+    const points = this.points[entity];
+    const point = points && points.find(item => item[3] === index);
+    if (!point) return;
+    const radius = getFirstDefinedItem(
+      this.config.entities[entity].line_width,
+      this.config.line_width,
+    );
+    const color = this.computeColor(point[V], entity);
+    return svg`
+      <circle class='line--point--selected'
+        cx=${point[X]} cy=${point[Y]} r=${radius * 1.5}
+        stroke=${color} fill=${color} />`;
+  }
+
+  /**
+  * Renders a transparent overlay covering the whole graph, which captures
+  * pointer moves for "hover_mode: nearest". It has to be the LAST child of the
+  * svg: SVG has no z-index, stacking follows the document order.
+  * @returns {SVGTemplateResult|undefined} SVG element
+  */
+  renderSvgHoverArea() {
+    if (this.config.hover_mode !== 'nearest') return;
+    return svg`
+      <rect class='hover-area'
+        x='0' y='0' width=${this.graphWidth} height=${this.graphHeight}
+        @mousemove=${e => this.handleHover(e)}
+        @mouseleave=${() => (this.tooltip = {})}
+        @touchstart=${e => this.handleHover(e)}
+        @touchmove=${e => this.handleHover(e)}
+        @touchend=${() => (this.tooltip = {})} />`;
+  }
+
+  /**
+  * Selects the point/bar a cursor is pointing at & shows its state.
+  * @param {MouseEvent|TouchEvent} event An event on the hover overlay
+  */
+  handleHover(event) {
+    const svgElement = event.currentTarget.ownerSVGElement;
+    const matrix = svgElement && svgElement.getScreenCTM();
+    if (!matrix) return;
+    const touch = event.touches && event.touches[0];
+    const { x, y } = new DOMPoint(
+      touch ? touch.clientX : event.clientX,
+      touch ? touch.clientY : event.clientY,
+    ).matrixTransform(matrix.inverse());
+
+    if (this.config.show.graph === 'bar') {
+      const hit = findNearestBar(this.bar, x, y);
+      // Re-rendering on every move of a cursor would be wasteful
+      if (!hit || (this.tooltip.entity === hit.entity && this.tooltip.index === hit.index)) return;
+      this.setTooltip(hit.entity, hit.index, hit.bar.value);
+      return;
+    }
+    const hit = findNearestPoint(this.points, x, y);
+    if (!hit || (this.tooltip.entity === hit.entity && this.tooltip.index === hit.point[3])) return;
+    this.setTooltip(hit.entity, hit.point[3], hit.point[V]);
   }
 
   /**
@@ -962,6 +1035,8 @@ class MiniGraphCard extends LitElement {
   */
   renderSvgPoints(points, index) {
     if (!points) return;
+    // The coordinates are always computed, the circles are not always drawn
+    if (!this.config.show.points || this.config.entities[index].show_points === false) return;
     const state = this.entity[index] !== undefined
       ? this.entity[index].state
       : this.isStaticValue(index)
@@ -975,6 +1050,7 @@ class MiniGraphCard extends LitElement {
       this.config.entities[index].line_width,
       this.config.line_width,
     );
+    const hoverable = this.config.hover_mode === 'point';
     return svg`
       <g class='line--points'
         ?tooltip=${this.tooltip.entity === index}
@@ -985,7 +1061,7 @@ class MiniGraphCard extends LitElement {
         fill=${color}
         stroke=${color}
         stroke-width=${radius / 2}>
-        ${points.map(point => this.renderSvgPoint(point, index, radius))}
+        ${points.map(point => this.renderSvgPoint(point, index, radius, hoverable))}
       </g>`;
   }
 
@@ -1067,6 +1143,7 @@ class MiniGraphCard extends LitElement {
   */
   renderSvgBars(bars, index) {
     if (!bars) return;
+    const hoverable = this.config.hover_mode === 'point';
     const items = bars.map((bar, i) => {
       const animation = this.config.animate
         ? svg`
@@ -1078,8 +1155,8 @@ class MiniGraphCard extends LitElement {
       return svg`
         <rect class='bar' x=${bar.x} y=${bar.y}
           height=${bar.height} width=${bar.width} fill=${color}
-          @mouseover=${() => this.setTooltip(index, i, bar.value)}
-          @mouseout=${() => (this.tooltip = {})}>
+          @mouseover=${hoverable ? () => this.setTooltip(index, i, bar.value) : undefined}
+          @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}>
           ${animation}
         </rect>`;
     });
@@ -1139,6 +1216,8 @@ class MiniGraphCard extends LitElement {
           ${this.renderSvgPart(this.bar, this.renderSvgBars, this.config.bar_spacing === -1 && reversed)}
         </g>
         ${this.renderSvgPart(this.points, this.renderSvgPoints, reversed)}
+        ${this.renderSvgHoverMarker()}
+        ${this.renderSvgHoverArea()}
       </svg>`;
   }
 
@@ -1781,9 +1860,9 @@ class MiniGraphCard extends LitElement {
           if (config.entities[i].show_line !== false) this.line[i] = line;
           if (config.show.fill
             && config.entities[i].show_fill !== false) this.fill[i] = this.Graph[i].getFill(line);
-          if (config.show.points && (config.entities[i].show_points !== false)) {
-            this.points[i] = this.Graph[i].getPoints();
-          }
+          // Always computed: "hover_mode: nearest" needs the coordinates even
+          // when the points themselves are not drawn (see renderSvgPoints).
+          this.points[i] = this.Graph[i].getPoints();
           if ((config.color_thresholds.length > 0
             || (config.entities[i].color_thresholds
                 && config.entities[i].color_thresholds.length > 0))

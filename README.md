@@ -31,6 +31,7 @@ has not been released - the last stable upstream release is v0.13.0.
 | [`statistics`](#statistics) | Read a series from Home Assistant's statistics instead of raw history. Pre-aggregated server side, so a long graph fetches orders of magnitude fewer points and gets much faster to load. Also adds the `change` type and a `year` period, and picks a type the entity actually has. ([upstream PR #1423](https://github.com/kalkih/mini-graph-card/pull/1423)) |
 | [`align_state`](#card-size) corners | `top-left`, `top-right`, `bottom-left`, `bottom-right` pin the current state to a corner, out of the flow, so it takes no row of its own and the graph gets the space. ([upstream #1153](https://github.com/kalkih/mini-graph-card/issues/1153)) |
 | `font_size_state` | Size the current state on its own, without scaling extrema and axis labels along with it. ([upstream #752](https://github.com/kalkih/mini-graph-card/issues/752)) |
+| [`hover_mode`](#hovering) | Hover anywhere in the graph to read the nearest value, instead of having to hit a point a few pixels wide. Works with several entities & on a touch screen. ([upstream #1357](https://github.com/kalkih/mini-graph-card/issues/1357)) |
 
 ### The card sizes itself
 
@@ -73,6 +74,12 @@ every render. The test suite - almost entirely datetime formatting - went from
   a wide card and shrank on a narrow one.
 - **`getCardSize()` no longer returns a fixed `3`**, so cards take a different
   amount of space in a Masonry view.
+- **Hovering a graph selects the nearest value** rather than only a point
+  directly under the cursor, see [Hovering](#hovering). Set
+  `hover_mode: point` to get the old behaviour back.
+- **`show.state: last` now works with `show.points: false`.** It reads the last
+  plotted point, and the coordinates only existed when the points were drawn -
+  so it used to silently show the current state instead.
 
 ### Development
 
@@ -211,6 +218,7 @@ We recommend looking at the [Example usage section](#example-usage) to understan
 | font_size_state | number |  |  | Adjust the font size of the current state, size in pixels. The unit follows at the same proportion as by default.
 | align_header | string | `default` | v0.2.0 | Set the alignment of the header, `left`, `right`, `center` or `default`.
 | align_icon | string | `right` | v0.2.0 | Set the alignment of the icon, `left`, `right` or `state`.
+| hover_mode | string | `nearest` | | How a value is picked when hovering the graph: `nearest` selects the point closest to the cursor from anywhere in the graph, `point` only when the cursor is over the point itself. See [Hovering](#hovering).
 | align_state | string | `left` | v0.2.0 | Set the alignment of the current state: `left`, `right`, `center`, or `top-left`, `top-right`, `bottom-left`, `bottom-right` to pin it to a corner of the card, see [Card size](#card-size).
 | lower_bound | number *or* string |  | v0.2.3 | Set a fixed lower bound for the graph Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
 | upper_bound | number *or* string |  | v0.2.3 | Set a fixed upper bound for the graph Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
@@ -446,6 +454,47 @@ matches its element 1:1. `line_width`, `bar_spacing` and a point radius are
 therefore in real pixels; previously they were in units of a 500-wide drawing
 stretched to a card, so they grew on a wide card and shrank on a narrow one.
 
+### Hovering
+
+Hovering a graph shows the value at the point under the cursor. A point is as
+wide as the line, so hitting one means chasing a circle a few pixels across, and
+every miss drops the reading back to the current state - which is the flicker
+in [upstream #1357](https://github.com/kalkih/mini-graph-card/issues/1357).
+
+With the default `hover_mode: nearest` the cursor no longer has to be on a
+point at all:
+
+- **X picks the moment.** Anywhere in the graph, the point nearest the cursor
+  horizontally is selected, so moving straight up or down never changes the
+  time being read.
+- **Y picks the entity.** With several entities, the curve the cursor is
+  closest to wins. An entity whose data does not reach that part of the graph
+  is never selected, however close its curve happens to be.
+- A reading only clears when the cursor leaves the graph, so there is nothing
+  to flicker.
+- Dragging a finger across a graph works the same way, which makes a value
+  readable on a phone.
+
+Bars behave the same: a bar is selected from anywhere above it, not only from
+the part that is painted.
+
+While one entity is being read the others fade back, but stay faintly visible -
+the selection changes wherever two curves cross, and blanking the others would
+make the graph jump about. `--mcg-inactive-opacity` sets how faint, `0` hides
+them as before.
+
+The selected point is marked, whether or not `show.points` draws the points.
+Set `hover_mode: point` for the old behaviour, where only the point itself
+responds.
+
+```yaml
+type: custom:mini-graph-card
+entities:
+  - sensor.bedroom_temp
+  - sensor.living_room_temp
+hover_mode: nearest
+```
+
 ### Statistics
 
 By default a series is read from the recorder's raw history. That history is
@@ -638,6 +687,7 @@ The following theme variables can be set in your HA theme to customize the appea
 |------|:-------:|-------------|
 | mcg-title-letter-spacing |  | Letter spacing of the card title (`name` option).
 | mcg-title-font-weight | 500 | Font weight of the card title.
+| mcg-inactive-opacity | 0.2 | Opacity of the lines/bars of the entities which are not the one being hovered, see [Hovering](#hovering). Set to `0` to hide them entirely.
 | mcg-label-axis-opacity | 0.75 | Opacity of the Y-axis labels.
 | mcg-label-static-opacity | 0.75 | Opacity of the static values' labels.
 | mcg-label-axis-border-radius | 1em | Border radius of the Y-axis labels.

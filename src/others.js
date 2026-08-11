@@ -7,6 +7,8 @@
 
 import { log } from './utils';
 import {
+  X,
+  Y,
   STATISTICS_TYPES,
   DEFAULT_STATISTICS_TYPES,
   GRID_ROW_HEIGHT,
@@ -266,8 +268,117 @@ const getGridOptions = (config) => {
   };
 };
 
+/**
+ * Index of the point lying closest to a given X, by a binary search.
+ * Points are ordered by X (they are a time series), so a scan is not needed.
+ * A tie is resolved towards the earlier point.
+ * @param {Array} points Points of one entity, each being [x, y, value, bucket]
+ * @param {number} x A coordinate to look up
+ * @returns {number} Index in "points"
+ */
+const nearestPointIndex = (points, x) => {
+  let low = 0;
+  let high = points.length - 1;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (points[mid][X] < x) low = mid + 1;
+    else high = mid;
+  }
+  const previous = low > 0 ? low - 1 : low;
+  return Math.abs(points[previous][X] - x) <= Math.abs(points[low][X] - x) ? previous : low;
+};
+
+/**
+ * Half of the gap to the neighbouring point on the side the cursor is on -
+ * i.e. how far a point's "column" reaches towards the cursor. An edge point
+ * borrows the gap from its only neighbour; a lone point owns the whole graph.
+ * @param {Array} points Points of one entity
+ * @param {number} index Index of the point in question
+ * @param {number} x A cursor coordinate
+ * @returns {number} A distance in the graph's coordinates
+ */
+const halfColumnWidth = (points, index, x) => {
+  const before = index > 0 ? points[index][X] - points[index - 1][X] : undefined;
+  const after = index < points.length - 1 ? points[index + 1][X] - points[index][X] : undefined;
+  const towardsCursor = x < points[index][X] ? before : after;
+  const gap = towardsCursor !== undefined ? towardsCursor : (before !== undefined ? before : after);
+  return gap !== undefined ? gap / 2 : Infinity;
+};
+
+/**
+ * The point a cursor is pointing at, across all entities.
+ *
+ * X selects the bucket & Y selects the entity: an entity is only considered if
+ * the cursor is within the column of one of its points, so a series which does
+ * not cover this part of the graph cannot win on Y alone. Should no series
+ * cover the cursor (it is past the end of the data), the X-nearest point wins.
+ * @param {Array<Array>} pointsPerEntity "points" of the card, indexed by entity
+ * @param {number} x A cursor coordinate in the graph's coordinates
+ * @param {number} y A cursor coordinate in the graph's coordinates
+ * @returns {{entity: number, point: Array}|undefined} The selection, if any
+ */
+const findNearestPoint = (pointsPerEntity, x, y) => {
+  const candidates = [];
+  pointsPerEntity.forEach((points, entity) => {
+    if (!points || points.length === 0) return;
+    const index = nearestPointIndex(points, x);
+    const point = points[index];
+    candidates.push({
+      entity,
+      point,
+      dx: Math.abs(point[X] - x),
+      covers: Math.abs(point[X] - x) <= halfColumnWidth(points, index, x),
+    });
+  });
+  if (candidates.length === 0) return undefined;
+
+  const covering = candidates.filter(candidate => candidate.covers);
+  const eligible = covering.length > 0 ? covering : candidates;
+  return eligible.reduce((best, candidate) => {
+    const distance = Math.abs(candidate.point[Y] - y);
+    const bestDistance = Math.abs(best.point[Y] - y);
+    if (distance !== bestDistance) return distance < bestDistance ? candidate : best;
+    return candidate.dx < best.dx ? candidate : best;
+  });
+};
+
+/**
+ * The bar a cursor is pointing at, across all entities.
+ *
+ * Bars own a width, so X alone identifies one whenever they are drawn side by
+ * side. Y only matters when they overlap ("bar_spacing: -1"), where the bar
+ * whose top edge - its value - is nearest the cursor wins.
+ * @param {Array<Array>} barsPerEntity "bar" of the card, indexed by entity
+ * @param {number} x A cursor coordinate in the graph's coordinates
+ * @param {number} y A cursor coordinate in the graph's coordinates
+ * @returns {{entity: number, index: number, bar: object}|undefined} The selection, if any
+ */
+const findNearestBar = (barsPerEntity, x, y) => {
+  const candidates = [];
+  barsPerEntity.forEach((bars, entity) => {
+    if (!bars) return;
+    bars.forEach((bar, index) => {
+      // 0 while the cursor is within the bar's width
+      const dx = Math.max(bar.x - x, x - (bar.x + bar.width), 0);
+      candidates.push({
+        entity, index, bar, dx,
+      });
+    });
+  });
+  if (candidates.length === 0) return undefined;
+
+  const nearest = Math.min(...candidates.map(candidate => candidate.dx));
+  return candidates
+    .filter(candidate => candidate.dx === nearest)
+    .reduce((best, candidate) => (Math.abs(candidate.bar.y - y) < Math.abs(best.bar.y - y)
+      ? candidate
+      : best));
+};
+
 export {
   isNumeric,
+  findNearestPoint,
+  findNearestBar,
   getStatisticsType,
   isStateInCorner,
   getInfoHeight,

@@ -16,3 +16,4 @@ globals:
   Event: true
   customElements: true
   ResizeObserver: true
+  DOMPoint: true
