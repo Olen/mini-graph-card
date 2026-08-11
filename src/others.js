@@ -22,6 +22,9 @@ import {
   CARD_PADDING,
   MIN_GRAPH_HEIGHT,
   DEFAULT_GRAPH_HEIGHT,
+  GRAPH_HEIGHT_AUTO,
+  GRAPH_HEIGHT_PX,
+  GRAPH_HEIGHT_PERCENT,
 } from './const';
 
 /**
@@ -205,13 +208,14 @@ const isStateInCorner = alignState => typeof alignState === 'string'
 const getInfoHeight = config => config.font_size * INFO_HEIGHT_EM + CARD_PADDING;
 
 /**
- * Height of a card in pixels, for a given graph height.
- * Used to tell HA which size a card would like to take.
+ * Height of a card in pixels, for a given graph height. No default for that:
+ * "config.height" is the height of the CARD, & taking it for a graph height
+ * would count a whole card on top of the chrome.
  * @param {object} config A built config
- * @param {number} [graphHeight] A graph height to count with
+ * @param {number} graphHeight A graph height to count with
  * @returns {number} Height in pixels
  */
-const getCardHeight = (config, graphHeight = config.height) => {
+const getCardHeight = (config, graphHeight) => {
   const show = config.show || {};
   // "ha-card" padding-top; each "ha-card > div" adds its own padding-bottom
   let height = CARD_PADDING;
@@ -266,21 +270,29 @@ const getCardSizeUnits = height => Math.max(1, Math.ceil(height / MASONRY_SIZE_U
  * @returns {{mode: string, value: (number|undefined)}} "auto"|"px"|"percent"
  */
 const parseGraphHeight = (value) => {
-  if (value === undefined || value === null || value === 'auto') return { mode: 'auto' };
+  if (value === undefined || value === null || value === GRAPH_HEIGHT_AUTO)
+    return { mode: GRAPH_HEIGHT_AUTO };
   if (typeof value === 'number' && Number.isFinite(value) && value >= 0)
-    return { mode: 'px', value };
+    return { mode: GRAPH_HEIGHT_PX, value };
   if (typeof value === 'string') {
     const trimmed = value.trim();
     const percent = /^(\d+(?:\.\d+)?)\s*%$/.exec(trimmed);
-    if (percent) return { mode: 'percent', value: Number(percent[1]) };
+    if (percent) return { mode: GRAPH_HEIGHT_PERCENT, value: Number(percent[1]) };
     if (isNumeric(trimmed, true) && Number(trimmed) >= 0)
-      return { mode: 'px', value: Number(trimmed) };
+      return { mode: GRAPH_HEIGHT_PX, value: Number(trimmed) };
   }
   const shown = typeof value === 'object' ? JSON.stringify(value) : value;
   log(`Invalid option graph_height: [${shown}] (expected a number, "<n>%" or "auto"); `
     + 'adjusting value to auto');
-  return { mode: 'auto' };
+  return { mode: GRAPH_HEIGHT_AUTO };
 };
+
+/**
+ * Height of everything a card draws apart from the graph.
+ * @param {object} config A built config
+ * @returns {number} Height in pixels
+ */
+const getChromeHeight = config => getCardHeight(config, 0);
 
 /**
  * The card height asked of HA. "height" is a desired CARD height; left unset,
@@ -299,11 +311,11 @@ const getDesiredCardHeight = config => (config.height !== undefined
  * @returns {number} Height in pixels
  */
 const getGraphHeightPx = (config, cardHeight = getDesiredCardHeight(config)) => {
-  const { mode, value } = config.graph_height || { mode: 'auto' };
-  if (mode === 'px') return value;
-  if (mode === 'percent') return (cardHeight * value) / 100;
+  const { mode, value } = config.graph_height || { mode: GRAPH_HEIGHT_AUTO };
+  if (mode === GRAPH_HEIGHT_PX) return value;
+  if (mode === GRAPH_HEIGHT_PERCENT) return (cardHeight * value) / 100;
   // "auto": a graph is a row like any other & takes what the chrome leaves
-  return cardHeight - getCardHeight(config, 0);
+  return cardHeight - getChromeHeight(config);
 };
 
 /**
@@ -437,6 +449,7 @@ export {
   isStateInCorner,
   getInfoHeight,
   getCardHeight,
+  getChromeHeight,
   parseGraphHeight,
   getDesiredCardHeight,
   getGraphHeightPx,

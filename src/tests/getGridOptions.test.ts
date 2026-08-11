@@ -77,41 +77,38 @@ describe('getCardSizeUnits', () => {
 describe('getCardHeight', () => {
 
   it('getCardHeight: nothing shown -> a card padding only', () => {
-    expect(getCardHeight(makeConfig())).toBe(CARD_PADDING);
+    expect(getCardHeight(makeConfig(), 100)).toBe(CARD_PADDING);
   });
 
-  it('getCardHeight: a graph adds its height & no padding of its own', () => {
-    // ".graph" is the one row with no padding, see the note in getCardHeight
-    expect(getCardHeight(makeConfig({ graph: 'line' })))
-      .toBe(CARD_PADDING + 100);
-  });
-
-  it('getCardHeight: a graph height can be overridden', () => {
-    expect(getCardHeight(makeConfig({ graph: 'line' }), 250))
-      .toBe(CARD_PADDING + 250);
+  [100, 250].forEach((graphHeight) => {
+    it(`getCardHeight: a graph of [${graphHeight}] adds no padding of its own`, () => {
+      // ".graph" is the one row with no padding, see the note in getCardHeight
+      expect(getCardHeight(makeConfig({ graph: 'line' }), graphHeight))
+        .toBe(CARD_PADDING + graphHeight);
+    });
   });
 
   ['name', 'icon'].forEach((option) => {
     it(`getCardHeight: [${option}] adds a header`, () => {
-      expect(getCardHeight(makeConfig({ [option]: true })))
-        .toBeGreaterThan(getCardHeight(makeConfig()));
+      expect(getCardHeight(makeConfig({ [option]: true }), 100))
+        .toBeGreaterThan(getCardHeight(makeConfig(), 100));
     });
   });
 
   it('getCardHeight: a header is counted once for a name & an icon', () => {
-    expect(getCardHeight(makeConfig({ name: true, icon: true })))
-      .toBe(getCardHeight(makeConfig({ name: true })));
+    expect(getCardHeight(makeConfig({ name: true, icon: true }), 100))
+      .toBe(getCardHeight(makeConfig({ name: true }), 100));
   });
 
   it('getCardHeight: a header follows font_size_header', () => {
-    const small = getCardHeight(makeConfig({ name: true }));
-    const large = getCardHeight(makeConfig({ name: true }, { font_size_header: 28 }));
+    const small = getCardHeight(makeConfig({ name: true }), 100);
+    const large = getCardHeight(makeConfig({ name: true }, { font_size_header: 28 }), 100);
     expect(large).toBeGreaterThan(small);
   });
 
   it('getCardHeight: a state follows font_size', () => {
-    const small = getCardHeight(makeConfig({ state: true }));
-    const large = getCardHeight(makeConfig({ state: true }, { font_size: 28 }));
+    const small = getCardHeight(makeConfig({ state: true }), 100);
+    const large = getCardHeight(makeConfig({ state: true }, { font_size: 28 }), 100);
     expect(large).toBeGreaterThan(small);
   });
 
@@ -123,20 +120,20 @@ describe('getCardHeight', () => {
     const noGraph = makeConfig({ legend: true }, {
       entities: [{ entity: 'sensor.a' }, { entity: 'sensor.b' }],
     });
-    expect(getCardHeight(two)).toBeGreaterThan(getCardHeight(one));
-    expect(getCardHeight(noGraph)).toBe(CARD_PADDING);
+    expect(getCardHeight(two, 100)).toBeGreaterThan(getCardHeight(one, 100));
+    expect(getCardHeight(noGraph, 100)).toBe(CARD_PADDING);
   });
 
   it('getCardHeight: a corner state takes no row', () => {
     const inFlow = makeConfig({ state: true }, { align_state: 'right' });
     const corner = makeConfig({ state: true }, { align_state: 'top-right' });
-    expect(getCardHeight(corner)).toBe(CARD_PADDING);
-    expect(getCardHeight(inFlow)).toBeGreaterThan(getCardHeight(corner));
+    expect(getCardHeight(corner, 100)).toBe(CARD_PADDING);
+    expect(getCardHeight(inFlow, 100)).toBeGreaterThan(getCardHeight(corner, 100));
   });
 
   it('getCardHeight: extrema adds an info row', () => {
-    expect(getCardHeight(makeConfig({ extrema: true })))
-      .toBeGreaterThan(getCardHeight(makeConfig()));
+    expect(getCardHeight(makeConfig({ extrema: true }), 100))
+      .toBeGreaterThan(getCardHeight(makeConfig(), 100));
   });
 });
 

@@ -16,10 +16,6 @@ const DEFAULT_ALIGN_STATE = 'left';
 // unconfigured icon matched no rule at all & sat against the name.
 const ALIGN_ICON = ['left', 'right', 'state'];
 const DEFAULT_ALIGN_ICON = 'right';
-// A press longer than this is a hold, if the pointer stayed within the
-// tolerance. Matches the Home Assistant frontend's own action handler.
-const HOLD_TIME = 500;
-const HOLD_MOVE_TOLERANCE = 10;
 const DEFAULT_BAR_SPACING = 4;
 const DEFAULT_GRAPH_HEIGHT = 100;
 // A width a graph is drawn in until a card is measured
@@ -93,11 +89,24 @@ const CARD_PADDING = 16;
 // A graph is allowed to shrink to this height when a card is resized.
 const MIN_GRAPH_HEIGHT = 32;
 
+// Interaction
 // How a point is selected on hover:
 // "nearest" - the point nearest to the cursor anywhere in the graph,
 // "point" - only when the cursor is over the point itself (the classic behaviour).
-const HOVER_MODES = ['nearest', 'point'];
-const DEFAULT_HOVER_MODE = 'nearest';
+const HOVER_NEAREST = 'nearest';
+const HOVER_POINT = 'point';
+const HOVER_MODES = [HOVER_NEAREST, HOVER_POINT];
+const DEFAULT_HOVER_MODE = HOVER_NEAREST;
+// A press longer than this is a hold, if the pointer stayed within the
+// tolerance. Matches the Home Assistant frontend's own action handler.
+const HOLD_TIME = 500;
+const HOLD_MOVE_TOLERANCE = 10;
+
+// How tall a graph is drawn inside its card, as parsed by parseGraphHeight():
+// "auto" is a row in the flow, the others are anchored to the card's bottom.
+const GRAPH_HEIGHT_AUTO = 'auto';
+const GRAPH_HEIGHT_PX = 'px';
+const GRAPH_HEIGHT_PERCENT = 'percent';
 
 // Statistics
 const STATISTICS_PERIODS = ['5minute', 'hour', 'day', 'week', 'month', 'year'];
@@ -133,8 +142,6 @@ export {
   DEFAULT_ALIGN_STATE,
   ALIGN_ICON,
   DEFAULT_ALIGN_ICON,
-  HOLD_TIME,
-  HOLD_MOVE_TOLERANCE,
   DEFAULT_BAR_SPACING,
   DEFAULT_GRAPH_HEIGHT,
   DEFAULT_GRAPH_WIDTH,
@@ -151,8 +158,15 @@ export {
   Y,
   V,
   ONE_HOUR,
+  HOVER_NEAREST,
+  HOVER_POINT,
   HOVER_MODES,
   DEFAULT_HOVER_MODE,
+  HOLD_TIME,
+  HOLD_MOVE_TOLERANCE,
+  GRAPH_HEIGHT_AUTO,
+  GRAPH_HEIGHT_PX,
+  GRAPH_HEIGHT_PERCENT,
   STATISTICS_PERIODS,
   STATISTICS_TYPES,
   DEFAULT_STATISTICS_TYPES,
