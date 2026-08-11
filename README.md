@@ -578,6 +578,10 @@ This keys off the input device that produced the gesture, not off the browser or
 the screen, so a laptop with a touchscreen behaves correctly for each gesture in
 turn. Set `hold_action: {action: none}` to switch holding off.
 
+On a card showing several entities, an action applies to **the entity being
+read** - the line the cursor is nearest, or the legend entry under it - rather
+than always the first one. Naming an entity in the action itself still wins.
+
 An action may be written either way - `hold_action: more-info` and
 `hold_action: {action: more-info}` mean the same thing.
 

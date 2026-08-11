@@ -28,6 +28,11 @@ import {
   DEFAULT_MARGIN,
   HOLD_TIME,
   HOLD_MOVE_TOLERANCE,
+  HOVER_NEAREST,
+  HOVER_POINT,
+  GRAPH_HEIGHT_AUTO,
+  GRAPH_HEIGHT_PX,
+  GRAPH_HEIGHT_PERCENT,
   NBSP,
   STATISTICS_PERIOD_THRESHOLDS,
   STATISTICS_PERIOD_FALLBACK,
@@ -37,6 +42,7 @@ import {
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx,
 } from './others';
+
 import {
   getMin, getAvg, getMax,
   getMilli,
@@ -66,6 +72,16 @@ class MiniGraphCard extends LitElement {
     this.points = [];
     this.gradient = [];
     this.tooltip = {};
+    // Pointer state, with three different lifetimes:
+    // _pointerType & _pointerOrigin describe the last press & must survive
+    // until the NEXT one, because the click ending a tap arrives after
+    // pointerup; _holdArmed & _holdTimer live only while a press is held;
+    // _holdFired is read by the click which follows a hold, then cleared.
+    this._pointerType = undefined;
+    this._pointerOrigin = undefined;
+    this._holdArmed = false;
+    this._holdFired = false;
+    this._holdTimer = undefined;
     this.updateQueue = [];
     this.updating = false;
     // set once to "true" when a history is set for a particular entry[index] with static_value
@@ -356,15 +372,15 @@ class MiniGraphCard extends LitElement {
    * @returns {string} Style string
    */
   getCardStyle() {
-    return this.config.graph_height.mode === 'auto'
+    return this.config.graph_height.mode === GRAPH_HEIGHT_AUTO
       ? ''
-      : ` min-height: ${getDesiredCardHeight(this.config)}px;`;
+      : `min-height: ${getDesiredCardHeight(this.config)}px;`;
   }
 
   getGraphStyle() {
     const { mode, value } = this.config.graph_height;
-    if (mode === 'px') return `height: ${value}px;`;
-    if (mode === 'percent') return `height: ${value}%;`;
+    if (mode === GRAPH_HEIGHT_PX) return `height: ${value}px;`;
+    if (mode === GRAPH_HEIGHT_PERCENT) return `height: ${value}%;`;
     // "height: 0" is the documented way to show a card without a graph, and a
     // growing box would fill a stretched card instead
     if (this.config.height === 0) return 'flex-basis: 0px; flex-grow: 0;';
@@ -451,11 +467,11 @@ class MiniGraphCard extends LitElement {
         ?group=${config.group}
         ?fill=${config.show.graph && config.show.fill}
         ?points=${config.show.points === 'hover'}
-        ?nearest=${config.hover_mode === 'nearest'}
+        ?nearest=${config.hover_mode === HOVER_NEAREST}
         ?labels=${config.show.labels === 'hover'}
         ?labels-secondary=${config.show.labels_secondary === 'hover'}
         ?hover=${config.tap_action.action !== 'none'}
-        style="font-size: ${config.font_size}px;${this.getCardStyle()}"
+        style="font-size: ${config.font_size}px; ${this.getCardStyle()}"
         @mousemove=${e => this.handleCardHover(e)}
         @mouseleave=${() => (this.tooltip = {})}
         @pointerdown=${e => this.handlePointerDown(e)}
@@ -463,7 +479,7 @@ class MiniGraphCard extends LitElement {
         @pointerup=${() => this.cancelHold()}
         @pointercancel=${() => this.cancelHold()}
         @pointerleave=${() => this.cancelHold()}
-        @click=${e => this.handlePopup(e, config.tap_action.entity || this.entity[0])}
+        @click=${e => this.handlePopup(e, this.actionEntity(config.tap_action))}
       >
         ${this.renderHeader()} ${this.renderStates()} ${this.renderGraph()} ${this.renderInfo()}
       </ha-card>
@@ -755,7 +771,7 @@ class MiniGraphCard extends LitElement {
     /* eslint-disable indent */
     return this.config.show.graph
       ? html`
-          <div class="graph" ?anchored=${this.config.graph_height.mode !== 'auto'}
+          <div class="graph" ?anchored=${this.config.graph_height.mode !== GRAPH_HEIGHT_AUTO}
             style="${this.getGraphStyle()}">
             ${ready
               ? html`
@@ -810,6 +826,7 @@ class MiniGraphCard extends LitElement {
           const legend = this.computeLegend(entity.index);
           return html`
             <div class="graph__legend__item"
+              data-entity-index=${entity.index}
               @click=${e => this.handlePopup(e, this.entity[entity.index])}
               @mouseenter=${() => this.setTooltip(entity.index, -1, this.getEntityState(entity.index), 'Current')}
               @mouseleave=${() => (this.tooltip = {})}>
@@ -1001,7 +1018,7 @@ class MiniGraphCard extends LitElement {
   */
   renderSvgHoverMarker() {
     const { entity, index } = this.tooltip;
-    if (this.config.hover_mode !== 'nearest'
+    if (this.config.hover_mode !== HOVER_NEAREST
       || this.config.show.graph === 'bar'
       || entity === undefined) return;
     const points = this.points[entity];
@@ -1025,27 +1042,38 @@ class MiniGraphCard extends LitElement {
   * @returns {SVGTemplateResult|undefined} SVG element
   */
   renderSvgHoverArea() {
-    if (this.config.hover_mode !== 'nearest') return;
+    if (this.config.hover_mode !== HOVER_NEAREST) return;
     return svg`
       <rect class='hover-area'
         x='0' y='0' width=${this.graphWidth} height=${this.graphHeight}
-        @mousemove=${e => this.handleHover(e)}
-        @touchstart=${e => this.handleHover(e)}
-        @touchmove=${e => this.handleHover(e)}
+        @touchstart=${e => this.handleTouchScrub(e)}
+        @touchmove=${e => this.handleTouchScrub(e)}
         @touchend=${() => (this.tooltip = {})} />`;
   }
 
   /**
-  * Selects the point/bar a cursor is pointing at & shows its state.
-  * @param {MouseEvent|TouchEvent} event An event on the hover overlay
+  * Read the graph while a finger is dragged across it. Hovering is answered on
+  * the card itself (see handleCardHover), which a touch screen never fires.
+  * @param {TouchEvent} event A touch on the overlay
   */
-  handleHover(event) {
+  handleTouchScrub(event) {
     const touch = event.touches && event.touches[0];
-    this.selectAt(
-      touch ? touch.clientX : event.clientX,
-      touch ? touch.clientY : event.clientY,
-      event.currentTarget.ownerSVGElement,
-    );
+    if (!touch) return;
+    this.selectAt(touch.clientX, touch.clientY, event.currentTarget.ownerSVGElement);
+  }
+
+  /**
+   * The entity of a legend entry at a position, if one is there. A touch screen
+   * fires no mouseenter, so the legend's own hover never runs & a press has to
+   * find the entry itself.
+   * @param {number} clientX Position of a pointer
+   * @param {number} clientY Position of a pointer
+   * @returns {number|undefined} Index of an entry in config.entities
+   */
+  legendIndexAt(clientX, clientY) {
+    const element = this.shadowRoot && this.shadowRoot.elementFromPoint(clientX, clientY);
+    const item = element && element.closest('[data-entity-index]');
+    return item ? Number(item.dataset.entityIndex) : undefined;
   }
 
   /**
@@ -1056,18 +1084,33 @@ class MiniGraphCard extends LitElement {
    * @param {MouseEvent} event A move anywhere on the card
    */
   handleCardHover(event) {
-    if (this.config.hover_mode !== 'nearest') return;
-    const graph = this.shadowRoot && this.shadowRoot.querySelector('.graph');
-    if (!graph) return;
-    const {
-      left, right, top, bottom,
-    } = graph.getBoundingClientRect();
-    if (event.clientX < left || event.clientX > right
-      || event.clientY < top || event.clientY > bottom) {
+    if (this.config.hover_mode !== HOVER_NEAREST) return;
+    const root = this.shadowRoot;
+    const graph = root && root.querySelector('.graph');
+    if (!graph || !this.isWithin(graph, event)) {
       if (this.tooltip.value !== undefined) this.tooltip = {};
       return;
     }
+    // The legend sits inside the graph & names an entity of its own: hovering
+    // an entry shows THAT entity's current value, which reading the nearest
+    // line would override on the next move.
+    if (this.isWithin(root.querySelector('.graph__legend'), event)) return;
     this.selectAt(event.clientX, event.clientY);
+  }
+
+  /**
+   * Is a pointer inside an element's box?
+   * @param {Element} [element] Element to test, absent counts as "no"
+   * @param {MouseEvent} event An event carrying a client position
+   * @returns {boolean} True if the pointer is within
+   */
+  isWithin(element, event) {
+    if (!element) return false;
+    const {
+      left, right, top, bottom,
+    } = element.getBoundingClientRect();
+    return event.clientX >= left && event.clientX <= right
+      && event.clientY >= top && event.clientY <= bottom;
   }
 
   /**
@@ -1117,7 +1160,7 @@ class MiniGraphCard extends LitElement {
       this.config.entities[index].line_width,
       this.config.line_width,
     );
-    const hoverable = this.config.hover_mode === 'point';
+    const hoverable = this.config.hover_mode === HOVER_POINT;
     return svg`
       <g class='line--points'
         ?tooltip=${this.tooltip.entity === index}
@@ -1210,7 +1253,7 @@ class MiniGraphCard extends LitElement {
   */
   renderSvgBars(bars, index) {
     if (!bars) return;
-    const hoverable = this.config.hover_mode === 'point';
+    const hoverable = this.config.hover_mode === HOVER_POINT;
     const items = bars.map((bar, i) => {
       const animation = this.config.animate
         ? svg`
@@ -1426,13 +1469,18 @@ class MiniGraphCard extends LitElement {
     this._pointerOrigin = [event.clientX, event.clientY];
     this._holdArmed = true;
     this._holdFired = false;
+    if (event.pointerType === 'touch') {
+      const legend = this.legendIndexAt(event.clientX, event.clientY);
+      if (legend !== undefined) {
+        this.setTooltip(legend, -1, this.getEntityState(legend), 'Current');
+      }
+    }
     clearTimeout(this._holdTimer);
     const { hold_action: holdAction } = this.config;
     if (!holdAction || holdAction.action === 'none') return;
     this._holdTimer = setTimeout(() => {
       this._holdFired = true;
-      const entity = holdAction.entity || (this.entity[0] && this.entity[0].entity_id);
-      handleClick(this, this._hass, this.config, holdAction, entity);
+      this.runAction(holdAction);
     }, HOLD_TIME);
   }
 
@@ -1456,13 +1504,41 @@ class MiniGraphCard extends LitElement {
     const svgElement = this.shadowRoot && this.shadowRoot.querySelector('.graph svg');
     if (!svgElement) return false;
     event.stopPropagation();
-    this.selectAt(this._pointerOrigin[0], this._pointerOrigin[1], svgElement);
+    if (this.legendIndexAt(...this._pointerOrigin) === undefined) {
+      this.selectAt(this._pointerOrigin[0], this._pointerOrigin[1], svgElement);
+    }
     return true;
   }
 
   cancelHold() {
     clearTimeout(this._holdTimer);
     this._holdArmed = false;
+  }
+
+  /**
+   * Which entity a card-wide action applies to. A multi-entity card reads one
+   * series at a time - hovering a line, or a legend entry - so an action taken
+   * while one is highlighted means THAT entity, not just the first one.
+   * A tap_action/hold_action naming an entity outranks both.
+   * @param {object} [actionConfig] tap_action or hold_action
+   * @returns {object|string|undefined} A state object, or a configured entity id
+   */
+  actionEntity(actionConfig) {
+    if (actionConfig && actionConfig.entity) return actionConfig.entity;
+    const highlighted = this.tooltip.entity;
+    return (highlighted !== undefined && this.entity[highlighted]) || this.entity[0];
+  }
+
+  /**
+   * Run a configured action. A target may be a state object or an entity id -
+   * a legend entry and a state row pass the object they already hold.
+   * @param {object} actionConfig tap_action or hold_action
+   * @param {object|string} [entity] Target, defaulting to the one being read
+   */
+  runAction(actionConfig, entity = this.actionEntity(actionConfig)) {
+    if (actionConfig.action === 'more-info' && !entity) return;
+    handleClick(this, this._hass, this.config, actionConfig,
+      (entity && entity.entity_id) || entity);
   }
 
   handlePopup(e, entity) {
@@ -1473,17 +1549,8 @@ class MiniGraphCard extends LitElement {
       return;
     }
     if (this.readOnTouch(e)) return;
-    if (this.config.tap_action === 'more-info' && !entity) {
-      return;
-    }
     e.stopPropagation();
-    handleClick(
-      this,
-      this._hass,
-      this.config,
-      this.config.tap_action,
-      entity && entity.entity_id || entity,
-    );
+    this.runAction(this.config.tap_action, entity);
   }
 
   get visibleEntities() {
