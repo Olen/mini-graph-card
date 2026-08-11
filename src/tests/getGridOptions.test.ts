@@ -1,8 +1,5 @@
 /**
  * Tests for getCardHeight(), getGridRows(), getCardSizeUnits(), getGridOptions().
- *
- * The file is disabled (renamed to *.dis) & thus is not used during a build process;
- * remove the "dis" extension to use it locally in your VSCode devcontainer.
  */
 
 import { expect, describe, it } from 'vitest';
@@ -83,14 +80,15 @@ describe('getCardHeight', () => {
     expect(getCardHeight(makeConfig())).toBe(CARD_PADDING);
   });
 
-  it('getCardHeight: a graph adds its height & a padding', () => {
+  it('getCardHeight: a graph adds its height & no padding of its own', () => {
+    // ".graph" is the one row with no padding, see the note in getCardHeight
     expect(getCardHeight(makeConfig({ graph: 'line' })))
-      .toBe(CARD_PADDING + 100 + CARD_PADDING);
+      .toBe(CARD_PADDING + 100);
   });
 
   it('getCardHeight: a graph height can be overridden', () => {
     expect(getCardHeight(makeConfig({ graph: 'line' }), 250))
-      .toBe(CARD_PADDING + 250 + CARD_PADDING);
+      .toBe(CARD_PADDING + 250);
   });
 
   ['name', 'icon'].forEach((option) => {
@@ -164,12 +162,20 @@ describe('getGridOptions', () => {
     expect(options.min_rows).toBeLessThanOrEqual(options.rows);
   });
 
-  it('getGridOptions: a corner state needs fewer rows', () => {
-    // a height where a state row crosses a row boundary; rounding can
-    // otherwise land both on the same number of rows
+  it('getGridOptions: an explicit height decides the rows on its own', () => {
+    // "height" is a CARD height, so what the card puts inside cannot change it
     const inFlow = getGridOptions(makeConfig({ graph: 'line', state: true }, { height: 300 }));
     const corner = getGridOptions(makeConfig(
       { graph: 'line', state: true }, { height: 300, align_state: 'top-right' },
+    ));
+    expect(corner.rows).toBe(inFlow.rows);
+  });
+
+  it('getGridOptions: a corner state needs fewer rows when no height is set', () => {
+    // ...but a derived height is chrome + a graph, & a corner state is no row
+    const inFlow = getGridOptions(makeConfig({ graph: 'line', state: true }, { height: undefined }));
+    const corner = getGridOptions(makeConfig(
+      { graph: 'line', state: true }, { height: undefined, align_state: 'top-right' },
     ));
     expect(corner.rows).toBeLessThan(inFlow.rows);
   });

@@ -11,6 +11,15 @@ const ALIGN_STATE = [
   'top-left', 'top-right', 'bottom-left', 'bottom-right',
 ];
 const DEFAULT_ALIGN_STATE = 'left';
+// "state" moves the icon out of the header & next to the current state.
+// Upstream documents "right" as the default but never implemented one, so an
+// unconfigured icon matched no rule at all & sat against the name.
+const ALIGN_ICON = ['left', 'right', 'state'];
+const DEFAULT_ALIGN_ICON = 'right';
+// A press longer than this is a hold, if the pointer stayed within the
+// tolerance. Matches the Home Assistant frontend's own action handler.
+const HOLD_TIME = 500;
+const HOLD_MOVE_TOLERANCE = 10;
 const DEFAULT_BAR_SPACING = 4;
 const DEFAULT_GRAPH_HEIGHT = 100;
 // A width a graph is drawn in until a card is measured
@@ -122,6 +131,10 @@ export {
   STATE_LINE_HEIGHT,
   ALIGN_STATE,
   DEFAULT_ALIGN_STATE,
+  ALIGN_ICON,
+  DEFAULT_ALIGN_ICON,
+  HOLD_TIME,
+  HOLD_MOVE_TOLERANCE,
   DEFAULT_BAR_SPACING,
   DEFAULT_GRAPH_HEIGHT,
   DEFAULT_GRAPH_WIDTH,

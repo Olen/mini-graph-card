@@ -21,6 +21,7 @@ import {
   INFO_HEIGHT_EM,
   CARD_PADDING,
   MIN_GRAPH_HEIGHT,
+  DEFAULT_GRAPH_HEIGHT,
 } from './const';
 
 /**
@@ -224,7 +225,11 @@ const getCardHeight = (config, graphHeight = config.height) => {
       : config.font_size * STATE_HEIGHT_EM) + CARD_PADDING;
   }
   if (show.graph) {
-    height += graphHeight + CARD_PADDING;
+    // no CARD_PADDING here: unlike every other row, ".graph" has none
+    // ("ha-card .graph { padding: 0 }"), & counting one made a card ask for
+    // 16px more than it takes - so an "auto" graph, whose size is this height
+    // minus the chrome, came out 16px short of the height that was asked for.
+    height += graphHeight;
     if (show.legend && (config.entities || []).length > 1) {
       height += config.font_size * LEGEND_HEIGHT_EM;
     }
@@ -253,13 +258,62 @@ const getGridRows = height => Math.max(
 const getCardSizeUnits = height => Math.max(1, Math.ceil(height / MASONRY_SIZE_UNIT));
 
 /**
+ * Parse "graph_height" into a mode & a number.
+ * A graph is anchored to the bottom of a card, so the taller it is the more of
+ * the card's own chrome it slides behind: "auto" stays below all of it, "100%"
+ * covers everything.
+ * @param {number|string|undefined} value As written in a config
+ * @returns {{mode: string, value: (number|undefined)}} "auto"|"px"|"percent"
+ */
+const parseGraphHeight = (value) => {
+  if (value === undefined || value === null || value === 'auto') return { mode: 'auto' };
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    return { mode: 'px', value };
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    const percent = /^(\d+(?:\.\d+)?)\s*%$/.exec(trimmed);
+    if (percent) return { mode: 'percent', value: Number(percent[1]) };
+    if (isNumeric(trimmed, true) && Number(trimmed) >= 0)
+      return { mode: 'px', value: Number(trimmed) };
+  }
+  const shown = typeof value === 'object' ? JSON.stringify(value) : value;
+  log(`Invalid option graph_height: [${shown}] (expected a number, "<n>%" or "auto"); `
+    + 'adjusting value to auto');
+  return { mode: 'auto' };
+};
+
+/**
+ * The card height asked of HA. "height" is a desired CARD height; left unset,
+ * a card asks for as much as it needs to show a default-sized graph.
+ * @param {object} config A built config
+ * @returns {number} Height in pixels
+ */
+const getDesiredCardHeight = config => (config.height !== undefined
+  ? config.height
+  : getCardHeight(config, DEFAULT_GRAPH_HEIGHT));
+
+/**
+ * "graph_height" resolved to pixels within a card of a given height.
+ * @param {object} config A built config, with graph_height already parsed
+ * @param {number} [cardHeight] Height of the card to resolve against
+ * @returns {number} Height in pixels
+ */
+const getGraphHeightPx = (config, cardHeight = getDesiredCardHeight(config)) => {
+  const { mode, value } = config.graph_height || { mode: 'auto' };
+  if (mode === 'px') return value;
+  if (mode === 'percent') return (cardHeight * value) / 100;
+  // "auto": a graph is a row like any other & takes what the chrome leaves
+  return cardHeight - getCardHeight(config, 0);
+};
+
+/**
  * Grid options telling HA a desired & a minimal size of a card,
  * see https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/
  * @param {object} config A built config
  * @returns {object} Grid options
  */
 const getGridOptions = (config) => {
-  const rows = getGridRows(getCardHeight(config));
+  const rows = getGridRows(getDesiredCardHeight(config));
   const minRows = getGridRows(getCardHeight(config, config.show.graph ? MIN_GRAPH_HEIGHT : 0));
   return {
     rows,
@@ -383,6 +437,9 @@ export {
   isStateInCorner,
   getInfoHeight,
   getCardHeight,
+  parseGraphHeight,
+  getDesiredCardHeight,
+  getGraphHeightPx,
   getGridRows,
   getCardSizeUnits,
   getGridOptions,

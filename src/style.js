@@ -17,6 +17,14 @@ const style = css`
     padding: 16px 0 0 0;
     position: relative;
     overflow: hidden;
+    /* A long press is a hold_action. Left to itself a browser answers one with
+       its own gesture - text selection, or the iOS callout - and cancels the
+       pointer, which cancels the hold with it. "manipulation" keeps panning &
+       scrolling, it only drops the double-tap zoom. */
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
   ha-card > div {
     padding: 0px 16px 16px 16px;
@@ -89,14 +97,18 @@ const style = css`
   .header[loc="center"] {
     justify-content: space-around;
   }
-  .header[loc="left"] {
-    align-self: flex-start;
-  }
+  /* "center" & "right" place the header as a block within the card, so it is
+     only as wide as its content. "left" must NOT: a fit-content header leaves
+     an icon's "margin-left: auto" with no space to consume, so an icon aligned
+     right (the default) sat against the name instead of at the card's edge.
+     The name takes the slack instead - which also keeps an icon on the LEFT
+     next to the name, rather than "space-between" flinging them apart. */
   .header[loc="right"] {
     align-self: flex-end;
   }
   .name {
     align-items: center;
+    flex: 1 1 auto;
     min-width: 0;
     letter-spacing: var(--mcg-title-letter-spacing, normal);
   }
@@ -291,22 +303,48 @@ const style = css`
     white-space: nowrap;
     animation: fade .15s cubic-bezier(0.215, 0.61, 0.355, 1);
   }
-  .states[loc="right"] .state__time {
+  /* The time range is positioned against the state, which in a right-hand
+     corner sits at the card's right edge - anchored left, a wide range (a
+     14-day graph names a date at both ends) runs straight off the card. */
+  .states[loc="right"] .state__time,
+  .states[loc$="-right"] .state__time {
     left: initial;
     right: 0;
+  }
+  /* Likewise below a bottom corner there is no card left to draw on. */
+  .states[loc^="bottom-"] .state__time {
+    bottom: initial;
+    top: -1.1rem;
   }
   .graph {
     align-self: flex-end;
     box-sizing: border-box;
     display: flex;
-    /* flex-basis is set inline from "height": it is a desired height, so a
-       graph is exactly that high in a Masonry view (where a card has no
-       height of its own) & grows/shrinks to a cell in a Sections view. */
+    /* "graph_height: auto": a graph is a row like any other & takes whatever
+       the chrome leaves, in a Masonry card as well as in a Sections cell. */
     flex-grow: 1;
     flex-shrink: 1;
     flex-direction: column;
     min-height: 0;
     width: 100%;
+  }
+  /* Any other "graph_height" takes the graph out of the flow & anchors it to
+     the bottom of the card, so the taller it is the more of the card's own
+     chrome it slides behind. Its height (or its top, for "below_header") is
+     set inline. "ha-card" is the containing block - it is position: relative. */
+  .graph[anchored] {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0;
+  }
+  /* ...and the chrome stays on top of it. A corner state already lifts itself. */
+  ha-card > .header,
+  ha-card > .states,
+  ha-card > .info {
+    position: relative;
+    z-index: 1;
   }
   .graph__container {
     flex: 1 1 auto;

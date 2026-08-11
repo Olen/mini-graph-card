@@ -26,13 +26,16 @@ import {
   STATE_UOM_RATIO,
   CARD_PADDING,
   DEFAULT_MARGIN,
+  HOLD_TIME,
+  HOLD_MOVE_TOLERANCE,
   NBSP,
   STATISTICS_PERIOD_THRESHOLDS,
   STATISTICS_PERIOD_FALLBACK,
 } from './const';
 import {
-  isNumeric, getStatisticsType, getCardHeight, getCardSizeUnits, getGridOptions,
+  isNumeric, getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
+  getDesiredCardHeight, getGraphHeightPx,
 } from './others';
 import {
   getMin, getAvg, getMax,
@@ -310,6 +313,7 @@ class MiniGraphCard extends LitElement {
       // reconnected card would never learn its size again.
       this.observedElement = undefined;
     }
+    this.cancelHold();
     super.disconnectedCallback();
   }
 
@@ -335,16 +339,39 @@ class MiniGraphCard extends LitElement {
   }
 
   /**
-   * A flex basis from "height", and no growing at all when it is 0: "height: 0"
-   * is the documented way to show a card without a graph, and a growing box
-   * would fill a stretched card instead.
+   * How tall a graph is drawn, from "graph_height".
+   * "auto" leaves it a row like any other, taking what the chrome leaves.
+   * Anything else takes it OUT of the flow & anchors it to the bottom of the
+   * card, so a taller graph slides behind more of the chrome. A percentage is
+   * handed to CSS as-is, so it tracks the height the card really got rather
+   * than the one it asked for.
    * @returns {string} Style string
    */
+  /**
+   * A card only carries a height of its own while the graph is a row in it.
+   * Any other "graph_height" takes the graph out of the flow, so it stops
+   * contributing any height & a Masonry card would collapse onto its header:
+   * the card has to hold the height itself. Not applied for "auto", where the
+   * graph is what absorbs a card being shrunk into a smaller cell.
+   * @returns {string} Style string
+   */
+  getCardStyle() {
+    return this.config.graph_height.mode === 'auto'
+      ? ''
+      : ` min-height: ${getDesiredCardHeight(this.config)}px;`;
+  }
+
   getGraphStyle() {
-    const { height } = this.config;
-    return height === 0
-      ? 'flex-basis: 0px; flex-grow: 0;'
-      : `flex-basis: ${height}px;`;
+    const { mode, value } = this.config.graph_height;
+    if (mode === 'px') return `height: ${value}px;`;
+    if (mode === 'percent') return `height: ${value}%;`;
+    // "height: 0" is the documented way to show a card without a graph, and a
+    // growing box would fill a stretched card instead
+    if (this.config.height === 0) return 'flex-basis: 0px; flex-grow: 0;';
+    // "auto" still needs a size of its own: a Masonry card has no height to
+    // grow into, so a basis of 0 would collapse the graph to nothing. This is
+    // what makes "height" a card height - the graph takes the card's leftover.
+    return `flex-basis: ${getGraphHeightPx(this.config)}px;`;
   }
 
   /**
@@ -428,7 +455,14 @@ class MiniGraphCard extends LitElement {
         ?labels=${config.show.labels === 'hover'}
         ?labels-secondary=${config.show.labels_secondary === 'hover'}
         ?hover=${config.tap_action.action !== 'none'}
-        style="font-size: ${config.font_size}px;"
+        style="font-size: ${config.font_size}px;${this.getCardStyle()}"
+        @mousemove=${e => this.handleCardHover(e)}
+        @mouseleave=${() => (this.tooltip = {})}
+        @pointerdown=${e => this.handlePointerDown(e)}
+        @pointermove=${e => this.handlePointerMove(e)}
+        @pointerup=${() => this.cancelHold()}
+        @pointercancel=${() => this.cancelHold()}
+        @pointerleave=${() => this.cancelHold()}
         @click=${e => this.handlePopup(e, config.tap_action.entity || this.entity[0])}
       >
         ${this.renderHeader()} ${this.renderStates()} ${this.renderGraph()} ${this.renderInfo()}
@@ -478,7 +512,7 @@ class MiniGraphCard extends LitElement {
   renderIcon() {
     if (this.config.icon_image !== undefined) {
       return html`
-        <div class="icon">
+        <div class="icon" loc="${this.config.align_icon}">
           <img src="${this.config.icon_image}" height="25"/>
         </div>
       `;
@@ -721,7 +755,8 @@ class MiniGraphCard extends LitElement {
     /* eslint-disable indent */
     return this.config.show.graph
       ? html`
-          <div class="graph" style="${this.getGraphStyle()}">
+          <div class="graph" ?anchored=${this.config.graph_height.mode !== 'auto'}
+            style="${this.getGraphStyle()}">
             ${ready
               ? html`
                   <div class="graph__container">
@@ -995,7 +1030,6 @@ class MiniGraphCard extends LitElement {
       <rect class='hover-area'
         x='0' y='0' width=${this.graphWidth} height=${this.graphHeight}
         @mousemove=${e => this.handleHover(e)}
-        @mouseleave=${() => (this.tooltip = {})}
         @touchstart=${e => this.handleHover(e)}
         @touchmove=${e => this.handleHover(e)}
         @touchend=${() => (this.tooltip = {})} />`;
@@ -1006,14 +1040,47 @@ class MiniGraphCard extends LitElement {
   * @param {MouseEvent|TouchEvent} event An event on the hover overlay
   */
   handleHover(event) {
-    const svgElement = event.currentTarget.ownerSVGElement;
-    const matrix = svgElement && svgElement.getScreenCTM();
-    if (!matrix) return;
     const touch = event.touches && event.touches[0];
-    const { x, y } = new DOMPoint(
+    this.selectAt(
       touch ? touch.clientX : event.clientX,
       touch ? touch.clientY : event.clientY,
-    ).matrixTransform(matrix.inverse());
+      event.currentTarget.ownerSVGElement,
+    );
+  }
+
+  /**
+   * Read the graph under the cursor, wherever the cursor is on the card. The
+   * chrome is drawn OVER the graph - a state row overlaps it, a header can sit
+   * on a backdrop graph entirely - and those elements swallow a move before it
+   * ever reaches the svg. Hit-testing cannot answer this; the geometry can.
+   * @param {MouseEvent} event A move anywhere on the card
+   */
+  handleCardHover(event) {
+    if (this.config.hover_mode !== 'nearest') return;
+    const graph = this.shadowRoot && this.shadowRoot.querySelector('.graph');
+    if (!graph) return;
+    const {
+      left, right, top, bottom,
+    } = graph.getBoundingClientRect();
+    if (event.clientX < left || event.clientX > right
+      || event.clientY < top || event.clientY > bottom) {
+      if (this.tooltip.value !== undefined) this.tooltip = {};
+      return;
+    }
+    this.selectAt(event.clientX, event.clientY);
+  }
+
+  /**
+   * Select the point/bar under a position given in client coordinates.
+   * @param {number} clientX Position of a pointer
+   * @param {number} clientY Position of a pointer
+   * @param {SVGSVGElement} [svgElement] The graph's svg, looked up if omitted
+   */
+  selectAt(clientX, clientY, svgElement = this.shadowRoot
+    && this.shadowRoot.querySelector('.graph svg')) {
+    const matrix = svgElement && svgElement.getScreenCTM();
+    if (!matrix) return;
+    const { x, y } = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
 
     if (this.config.show.graph === 'bar') {
       const hit = findNearestBar(this.bar, x, y);
@@ -1204,7 +1271,7 @@ class MiniGraphCard extends LitElement {
     const reversed = show.graph_order === 'reversed';
     return svg`
       <svg width='100%' height=${height !== 0 ? '100%' : 0} viewBox='0 0 ${width} ${height}'
-        @click=${e => e.stopPropagation()}>
+        >
         <g>
           <defs>
             ${this.renderSvgGradient(this.gradient)}
@@ -1347,7 +1414,65 @@ class MiniGraphCard extends LitElement {
     /* eslint-enable indent */
   }
 
+  /**
+   * Start timing a hold. A hold fires hold_action from any input; moving the
+   * pointer or letting go first leaves it a tap.
+   * @param {PointerEvent} event A pointerdown on the card
+   */
+  handlePointerDown(event) {
+    this._pointerType = event.pointerType;
+    // Kept until the NEXT press: the click which ends a tap arrives after
+    // pointerup, & that is where a tap is answered.
+    this._pointerOrigin = [event.clientX, event.clientY];
+    this._holdArmed = true;
+    this._holdFired = false;
+    clearTimeout(this._holdTimer);
+    const { hold_action: holdAction } = this.config;
+    if (!holdAction || holdAction.action === 'none') return;
+    this._holdTimer = setTimeout(() => {
+      this._holdFired = true;
+      const entity = holdAction.entity || (this.entity[0] && this.entity[0].entity_id);
+      handleClick(this, this._hass, this.config, holdAction, entity);
+    }, HOLD_TIME);
+  }
+
+  /** A pointer which wanders is a scroll or a drag, not a hold. */
+  handlePointerMove(event) {
+    if (!this._holdArmed || !this._pointerOrigin) return;
+    const [x, y] = this._pointerOrigin;
+    if (Math.abs(event.clientX - x) > HOLD_MOVE_TOLERANCE
+      || Math.abs(event.clientY - y) > HOLD_MOVE_TOLERANCE) this.cancelHold();
+  }
+
+  /**
+   * A touch screen has no hover, so a TAP anywhere on the card reads the graph
+   * & a HOLD acts on it - the same everywhere, with no boundary to find. A card
+   * with nothing drawn to read falls back to acting.
+   * @param {Event} event The click a tap produced
+   * @returns {boolean} True if the tap was answered by reading
+   */
+  readOnTouch(event) {
+    if (this._pointerType !== 'touch' || !this._pointerOrigin) return false;
+    const svgElement = this.shadowRoot && this.shadowRoot.querySelector('.graph svg');
+    if (!svgElement) return false;
+    event.stopPropagation();
+    this.selectAt(this._pointerOrigin[0], this._pointerOrigin[1], svgElement);
+    return true;
+  }
+
+  cancelHold() {
+    clearTimeout(this._holdTimer);
+    this._holdArmed = false;
+  }
+
   handlePopup(e, entity) {
+    // a hold already acted; the click which follows it must not act again
+    if (this._holdFired) {
+      this._holdFired = false;
+      e.stopPropagation();
+      return;
+    }
+    if (this.readOnTouch(e)) return;
     if (this.config.tap_action === 'more-info' && !entity) {
       return;
     }
@@ -2221,9 +2346,9 @@ class MiniGraphCard extends LitElement {
     }
   }
 
-  /** A height a graph is drawn in: a measured one, or "height" from a config. */
+  /** A height a graph is drawn in: a measured one, or one from a config. */
   get graphHeight() {
-    return this._graphHeight !== undefined ? this._graphHeight : this.config.height;
+    return this._graphHeight !== undefined ? this._graphHeight : getGraphHeightPx(this.config);
   }
 
   /** A width a graph is drawn in: a measured one, or a default. */
@@ -2233,7 +2358,7 @@ class MiniGraphCard extends LitElement {
 
   getCardSize() {
     if (!this.config) return 3;
-    return getCardSizeUnits(getCardHeight(this.config));
+    return getCardSizeUnits(getDesiredCardHeight(this.config));
   }
 
   getGridOptions() {

@@ -5,10 +5,11 @@ import {
   DEFAULT_FONT_SIZE_HEADER,
   ALIGN_STATE,
   DEFAULT_ALIGN_STATE,
+  ALIGN_ICON,
+  DEFAULT_ALIGN_ICON,
   HOVER_MODES,
   DEFAULT_HOVER_MODE,
   DEFAULT_BAR_SPACING,
-  DEFAULT_GRAPH_HEIGHT,
   DEFAULT_MARGIN,
   DEFAULT_HOURS_TO_SHOW,
   DEFAULT_POINTS_PER_HOUR,
@@ -25,7 +26,7 @@ import {
   checkStatistics,
   checkStringOption,
 } from './checkOption';
-import { getFactor } from './others';
+import { getFactor, parseGraphHeight } from './others';
 
 /**
  * Starting from the given index, increment the index until an array element with a
@@ -146,7 +147,6 @@ export default (config) => {
     animate: false,
     font_size: DEFAULT_FONT_SIZE,
     font_size_header: DEFAULT_FONT_SIZE_HEADER,
-    height: DEFAULT_GRAPH_HEIGHT,
     hours_to_show: DEFAULT_HOURS_TO_SHOW,
     points_per_hour: DEFAULT_POINTS_PER_HOUR,
     aggregate_func: 'avg',
@@ -163,6 +163,11 @@ export default (config) => {
     tap_action: {
       action: 'more-info',
     },
+    // A touch screen has no hover, so a tap on the graph reads a value there
+    // rather than acting - which leaves hold as the way to act. See README.
+    hold_action: {
+      action: 'more-info',
+    },
     ...JSON.parse(JSON.stringify(config)),
     show: { ...DEFAULT_SHOW, ...config.show },
   };
@@ -173,13 +178,25 @@ export default (config) => {
   conf.font_size_state = checkNumericOption(conf, 'font_size_state', undefined, 0.1, undefined, true);
 
   conf.align_state = checkStringOption(conf, 'align_state', ALIGN_STATE, DEFAULT_ALIGN_STATE);
+  // Without a default the icon rendered with loc="undefined", matching neither
+  // .icon[loc="left"] nor .icon[loc="right"] - so it was never pushed anywhere.
+  conf.align_icon = checkStringOption(conf, 'align_icon', ALIGN_ICON, DEFAULT_ALIGN_ICON);
 
   conf.hover_mode = checkStringOption(conf, 'hover_mode', HOVER_MODES, DEFAULT_HOVER_MODE);
+
+  // "tap_action: more-info" is the natural thing to write & handleClick reads
+  // actionConfig.action, so a bare string silently did nothing at all.
+  ['tap_action', 'hold_action'].forEach((option) => {
+    if (typeof conf[option] === 'string') conf[option] = { action: conf[option] };
+  });
 
   conf.bar_spacing = checkNumericOption(conf, 'bar_spacing', DEFAULT_BAR_SPACING, -1, undefined, true);
   conf.bar_spacing_group = checkNumericOption(conf, 'bar_spacing_group', undefined, 0, undefined, true);
 
-  conf.height = checkNumericOption(conf, 'height', DEFAULT_GRAPH_HEIGHT, 0, undefined, true);
+  // A desired CARD height. Left unset, getDesiredCardHeight() asks for as much
+  // as the chrome needs plus a default-sized graph - i.e. what a card took before.
+  conf.height = checkNumericOption(conf, 'height', undefined, 0, undefined, true);
+  conf.graph_height = parseGraphHeight(conf.graph_height);
 
   conf.line_width = checkNumericOption(conf, 'line_width', DEFAULT_MARGIN, 0, undefined, true);
 

@@ -31,6 +31,8 @@ has not been released - the last stable upstream release is v0.13.0.
 | [`statistics`](#statistics) | Read a series from Home Assistant's statistics instead of raw history. Pre-aggregated server side, so a long graph fetches orders of magnitude fewer points and gets much faster to load. Also adds the `change` type and a `year` period, and picks a type the entity actually has. ([upstream PR #1423](https://github.com/kalkih/mini-graph-card/pull/1423)) |
 | [`align_state`](#card-size) corners | `top-left`, `top-right`, `bottom-left`, `bottom-right` pin the current state to a corner, out of the flow, so it takes no row of its own and the graph gets the space. ([upstream #1153](https://github.com/kalkih/mini-graph-card/issues/1153)) |
 | `font_size_state` | Size the current state on its own, without scaling extrema and axis labels along with it. ([upstream #752](https://github.com/kalkih/mini-graph-card/issues/752)) |
+| [`graph_height`](#card-size) | Size the graph independently of the card. A graph is anchored to the bottom, so a percentage decides how much of the card's own chrome it sits behind - `100%` puts it behind everything, as a backdrop. |
+| [`hold_action`](#tapping--holding) | Hold a card for half a second to act on it, the way stock Home Assistant cards behave. |
 | [`hover_mode`](#hovering) | Hover anywhere in the graph to read the nearest value, instead of having to hit a point a few pixels wide. Works with several entities & on a touch screen. ([upstream #1357](https://github.com/kalkih/mini-graph-card/issues/1357)) |
 
 ### The card sizes itself
@@ -54,6 +56,13 @@ and where [#1155](https://github.com/kalkih/mini-graph-card/pull/1155) /
 - A graph could not shrink into its card and was cut off at the bottom.
 - A single-entity card reserved 19.6px on the right for a states container that
   was never filled.
+- `align_icon` had no default in the code, only in the docs, so an unconfigured
+  icon rendered as `loc="undefined"`, matched neither CSS rule and sat against
+  the name. The documented `right` is now actually applied - and a left-aligned
+  header no longer shrinks to fit its content, which had left the icon's
+  `margin-left: auto` with no space to push into. An invalid value now warns
+  instead of silently landing in the same state.
+- An `icon_image` was never given an alignment at all.
 - `npm run build` failed on a clean checkout, because it runs the linter and
   the linter did not pass.
 
@@ -66,9 +75,18 @@ every render. The test suite - almost entirely datetime formatting - went from
 
 ### Breaking changes
 
-- **`height` is a desired height, not a fixed one.** It decides which cell the
-  card asks for; a card in a cell of another size follows the cell. A Masonry
-  view is unchanged.
+- **`height` is the height of the CARD, not of the graph.** It decides which
+  cell the card asks for; a card in a cell of another size follows the cell.
+  Use the new `graph_height` to size the graph itself. A `height: 250` which
+  used to mean "a 250px graph plus the chrome around it" now means "a 250px
+  card". See [Card size](#card-size).
+- **Clicking a graph now runs `tap_action`.** It used to do nothing at all - the
+  graph swallowed clicks so that clicking a point could not open more-info.
+- **On a touch screen a tap reads the card rather than acting on it**, anywhere
+  on the card, and `hold_action` is how you act. A touch screen has no hover to
+  read a graph with. This includes tapping an individual state, which used to
+  open more-info for that entity. See
+  [Tapping & holding](#tapping--holding).
 - **`line_width`, `bar_spacing` and the point radius are in real pixels.** They
   used to be units of a 500-wide drawing stretched to the card, so they grew on
   a wide card and shrank on a narrow one.
@@ -189,7 +207,8 @@ We recommend looking at the [Example usage section](#example-usage) to understan
 | icon_image | string |  | v0.12.0 | Override icon with an image url.
 | name | string |  | v0.0.1 | Set a custom name which is displayed beside the icon.
 | unit | string |  | v0.0.1 | Set a custom unit of measurement (`''` value for an empty unit).
-| tap_action | [action object](#action-object-options) |  | v0.7.0 | Action on click/tap.
+| tap_action | [action object](#action-object-options) |  | v0.7.0 | Action on click/tap, see [Tapping & holding](#tapping--holding).
+| hold_action | [action object](#action-object-options) | `more-info` | | Action on a press held for half a second, see [Tapping & holding](#tapping--holding).
 | group | boolean | `false` | v0.2.0 | Disable paddings and box-shadow, useful when nesting the card.
 | hours_to_show | integer | `24` | v0.0.2 | Specify how many hours of history the graph should present.
 | points_per_hour | number | `0.5` | v0.2.0 | Specify amount of data points the graph should display for each hour, *(basically the detail/accuracy/smoothing of the graph)*.
@@ -200,7 +219,8 @@ We recommend looking at the [Example usage section](#example-usage) to understan
 | statistics | boolean *or* object |  |  | Read the series from statistics instead of raw history, see [Statistics](#statistics).
 | show | list |  | v0.2.0 | List of UI elements to display/hide, for available items see [available show options](#available-show-options).
 | animate | boolean | `false` | v0.2.0 | Add a reveal animation to the graph.
-| height | number | `150` | v0.0.1 | Set a desired height of the graph, see [Card size](#card-size).
+| height | number |  | v0.0.1 | Set a desired height of the **card**, see [Card size](#card-size). Left unset, a card asks for as much as it needs.
+| graph_height | number *or* string | `auto` | | How tall the graph is drawn **inside** the card: a number of pixels, a percentage of the card (`60%`), or `auto` to fill what the rest of the card leaves. See [Card size](#card-size).
 | bar_spacing | number | `4` | v0.9.0 | Set the spacing between bars in bar graph. Value `-1` is used to place bars on each other. See [examples](#bar-spacing-examples).
 | bar_spacing_group | number |   | 0.14.0 | Set an additional spacing between bar groups (multiple entities) in bar graph. Fallback to `bar_spacing` if undefined; if `bar_spacing: -1` - then a default `4` value is used. See [examples](#bar-spacing-examples).
 | line_width | number | `5` | v0.0.1 | Set the thickness of the line.
@@ -217,9 +237,9 @@ We recommend looking at the [Example usage section](#example-usage) to understan
 | font_size_header | number | `14` | v0.3.1 | Adjust the font size of the header, size in pixels.
 | font_size_state | number |  |  | Adjust the font size of the current state, size in pixels. The unit follows at the same proportion as by default.
 | align_header | string | `default` | v0.2.0 | Set the alignment of the header, `left`, `right`, `center` or `default`.
-| align_icon | string | `right` | v0.2.0 | Set the alignment of the icon, `left`, `right` or `state`.
+| align_icon | string | `right` | v0.2.0 | Set the alignment of the icon, `left`, `right` or `state`. A `right` icon shares its corner with a `top-right` state, see [Card size](#card-size).
 | hover_mode | string | `nearest` | | How a value is picked when hovering the graph: `nearest` selects the point closest to the cursor from anywhere in the graph, `point` only when the cursor is over the point itself. See [Hovering](#hovering).
-| align_state | string | `left` | v0.2.0 | Set the alignment of the current state: `left`, `right`, `center`, or `top-left`, `top-right`, `bottom-left`, `bottom-right` to pin it to a corner of the card, see [Card size](#card-size).
+| align_state | string | `left` | v0.2.0 | Set the alignment of the current state: `left`, `right`, `center`, or `top-left`, `top-right`, `bottom-left`, `bottom-right` to pin it to a corner of the card, see [Card size](#card-size) - a `top-*` state wants `align_icon: state` or `left` to stay clear of the icon.
 | lower_bound | number *or* string |  | v0.2.3 | Set a fixed lower bound for the graph Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
 | upper_bound | number *or* string |  | v0.2.3 | Set a fixed upper bound for the graph Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
 | min_bound_range | number |  | v0.x.x | Applied after everything, makes sure there's a minimum range that the Y-axis will have. Useful for not making small changes look large because of scale.
@@ -434,20 +454,58 @@ A state pinned to a corner with `align_state` is taken out of the flow, so it
 takes no row of its own and the graph gets that space. It overlays the card, so
 `top-right` is the one that fits alongside a header; `top-left` shares its row
 with the name and icon, and a `bottom-*` state sits over the graph. Combine
-those with `show.name: false` or a series that stays clear of that corner:
+those with `show.name: false` or a series that stays clear of that corner.
+
+**A `top-*` state shares its corner with the icon**, which `align_icon` puts at
+the `right` of the header by default. Pair them:
+
+- `align_icon: state` moves the icon out of the header to sit beside the state
+  itself, wherever that is pinned. This is usually what you want.
+- `align_icon: left` leaves the icon in the header, at the opposite end from a
+  `top-right` state.
 
 ```yaml
 type: custom:mini-graph-card
 align_state: top-right
+align_icon: state
 font_size_state: 21
 entities:
   - sensor.outside_temperature
 ```
 
-`height` is a *desired* height, not a fixed one: it decides which cell the card
-asks for, and a card placed in a cell of a different size follows the cell. In a
-Masonry view, where a card has no height of its own, a graph is exactly `height`
-high as before.
+#### Two heights
+
+`height` and `graph_height` answer different questions, and neither is expressed
+in the other's terms:
+
+| | Question | Effect |
+|---|---|---|
+| `height` | how big is the **card**? | what cell the card asks Home Assistant for |
+| `graph_height` | how tall is the **graph** inside it? | only what is drawn |
+
+`height` is a *desired* height, not a fixed one: a card placed in a cell of a
+different size follows the cell. Left unset, the card asks for as much as its
+own chrome needs plus a normal graph - which is what it always took.
+
+`graph_height` defaults to `auto`: the graph is a row like any other and takes
+whatever the header, state and legend leave. Give it a number of pixels or a
+percentage of the card instead, and it comes out of the flow and is **anchored
+to the bottom of the card** - so the taller it is, the more of the card's own
+chrome it sits behind:
+
+```yaml
+type: custom:mini-graph-card
+height: 250            # a 250px card...
+graph_height: 100%     # ...with the graph behind everything in it
+align_state: top-right
+align_icon: state
+entities:
+  - sensor.outside_temperature
+```
+
+At `100%` the graph is a backdrop with the name, state and extrema floating over
+it. Smaller values are useful in their own right: `60%` is a sparkline across
+the bottom of a card, with the chrome in the clear above it.
 
 A graph is redrawn for the size it really got, so nothing is scaled: a `viewBox`
 matches its element 1:1. `line_width`, `bar_spacing` and a point radius are
@@ -494,6 +552,34 @@ entities:
   - sensor.living_room_temp
 hover_mode: nearest
 ```
+
+### Tapping & holding
+
+A click anywhere on the card runs `tap_action`, and a press held for half a
+second runs `hold_action` - which defaults to `more-info`, as stock Home
+Assistant cards do. A pointer that moves more than a few pixels is a scroll or a
+drag, not a hold.
+
+**On a touch screen a tap reads the card and a hold acts on it.** There is no
+hover to read a graph with, so the tap has to do it - and it does so anywhere on
+the card, with no boundary to find:
+
+| | Tap / click | Hold |
+|---|---|---|
+| Mouse, pen | `tap_action` anywhere, graph included | `hold_action` |
+| Touch | reads the value nearest the tap | `hold_action` |
+
+A tap reads wherever it lands, including over the header and the state, because
+a graph can be drawn behind either (see [Card size](#card-size)) and hunting for
+the edge of it is not something a card should ask of anyone. A card with no
+graph to read has nothing to show, so a tap there acts as a click does.
+
+This keys off the input device that produced the gesture, not off the browser or
+the screen, so a laptop with a touchscreen behaves correctly for each gesture in
+turn. Set `hold_action: {action: none}` to switch holding off.
+
+An action may be written either way - `hold_action: more-info` and
+`hold_action: {action: more-info}` mean the same thing.
 
 ### Statistics
 
