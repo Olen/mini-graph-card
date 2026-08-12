@@ -21,6 +21,7 @@ import {
   LEGEND_HEIGHT_EM,
   INFO_HEIGHT_EM,
   CARD_PADDING,
+  CARD_PADDING_COMPACT,
   MIN_GRAPH_HEIGHT,
   DEFAULT_GRAPH_HEIGHT,
   GRAPH_HEIGHT_AUTO,
@@ -223,21 +224,29 @@ const getInfoHeight = config => config.font_size * INFO_HEIGHT_EM + CARD_PADDING
  * would count a whole card on top of the chrome.
  * @param {object} config A built config
  * @param {number} graphHeight A graph height to count with
+ * @param {number} [padding] The padding a density spends between rows
  * @returns {number} Height in pixels
  */
-const getCardHeight = (config, graphHeight) => {
+const getCardHeight = (config, graphHeight, padding = CARD_PADDING) => {
   const show = config.show || {};
   // "ha-card" padding-top; each "ha-card > div" adds its own padding-bottom
-  let height = CARD_PADDING;
+  let height = padding;
   if (show.name || show.icon) {
-    height += config.font_size_header * HEADER_HEIGHT_EM + CARD_PADDING;
+    height += config.font_size_header * HEADER_HEIGHT_EM + padding;
   }
   if (show.state && !isStateInCorner(config.align_state)) {
     // a corner state is out of a flow & takes no height of its own
     height += (config.font_size_state !== undefined
       ? config.font_size_state * STATE_LINE_HEIGHT
-      : config.font_size * STATE_HEIGHT_EM) + CARD_PADDING;
+      : config.font_size * STATE_HEIGHT_EM) + padding;
   }
+  // Each row is as tall as its own font: the sizes are set per part of the
+  // card, so a legend sized on its own must be counted on its own too.
+  const legendFont = config.font_size_legend !== undefined
+    ? config.font_size_legend : config.font_size;
+  const extremaFont = config.font_size_extrema !== undefined
+    ? config.font_size_extrema : config.font_size;
+
   if (show.graph) {
     // no CARD_PADDING here: unlike every other row, ".graph" has none
     // ("ha-card .graph { padding: 0 }"), & counting one made a card ask for
@@ -245,11 +254,11 @@ const getCardHeight = (config, graphHeight) => {
     // minus the chrome, came out 16px short of the height that was asked for.
     height += graphHeight;
     if (show.legend && (config.entities || []).length > 1) {
-      height += config.font_size * LEGEND_HEIGHT_EM;
+      height += legendFont * LEGEND_HEIGHT_EM;
     }
   }
   if (show.extrema) {
-    height += getInfoHeight(config);
+    height += extremaFont * INFO_HEIGHT_EM + padding;
   }
   return height;
 };
@@ -298,11 +307,28 @@ const parseGraphHeight = (value) => {
 };
 
 /**
- * Height of everything a card draws apart from the graph.
+ * Height of a legend, which is drawn INSIDE the graph area rather than beside
+ * it - so it counts towards what a card asks for, but not towards the space
+ * left over for the graph.
  * @param {object} config A built config
  * @returns {number} Height in pixels
  */
-const getChromeHeight = config => getCardHeight(config, 0);
+const getLegendHeight = (config) => {
+  const show = config.show || {};
+  if (!show.graph || !show.legend || (config.entities || []).length <= 1) return 0;
+  const font = config.font_size_legend !== undefined ? config.font_size_legend : config.font_size;
+  return font * LEGEND_HEIGHT_EM;
+};
+
+/**
+ * Height of everything a card draws apart from the graph.
+ * @param {object} config A built config
+ * @param {boolean} [compact] Count the compact padding instead
+ * @returns {number} Height in pixels
+ */
+const getChromeHeight = (config, compact = false) => getCardHeight(
+  config, 0, compact ? CARD_PADDING_COMPACT : CARD_PADDING,
+) - getLegendHeight(config);
 
 /**
  * The card height asked of HA. "height" is a desired CARD height; left unset,
@@ -663,6 +689,7 @@ export {
   getInfoHeight,
   getCardHeight,
   getChromeHeight,
+  getLegendHeight,
   parseGraphHeight,
   getDesiredCardHeight,
   getGraphHeightPx,

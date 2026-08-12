@@ -57,6 +57,11 @@ and where [#1155](https://github.com/kalkih/mini-graph-card/pull/1155) /
 - A graph could not shrink into its card and was cut off at the bottom.
 - A single-entity card reserved 19.6px on the right for a states container that
   was never filled.
+- A card did not fill the cell a Sections view gave it: the host sized to its
+  own content, so cards came out the same height whatever `grid_options.rows`
+  asked for, and a card taller than its cell overlapped its neighbours.
+- The tooltip's time range was sized in `rem` - against the document, not the
+  card - so it was the one element which ignored `font_size`.
 - `align_icon` had no default in the code, only in the docs, so an unconfigured
   icon rendered as `loc="undefined"`, matched neither CSS rule and sat against
   the name. The documented `right` is now actually applied - and a left-aligned

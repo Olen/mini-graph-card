@@ -83,9 +83,16 @@ const MASONRY_SIZE_UNIT = 50;
 const HEADER_HEIGHT_EM = 1.7;
 const STATE_HEIGHT_EM = 2.4 * STATE_LINE_HEIGHT;
 const LEGEND_HEIGHT_EM = 1.2;
-const INFO_HEIGHT_EM = 1.2;
+// An extrema item stacks three lines - its type, its value & its time - so the
+// row is three of them, not one. Measured at 67.2px against a 14px font.
+const INFO_HEIGHT_EM = 3.6;
 // "ha-card" padding-top & a padding-bottom of each "ha-card > div".
 const CARD_PADDING = 16;
+// The same, on a card too short to spend it. Only the padding changes with
+// density; font sizes have options of their own.
+const CARD_PADDING_COMPACT = 8;
+const DENSITIES = ['auto', 'comfortable', 'compact'];
+const DEFAULT_DENSITY = 'auto';
 // A graph is allowed to shrink to this height when a card is resized.
 const MIN_GRAPH_HEIGHT = 32;
 
@@ -169,6 +176,9 @@ export {
   LEGEND_HEIGHT_EM,
   INFO_HEIGHT_EM,
   CARD_PADDING,
+  CARD_PADDING_COMPACT,
+  DENSITIES,
+  DEFAULT_DENSITY,
   MIN_GRAPH_HEIGHT,
   MAX_BARS,
   DEFAULT_FONT_SIZE,

@@ -4,6 +4,11 @@ const style = css`
   :host {
     display: flex;
     flex-direction: column;
+    /* Fill the cell a Sections grid gives us. Without it the host sizes to its
+       own content, so every card comes out the same height whatever "rows" it
+       was given - and a card taller than its cell overlaps its neighbours.
+       Resolves to "auto" in a Masonry view, where the parent has no height. */
+    height: 100%;
   }
   ha-card {
     flex-direction: column;
@@ -291,7 +296,9 @@ const style = css`
     flex: 1;
   }
   .state__time {
-    font-size: .95rem;
+    /* "em", not "rem": every other size on the card follows font_size, and
+       this one silently did not. */
+    font-size: .95em;
     font-weight: 500;
     bottom: -1.1rem;
     left: 0;
