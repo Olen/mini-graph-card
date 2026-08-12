@@ -260,6 +260,9 @@ const MAINSCHEMA = [
               },
               {
                 name: 'fill',
+                // Ignored by Home Assistant before 2026.8, which shows the
+                // field unconditionally - the same as today.
+                visible: { field: 'graph', operator: 'not_eq', value: 'hide' },
                 selector: {
                   select: {
                     options: [
@@ -274,6 +277,9 @@ const MAINSCHEMA = [
               },
               {
                 name: 'points',
+                // Ignored by Home Assistant before 2026.8, which shows the
+                // field unconditionally - the same as today.
+                visible: { field: 'graph', operator: 'not_eq', value: 'hide' },
                 selector: {
                   select: {
                     options: [
