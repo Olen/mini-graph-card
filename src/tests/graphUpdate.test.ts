@@ -81,3 +81,56 @@ describe('Graph.update', () => {
     expect(graph.coords.length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * Where a graph starts.
+ *
+ * A bucket with no reading carries the previous value forward, which is what
+ * the state machine says really happened. Before the FIRST reading there is no
+ * previous value to carry, and the card used to fill those buckets from the
+ * first future one - drawing an entity's readings from before it had any
+ * (upstream #414). Nothing is drawn there now.
+ */
+describe('Graph.update: the start of a graph', () => {
+  const at = (minutesAgo: number, state: string) => ({
+    last_changed: recently(minutesAgo), state,
+  });
+
+  it('starts where the data starts, not at the left edge', () => {
+    const graph = makeGraph({ points: 1 });        // 24 buckets of an hour
+    graph.update([at(90, '20'), at(30, '22')]);    // nothing older than 90 min
+    expect(graph.coords.length).toBeLessThan(24);
+    expect(graph.coords.length).toBeGreaterThan(0);
+  });
+
+  it('draws no reading from before the entity had one', () => {
+    const graph = makeGraph({ points: 1 });
+    graph.update([at(90, '20'), at(30, '22')]);
+    // the left-most point is the first real reading, not a copy of it moved back
+    const firstX = graph.coords[0][0];
+    expect(firstX).toBeGreaterThan(0);
+  });
+
+  it('still carries a value forward across a later quiet spell', () => {
+    const graph = makeGraph({ points: 1 });
+    graph.update([at(23 * 60, '20'), at(30, '22')]);
+    // 23 hours with nothing reported between them: a flat line, not a hole
+    expect(graph.coords.length).toBeGreaterThan(20);
+    const values = graph.coords.map(c => c[2]);
+    expect(values.filter(v => v === 20).length).toBeGreaterThan(15);
+  });
+
+  it('fills the whole window when the data does', () => {
+    const graph = makeGraph({ points: 1 });
+    const full = Array.from({ length: 24 }, (_, i) => at(i * 60 + 1, `${20 + i}`));
+    graph.update(full.reverse());
+    expect(graph.coords.length).toBe(24);
+    expect(graph.coords[0][0]).toBe(0);
+  });
+
+  it('plots nothing when every bucket is empty', () => {
+    const graph = makeGraph();
+    graph.update([]);
+    expect(graph.coords).toEqual([]);
+  });
+});

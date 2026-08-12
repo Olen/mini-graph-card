@@ -148,9 +148,22 @@ export default class Graph {
     xRatio = Number.isFinite(xRatio) ? xRatio : this.width;
 
     const coords = [];
-    let last = history.filter(Boolean)[0];
+
+    // A bucket that reported nothing carries the previous value forward: Home
+    // Assistant holds a state until the next one arrives, so a flat line is
+    // what really happened, not a guess.
+    //
+    // There is nothing to carry into the buckets BEFORE the first reading,
+    // though. Those used to be filled from the first FUTURE value - drawing a
+    // sensor's readings from before it had any, so an entity created two hours
+    // ago filled a 24-hour graph with a flat line at a value that did not exist
+    // yet. The graph now starts where its data does. See upstream #414.
+    const first = history.findIndex(Boolean);
+    if (first === -1) return coords;
+
+    let last = history[first];
     let x;
-    for (let i = 0; i < history.length; i += 1) {
+    for (let i = first; i < history.length; i += 1) {
       x = xRatio * i + this.margin[X];
       if (history[i]) {
         last = history[i];

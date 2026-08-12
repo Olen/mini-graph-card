@@ -64,6 +64,14 @@ fixes below. See [Visual editor](#visual-editor).
 - `aggregate_func: median` sorted the items rather than their states, so every
   comparison was `NaN` and the list was never sorted: it returned the middle
   value **in time order**. Broken since v0.11.0.
+- A graph drew readings from before the entity had any: buckets before the
+  first reading were filled from the first *future* value, so an entity created
+  two hours ago filled a 24-hour graph with a flat line at a value that did not
+  exist yet. A graph now starts where its data does. A gap *inside* a graph is
+  still a flat line - Home Assistant holds a state until the next one arrives,
+  so "nothing was reported" and "nothing changed" are the same thing to the
+  recorder, and a flat line is the more truthful of the available lies.
+  ([upstream #414](https://github.com/kalkih/mini-graph-card/issues/414))
 - The history cache blocked the first render of **every** dashboard, whether or
   not a card was on it: the startup purge decompressed each record in turn to
   read two numbers, before anything was drawn. It now reads metadata stored
