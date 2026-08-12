@@ -3,11 +3,20 @@ import { LitElement, html } from 'lit-element';
 import './components/entitiesEditor';
 import './components/entityEditor';
 import './components/mgc_list';
-import { setupTranslations } from '../localize/localize';
+import { localize } from '../localize/localize';
 import { MAINSCHEMA, BOOLEANS } from './editorConst';
 import { booleanToString, stringToBoolean } from './editorUtils';
 
 class MiniGraphCardEditor extends LitElement {
+  constructor() {
+    super();
+    // ha-form calls these as its own methods, so an unbound one reads the
+    // form's hass rather than ours. Bind once: binding per render would give
+    // ha-form a new function identity every time and make it re-render.
+    this.computeLabel = this.computeLabel.bind(this);
+    this.localizeValue = this.localizeValue.bind(this);
+  }
+
   static get properties() {
     return {
       hass: {},
@@ -19,7 +28,6 @@ class MiniGraphCardEditor extends LitElement {
   setConfig(config) {
     this._config = config;
     this._entities = config.entities;
-    setupTranslations(this.hass);
   }
 
   valueChanged(ev) {
@@ -71,24 +79,16 @@ class MiniGraphCardEditor extends LitElement {
     fireEvent(this, 'config-changed', { config: { ...this._config, entities: ev.detail } });
   }
 
+  // Home Assistant first: an option a stock card also has is already
+  // translated, in the user's language, for every language HA ships.
   computeLabel(schema) {
-    let localized = this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`);
-    if (localized !== '') {
-      return localized;
-    }
-    localized = this.hass.localize(`ui.panel.lovelace.editor.card.mgc.${schema.name}`);
-    if (localized !== '') {
-      return localized;
-    }
-    return schema.name;
+    return this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`)
+      || localize(this.hass, schema.name)
+      || schema.name;
   }
 
   localizeValue(key) {
-    const localized = this.hass.localize(`ui.panel.lovelace.editor.card.mgc.values.${key}`);
-    if (localized !== '') {
-      return localized;
-    }
-    return key;
+    return localize(this.hass, `values.${key}`) || key;
   }
 
   render() {
