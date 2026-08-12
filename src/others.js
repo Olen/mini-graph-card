@@ -9,6 +9,7 @@ import { log } from './utils';
 import {
   X,
   Y,
+  ONE_HOUR,
   STATISTICS_TYPES,
   DEFAULT_STATISTICS_TYPES,
   GRID_ROW_HEIGHT,
@@ -25,6 +26,15 @@ import {
   GRAPH_HEIGHT_AUTO,
   GRAPH_HEIGHT_PX,
   GRAPH_HEIGHT_PERCENT,
+  GRID_INTERVALS,
+  GRID_INTERVAL_THRESHOLDS,
+  GRID_INTERVAL_FALLBACK,
+  GRID_INTERVAL_HOURS,
+  GRID_MIN_SPACING,
+  GRID_LABEL_MODES,
+  DEFAULT_GRID_LABEL_MODE,
+  GRID_TARGET_LINES,
+  GRID_AXES,
 } from './const';
 
 /**
@@ -318,6 +328,209 @@ const getGraphHeightPx = (config, cardHeight = getDesiredCardHeight(config)) => 
   return cardHeight - getChromeHeight(config);
 };
 
+const logGrid = (option, field, value, fallback) => {
+  const shown = typeof value === 'object' ? JSON.stringify(value) : value;
+  log(`Invalid option ${option}.${field}: [${shown}]${fallback !== undefined ? `; using ${fallback}` : '; ignoring it'}`);
+  return fallback;
+};
+
+/**
+ * Parse "grid_x"/"grid_y". Like "statistics", "true" means "with all defaults".
+ * @param {boolean|object|undefined} value As written in a config
+ * @param {string} option "grid_x" or "grid_y", which decides the fields
+ * @returns {object|undefined} Normalised options, or undefined when off
+ */
+const parseGrid = (value, option) => {
+  if (!value) return undefined;
+  const given = typeof value === 'object' ? value : {};
+  const grid = {};
+
+  if (option === 'grid_x') {
+    grid.interval = given.interval === undefined || GRID_INTERVALS.includes(given.interval)
+      ? (given.interval || 'auto')
+      : logGrid(option, 'interval', given.interval, 'auto');
+  } else {
+    if (isNumeric(given.step, true) && Number(given.step) > 0) grid.step = Number(given.step);
+    else if (given.step !== undefined) logGrid(option, 'step', given.step);
+    grid.axis = given.axis === undefined || GRID_AXES.includes(given.axis)
+      ? (given.axis || 'primary')
+      : logGrid(option, 'axis', given.axis, 'primary');
+  }
+
+  // Both grids name their lines the same way: not at all, with the card, or
+  // always. "show.labels: false" still switches the lot off.
+  if (given.labels === false) grid.labels = false;
+  else if (given.labels === true) grid.labels = 'always';
+  else {
+    grid.labels = given.labels === undefined || GRID_LABEL_MODES.includes(given.labels)
+      ? (given.labels || DEFAULT_GRID_LABEL_MODE)
+      : logGrid(option, 'labels', given.labels, DEFAULT_GRID_LABEL_MODE);
+  }
+
+  if (given.color !== undefined) grid.color = String(given.color);
+  if (isNumeric(given.width, true) && Number(given.width) > 0) grid.width = Number(given.width);
+  else if (given.width !== undefined) logGrid(option, 'width', given.width);
+  // "minor: n" puts n lighter lines between each pair of full ones
+  grid.minor = isNumeric(given.minor, true) && Number(given.minor) >= 0
+    ? Math.floor(Number(given.minor))
+    : (given.minor === undefined ? 0 : logGrid(option, 'minor', given.minor, 0));
+  return grid;
+};
+
+/**
+ * A default interval for a window, so a day of data is not covered in 288 of
+ * them. Picked from a table rather than computed: every bound is a judgement.
+ * A narrow graph then coarsens it further - thirteen lines are a grid on a wide
+ * card & a smudge on a 100px one.
+ * @param {number} hours An hours_to_show
+ * @param {number} [width] Width the graph is drawn in, in pixels
+ * @returns {string} An interval name
+ */
+const getGridInterval = (hours, width) => {
+  const match = GRID_INTERVAL_THRESHOLDS.find(item => hours <= item.hours);
+  let interval = match ? match.interval : GRID_INTERVAL_FALLBACK;
+  if (!isNumeric(width) || width <= 0) return interval;
+
+  const affordable = Math.max(1, Math.floor(width / GRID_MIN_SPACING));
+  const coarser = GRID_INTERVALS.slice(GRID_INTERVALS.indexOf(interval));
+  interval = coarser.find(name => hours / GRID_INTERVAL_HOURS[name] <= affordable)
+    || GRID_INTERVALS[GRID_INTERVALS.length - 1];
+  return interval;
+};
+
+/**
+ * Round a timestamp DOWN to the start of its interval, in local time - which is
+ * the point of the exercise: a "day" line belongs on midnight where the viewer
+ * lives, not 24 hours before the right-hand edge. Date arithmetic rather than
+ * fixed milliseconds, so a day is still a day across a DST change.
+ */
+const floorToInterval = (time, interval) => {
+  const date = new Date(time);
+  if (interval === 'month') {
+    date.setDate(1); date.setHours(0, 0, 0, 0);
+  } else if (interval === 'week') {
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - ((date.getDay() + 6) % 7)); // back to Monday
+  } else if (interval === 'day') {
+    date.setHours(0, 0, 0, 0);
+  } else if (interval === '6hour') {
+    date.setHours(date.getHours() - (date.getHours() % 6), 0, 0, 0);
+  } else if (interval === 'hour') {
+    date.setMinutes(0, 0, 0);
+  } else {
+    const step = interval === '15minute' ? 15 : 5;
+    date.setMinutes(date.getMinutes() - (date.getMinutes() % step), 0, 0);
+  }
+  return date.getTime();
+};
+
+/** The start of the interval after the one holding "time". */
+const nextInterval = (time, interval) => {
+  const date = new Date(floorToInterval(time, interval));
+  if (interval === 'month') date.setMonth(date.getMonth() + 1);
+  else if (interval === 'week') date.setDate(date.getDate() + 7);
+  else if (interval === 'day') date.setDate(date.getDate() + 1);
+  else if (interval === '6hour') date.setHours(date.getHours() + 6);
+  else if (interval === 'hour') date.setHours(date.getHours() + 1);
+  else date.setMinutes(date.getMinutes() + (interval === '15minute' ? 15 : 5));
+  return date.getTime();
+};
+
+/**
+ * The moments a time grid draws a line at, oldest first.
+ * @param {number} endTime Right-hand edge of the graph, in ms
+ * @param {number} hours Width of the window
+ * @param {object} [options] interval ("auto" unless given), minor, width in px
+ * @returns {Array<{time: number, major: boolean}>} Lines within the window
+ */
+const getGridTimes = (endTime, hours, { interval, minor = 0, width } = {}) => {
+  const name = !interval || interval === 'auto' ? getGridInterval(hours, width) : interval;
+  const start = endTime - hours * ONE_HOUR;
+  const lines = [];
+  let time = floorToInterval(start, name);
+  if (time < start) time = nextInterval(time, name);
+
+  while (time <= endTime) {
+    lines.push({ time, major: true });
+    const next = nextInterval(time, name);
+    for (let i = 1; i <= minor; i += 1) {
+      // evenly through the interval, which is why this is not date arithmetic
+      const between = time + ((next - time) * i) / (minor + 1);
+      if (between > start && between <= endTime) lines.push({ time: between, major: false });
+    }
+    time = next;
+  }
+  return lines.sort((a, b) => a.time - b.time);
+};
+
+/**
+ * A step which lands on round numbers - 1, 2 or 5 times a power of ten - so a
+ * grid reads 20/25/30 rather than 17.3/21.6/25.9.
+ */
+const getNiceStep = (range, height) => {
+  // A short graph has room for fewer lines than a tall one
+  const target = isNumeric(height) && height > 0
+    ? Math.max(2, Math.min(GRID_TARGET_LINES, Math.floor(height / GRID_MIN_SPACING)))
+    : GRID_TARGET_LINES;
+  const rough = range / target;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  return ([1, 2, 5, 10].find(factor => factor * magnitude >= rough) || 10) * magnitude;
+};
+
+/**
+ * The values a value grid draws a line at.
+ * @param {number} min Lower bound of the graph
+ * @param {number} max Upper bound
+ * @param {object} [options] step (a round one is chosen without it), minor,
+ * logarithmic, height in px
+ * @returns {Array<{value: number, major: boolean}>} Lines within the bounds
+ */
+const getGridValues = (min, max, {
+  step, minor = 0, logarithmic = false, height,
+} = {}) => {
+  if (!isNumeric(min) || !isNumeric(max) || max <= min) return [];
+  const lines = [];
+
+  if (logarithmic && step === undefined) {
+    // A decade is the round number of a log scale
+    for (let e = Math.ceil(Math.log10(Math.max(min, Number.MIN_VALUE)));
+      10 ** e <= max; e += 1) {
+      if (10 ** e >= min) lines.push({ value: 10 ** e, major: true });
+    }
+    return lines;
+  }
+
+  const size = step !== undefined ? step : getNiceStep(max - min, height);
+  const first = Math.ceil(min / size) * size;
+  for (let value = first; value <= max + size / 1e6; value += size) {
+    // floating point: 0.1+0.2 must not become a line at 0.30000000000000004
+    const rounded = Number(value.toPrecision(12));
+    lines.push({ value: rounded, major: true });
+    for (let i = 1; i <= minor; i += 1) {
+      const between = Number((value + (size * i) / (minor + 1)).toPrecision(12));
+      if (between > min && between < max) lines.push({ value: between, major: false });
+    }
+  }
+  return lines.filter(line => line.value >= min && line.value <= max)
+    .sort((a, b) => a.value - b.value);
+};
+
+/**
+ * How many labels to skip between the ones shown, so they do not collide.
+ * A label is wider than the line it names, so a grid which is comfortable can
+ * still have labels which are not - especially on a narrow card.
+ * @param {number} count How many labels there would be
+ * @param {number} width Space they share, in pixels
+ * @param {number} labelWidth Room one label needs, in pixels
+ * @returns {number} Show every Nth label; 1 shows them all
+ */
+const getLabelStride = (count, width, labelWidth) => {
+  if (!isNumeric(count) || count < 2 || !isNumeric(width) || width <= 0) return 1;
+  const spacing = width / count;
+  if (!isNumeric(labelWidth) || labelWidth <= 0 || spacing <= 0) return 1;
+  return Math.max(1, Math.ceil(labelWidth / spacing));
+};
+
 /**
  * Grid options telling HA a desired & a minimal size of a card,
  * see https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/
@@ -453,6 +666,11 @@ export {
   parseGraphHeight,
   getDesiredCardHeight,
   getGraphHeightPx,
+  parseGrid,
+  getGridInterval,
+  getGridTimes,
+  getGridValues,
+  getLabelStride,
   getGridRows,
   getCardSizeUnits,
   getGridOptions,

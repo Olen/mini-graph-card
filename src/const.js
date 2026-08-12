@@ -102,6 +102,43 @@ const DEFAULT_HOVER_MODE = HOVER_NEAREST;
 const HOLD_TIME = 500;
 const HOLD_MOVE_TOLERANCE = 10;
 
+// Grid lines
+const GRID_INTERVALS = ['5minute', '15minute', 'hour', '6hour', 'day', 'week', 'month'];
+// A default interval, by hours_to_show. Chosen so a window draws a handful of
+// lines rather than hundreds - each bound is a judgement, not a formula, the
+// same way STATISTICS_PERIOD_THRESHOLDS is.
+const GRID_INTERVAL_THRESHOLDS = [
+  { hours: 0.5, interval: '5minute' },
+  { hours: 3, interval: '15minute' },
+  { hours: 12, interval: 'hour' },
+  { hours: 72, interval: '6hour' },
+  { hours: 24 * 14, interval: 'day' },
+  { hours: 24 * 120, interval: 'week' },
+];
+const GRID_INTERVAL_FALLBACK = 'month';
+// How long each interval is, for working out how many lines it would draw
+const GRID_INTERVAL_HOURS = {
+  '5minute': 1 / 12, '15minute': 1 / 4, hour: 1, '6hour': 6, day: 24, week: 24 * 7, month: 24 * 30,
+};
+// Closer than this & lines read as a smudge rather than a grid, so an automatic
+// interval or step coarsens until they are at least this far apart. Only
+// automatic ones: an interval or step written in a config is always obeyed.
+const GRID_MIN_SPACING = 32;
+// Labels are smaller than the gap a grid needs, so they may sit closer
+// Clear space between a bar & the marker above it, so the marker cannot be
+// mistaken for part of the bar
+const BAR_MARKER_GAP = 3;
+const GRID_LABEL_MIN_SPACING = 16;
+// A time label only earns its place when it names a date. "13:00" on an hourly
+// grid is a dozen labels saying little; "Tue" or "Aug" is worth the ink.
+const GRID_LABEL_INTERVALS = ['day', 'week', 'month'];
+// "hover" reveals labels with the card, as show.labels does; "always" keeps them
+const GRID_LABEL_MODES = ['hover', 'always'];
+const DEFAULT_GRID_LABEL_MODE = 'hover';
+// A value grid aims for about this many lines between the bounds
+const GRID_TARGET_LINES = 5;
+const GRID_AXES = ['primary', 'secondary'];
+
 // How tall a graph is drawn inside its card, as parsed by parseGraphHeight():
 // "auto" is a row in the flow, the others are anchored to the card's bottom.
 const GRAPH_HEIGHT_AUTO = 'auto';
@@ -167,6 +204,18 @@ export {
   GRAPH_HEIGHT_AUTO,
   GRAPH_HEIGHT_PX,
   GRAPH_HEIGHT_PERCENT,
+  GRID_INTERVALS,
+  GRID_INTERVAL_THRESHOLDS,
+  GRID_INTERVAL_FALLBACK,
+  GRID_INTERVAL_HOURS,
+  GRID_MIN_SPACING,
+  BAR_MARKER_GAP,
+  GRID_LABEL_MIN_SPACING,
+  GRID_LABEL_INTERVALS,
+  GRID_LABEL_MODES,
+  DEFAULT_GRID_LABEL_MODE,
+  GRID_TARGET_LINES,
+  GRID_AXES,
   STATISTICS_PERIODS,
   STATISTICS_TYPES,
   DEFAULT_STATISTICS_TYPES,

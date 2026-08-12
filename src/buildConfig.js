@@ -26,7 +26,7 @@ import {
   checkStatistics,
   checkStringOption,
 } from './checkOption';
-import { getFactor, parseGraphHeight } from './others';
+import { getFactor, parseGraphHeight, parseGrid } from './others';
 
 /**
  * Starting from the given index, increment the index until an array element with a
@@ -197,6 +197,8 @@ export default (config) => {
   // as the chrome needs plus a default-sized graph - i.e. what a card took before.
   conf.height = checkNumericOption(conf, 'height', undefined, 0, undefined, true);
   conf.graph_height = parseGraphHeight(conf.graph_height);
+  conf.grid_x = parseGrid(conf.grid_x, 'grid_x');
+  conf.grid_y = parseGrid(conf.grid_y, 'grid_y');
 
   conf.line_width = checkNumericOption(conf, 'line_width', DEFAULT_MARGIN, 0, undefined, true);
 

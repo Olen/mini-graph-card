@@ -76,6 +76,32 @@ export default class Graph {
     this.height = height - this.margin[Y] * 4;
   }
 
+  /**
+   * Y for a value, by the very transform the coordinates use - a grid line
+   * drawn from its own copy of the maths would drift from the data it labels.
+   * @param {number} value A value in the entity's own units
+   * @returns {number} A Y coordinate
+   */
+  getY(value) {
+    const max = this.logarithmic ? Math.log10(Math.max(1, this.max)) : this.max;
+    const min = this.logarithmic ? Math.log10(Math.max(1, this.min)) : this.min;
+    const val = this.logarithmic ? Math.log10(Math.max(1, value)) : value;
+    const yRatio = ((max - min) / this.height) || 1;
+    return this.height - ((val - min) / yRatio) + this.margin[Y] * 2;
+  }
+
+  /**
+   * X for a moment inside the shown window. The window ends at _endTime, which
+   * group_by rounds (see _updateEndTime), so this follows the axis the data was
+   * binned against rather than the wall clock.
+   * @param {number} time A timestamp in ms
+   * @returns {number} An X coordinate
+   */
+  getX(time) {
+    const span = this.hours * ONE_HOUR;
+    return this.margin[X] + (this.width * (time - (this._endTime - span))) / span;
+  }
+
   update(history = undefined) {
     if (history) {
       this._history = history;

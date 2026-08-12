@@ -33,6 +33,7 @@ has not been released - the last stable upstream release is v0.13.0.
 | `font_size_state` | Size the current state on its own, without scaling extrema and axis labels along with it. ([upstream #752](https://github.com/kalkih/mini-graph-card/issues/752)) |
 | [`graph_height`](#card-size) | Size the graph independently of the card. A graph is anchored to the bottom, so a percentage decides how much of the card's own chrome it sits behind - `100%` puts it behind everything, as a backdrop. |
 | [`hold_action`](#tapping--holding) | Hold a card for half a second to act on it, the way stock Home Assistant cards behave. |
+| [`grid_x` / `grid_y`](#grid-lines) | Grid lines, with labels. Vertical ones land on real midnights and whole hours, horizontal ones on round values, and both thin out on a small card. ([upstream #837](https://github.com/kalkih/mini-graph-card/issues/837), [#739](https://github.com/kalkih/mini-graph-card/issues/739), and where [#1179](https://github.com/kalkih/mini-graph-card/pull/1179) was heading) |
 | [`hover_mode`](#hovering) | Hover anywhere in the graph to read the nearest value, instead of having to hit a point a few pixels wide. Works with several entities & on a touch screen. ([upstream #1357](https://github.com/kalkih/mini-graph-card/issues/1357)) |
 
 ### The card sizes itself
@@ -238,6 +239,8 @@ We recommend looking at the [Example usage section](#example-usage) to understan
 | font_size_state | number |  |  | Adjust the font size of the current state, size in pixels. The unit follows at the same proportion as by default.
 | align_header | string | `default` | v0.2.0 | Set the alignment of the header, `left`, `right`, `center` or `default`.
 | align_icon | string | `right` | v0.2.0 | Set the alignment of the icon, `left`, `right` or `state`. A `right` icon shares its corner with a `top-right` state, see [Card size](#card-size).
+| grid_x | boolean *or* [grid object](#grid-lines) | `false` | | Draw vertical grid lines at real clock boundaries, see [Grid lines](#grid-lines). `true` uses the defaults.
+| grid_y | boolean *or* [grid object](#grid-lines) | `false` | | Draw horizontal grid lines at round values, see [Grid lines](#grid-lines). `true` uses the defaults.
 | hover_mode | string | `nearest` | | How a value is picked when hovering the graph: `nearest` selects the point closest to the cursor from anywhere in the graph, `point` only when the cursor is over the point itself. See [Hovering](#hovering).
 | align_state | string | `left` | v0.2.0 | Set the alignment of the current state: `left`, `right`, `center`, or `top-left`, `top-right`, `bottom-left`, `bottom-right` to pin it to a corner of the card, see [Card size](#card-size) - a `top-*` state wants `align_icon: state` or `left` to stay clear of the icon.
 | lower_bound | number *or* string |  | v0.2.3 | Set a fixed lower bound for the graph Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
@@ -316,7 +319,7 @@ All properties are optional.
 | average | `false` | `true` / `false` / `below` | Display average information; `below` - place below a graph.
 | extrema | `false` | `true` / `false` / `below` | Display max/min information; `below` - place below a graph.
 | info_hide_unit | `false` | `true` / `false` | Do not show a unit for the average & max/min information.
-| labels | `hover` | `true` / `false` / `hover` | Display Y-axis labels.
+| labels | `hover` | `true` / `false` / `hover` | Display axis labels: the Y-axis bounds, and the labels of a [grid](#grid-lines) on either axis. `false` removes all axis text from the card.
 | labels_secondary | `hover` | `true` / `false` / `hover` | Display secondary Y-axis labels.
 | name_adaptive_color | `false` | `true` / `false` | Make the name color adapt with the primary entity/static value color.
 | icon_adaptive_color | `false` | `true` / `false` | Make the icon color adapt with the primary entity/static value color.
@@ -511,6 +514,78 @@ A graph is redrawn for the size it really got, so nothing is scaled: a `viewBox`
 matches its element 1:1. `line_width`, `bar_spacing` and a point radius are
 therefore in real pixels; previously they were in units of a 500-wide drawing
 stretched to a card, so they grew on a wide card and shrank on a narrow one.
+
+### Grid lines
+
+> [!NOTE]
+> `grid_x`/`grid_y` draw lines **inside the graph**. They are unrelated to Home
+> Assistant's own `grid_options`, which says how many columns and rows a card
+> takes up in a Sections view.
+
+Both take `true` for the defaults, or an object:
+
+```yaml
+type: custom:mini-graph-card
+entities:
+  - sensor.outside_temperature
+hours_to_show: 336
+grid_x: true
+grid_y:
+  step: 5
+  labels: always
+```
+
+#### Grid object
+
+| Name | Default | Options | Description |
+|------|:-------:|---------|-------------|
+| interval | `auto` | `5minute` / `15minute` / `hour` / `6hour` / `day` / `week` / `month` | **`grid_x` only.** How often a line is drawn. `auto` picks from `hours_to_show`, then coarsens further on a narrow card.
+| step | `auto` | number | **`grid_y` only.** Distance between lines, in the entity's units. `auto` picks a round step - 1, 2 or 5 times a power of ten - aiming for a handful of lines, fewer on a short card.
+| axis | `primary` | `primary` / `secondary` | **`grid_y` only.** Which Y axis the lines follow. Only one can be gridded; two sets of horizontal lines on different scales would be unreadable.
+| labels | `hover` | `hover` / `always` / `true` / `false` | Whether the lines are named, and when. `hover` reveals them with the card, as `show.labels` does. `true` means `always`.
+| minor | `0` | number | Lighter lines to draw between each pair of full ones. `2` gives thirds. The full lines then take more colour of their own, so the grid still reads as a hierarchy.
+| color | | any CSS colour | Overrides the theme's colour for this card.
+| width | `1` | number | Line width in pixels.
+
+**Lines land on something real.** A `day` line sits on *local midnight*, a `6hour`
+line on 00:00/06:00/12:00/18:00, a `month` line on the 1st - not at a fixed
+distance back from the right-hand edge. That is the point of the feature: it
+answers "when did a new day start", not "how long ago was that". Value lines
+are the same idea: they land on 20/25/30 rather than dividing the bounds into
+17.3/21.6/25.9.
+
+**A small card gets fewer lines.** An automatic `interval` or `step` coarsens
+until the lines are at least 32px apart, so a 100px-wide card does not receive
+the thirteen lines a 600px one would. An `interval` or `step` you write yourself
+is always obeyed - if you ask for it, you get it.
+
+#### Which labels appear, and when
+
+`grid_x` labels only name intervals which carry a date - `day`, `week` and
+`month`. An hourly grid draws no labels: a dozen of them reading "13:00" costs
+more than it says. Labels also thin out to every 2nd, 3rd... when the card is
+too narrow to fit them all.
+
+The switches interact like this:
+
+| Option | Effect on lines | Effect on labels |
+|---|---|---|
+| `grid_x: false` (default) | no vertical lines | none |
+| `grid_x: {labels: false}` | lines drawn | that grid is never named |
+| `show.labels: false` | **lines still drawn** | no labels at all - neither axis, whatever `labels: always` says |
+| `show.labels_secondary: false` | lines still drawn | no labels for a `grid_y` on the secondary axis |
+
+Two rules worth stating plainly:
+
+- **`show.labels` never turns the grid off.** It is about text, not lines. To
+  remove the lines, set `grid_x`/`grid_y` to `false`.
+- **`show.labels: false` beats `labels: always`.** It is the card's switch for
+  axis text of any kind, so an explicit "no labels" wins over a per-grid
+  preference. Use `grid_x: {labels: false}` to silence one grid & leave the
+  other alone.
+
+Colours come from `mcg-grid-color` and `mcg-grid-major-color`, see
+[Theme variables](#theme-variables).
 
 ### Hovering
 
@@ -777,6 +852,8 @@ The following theme variables can be set in your HA theme to customize the appea
 |------|:-------:|-------------|
 | mcg-title-letter-spacing |  | Letter spacing of the card title (`name` option).
 | mcg-title-font-weight | 500 | Font weight of the card title.
+| mcg-grid-color | var(--divider-color) | Colour of the [grid lines](#grid-lines).
+| mcg-grid-major-color | var(--secondary-text-color) | Colour of the full grid lines where `minor` ones are drawn between them.
 | mcg-inactive-opacity | 0.2 | Opacity of the lines/bars of the entities which are not the one being hovered, see [Hovering](#hovering). Set to `0` to hide them entirely.
 | mcg-label-axis-opacity | 0.75 | Opacity of the Y-axis labels.
 | mcg-label-static-opacity | 0.75 | Opacity of the static values' labels.

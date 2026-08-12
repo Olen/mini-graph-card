@@ -13,6 +13,7 @@ import {
   formatDateTime,
   parseDateTimeFormatFromCfg,
   getDateFormat, getTimeFormat,
+  getDateTimeFormat,
 } from './locale';
 import './initialize';
 import { version } from '../package.json';
@@ -33,6 +34,9 @@ import {
   GRAPH_HEIGHT_AUTO,
   GRAPH_HEIGHT_PX,
   GRAPH_HEIGHT_PERCENT,
+  GRID_LABEL_MIN_SPACING,
+  GRID_LABEL_INTERVALS,
+  BAR_MARKER_GAP,
   NBSP,
   STATISTICS_PERIOD_THRESHOLDS,
   STATISTICS_PERIOD_FALLBACK,
@@ -40,7 +44,8 @@ import {
 import {
   isNumeric, getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
-  getDesiredCardHeight, getGraphHeightPx,
+  getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
+  getLabelStride,
 } from './others';
 
 import {
@@ -795,6 +800,7 @@ class MiniGraphCard extends LitElement {
                     </div>
                     ${this.renderLabels()}
                     ${this.renderLabelsSecondary()}
+                    ${this.renderGridLabelsX()}
                   </div>
                   ${this.renderLegend()}
                 `
@@ -1031,20 +1037,43 @@ class MiniGraphCard extends LitElement {
   */
   renderSvgHoverMarker() {
     const { entity, index } = this.tooltip;
-    if (this.config.hover_mode !== HOVER_NEAREST
-      || this.config.show.graph === 'bar'
-      || entity === undefined) return;
-    const points = this.points[entity];
-    const point = points && points.find(item => item[3] === index);
-    if (!point) return;
+    if (this.config.hover_mode !== HOVER_NEAREST || entity === undefined) return;
     const radius = getFirstDefinedItem(
       this.config.entities[entity].line_width,
       this.config.line_width,
-    );
-    const color = this.computeColor(point[V], entity);
+    ) * 1.5;
+
+    if (this.config.show.graph === 'bar') {
+      // Bars have no point to mark, so mark the bar - ABOVE it, clear of its
+      // top edge. Centred on the edge, half the marker reads as extra height
+      // and the bar appears to grow when it is hovered. Nothing else says which
+      // bar is being read: the overlay which reads it sits above them, so their
+      // own :hover never fires.
+      const bar = (this.bar[entity] || [])[index];
+      if (!bar) return;
+      // no wider than the bar, or a marker spans the ones beside it
+      const size = Math.max(2, Math.min(radius, bar.width / 2));
+      return this.renderHoverMarker(
+        bar.x + bar.width / 2,
+        Math.max(size, bar.y - size - BAR_MARKER_GAP),
+        size,
+        this.computeColor(bar.value, entity),
+      );
+    }
+
+    const points = this.points[entity];
+    const point = points && points.find(item => item[3] === index);
+    if (!point) return;
+    return this.renderHoverMarker(point[X], point[Y], radius, this.computeColor(point[V], entity));
+  }
+
+  /**
+   * Renders the marker showing which point or bar is being read.
+   * @returns {SVGTemplateResult} SVG element
+   */
+  renderHoverMarker(cx, cy, radius, color) {
     return svg`
-      <circle class='line--point--selected'
-        cx=${point[X]} cy=${point[Y]} r=${radius * 1.5}
+      <circle class='hover--marker' cx=${cx} cy=${cy} r=${radius}
         stroke=${color} fill=${color} />`;
   }
 
@@ -1328,6 +1357,7 @@ class MiniGraphCard extends LitElement {
     return svg`
       <svg width='100%' height=${height !== 0 ? '100%' : 0} viewBox='0 0 ${width} ${height}'
         >
+        ${this.renderGrid()}
         <g>
           <defs>
             ${this.renderSvgGradient(this.gradient)}
@@ -1342,6 +1372,59 @@ class MiniGraphCard extends LitElement {
         ${this.renderSvgHoverMarker()}
         ${this.renderSvgHoverArea()}
       </svg>`;
+  }
+
+  /**
+   * Renders the grid lines, FIRST in the svg so they sit behind everything -
+   * an svg has no z-index, only document order.
+   * @returns {SVGTemplateResult|undefined} SVG element
+   */
+  renderGrid() {
+    const { grid_x: gridX, grid_y: gridY } = this.config;
+    if (!gridX && !gridY) return;
+    // Any graph will do for the geometry: they share a size & a window
+    const graph = (this.Graph || []).find(item => item && item.coords.length > 0);
+    if (!graph) return;
+
+    const lines = [];
+    if (gridX) {
+      getGridTimes(graph._endTime, this.config.hours_to_show,
+        { ...gridX, width: this.graphWidth })
+        .forEach(({ time, major }) => {
+          const x = graph.getX(time);
+          lines.push(this.renderGridLine(gridX, major, x, 0, x, this.graphHeight));
+        });
+    }
+    if (gridY) {
+      // ...but the values follow one axis, & a graph only knows the bounds of
+      // the axis its own entity was drawn against.
+      const secondary = gridY.axis === 'secondary';
+      const onAxis = (this.Graph || []).find((item, index) => item && item.coords.length > 0
+        && (this.config.entities[index].y_axis === 'secondary') === secondary) || graph;
+      const bound = secondary ? this.boundSecondary : this.bound;
+      getGridValues(bound[0], bound[1],
+        { ...gridY, logarithmic: this.config.logarithmic, height: this.graphHeight })
+        .forEach(({ value, major }) => {
+          const y = onAxis.getY(value);
+          lines.push(this.renderGridLine(gridY, major, 0, y, this.graphWidth, y));
+        });
+    }
+    return svg`<g class="grid">${lines}</g>`;
+  }
+
+  /**
+   * Renders one grid line.
+   * @param {object} grid A parsed grid_x/grid_y
+   * @param {boolean} major Whether it is a full line rather than one between
+   * @returns {SVGTemplateResult} SVG element
+   */
+  renderGridLine(grid, major, x1, y1, x2, y2) {
+    const stroke = [
+      grid.color !== undefined ? `stroke: ${grid.color};` : '',
+      grid.width !== undefined ? `stroke-width: ${grid.width};` : '',
+    ].join('');
+    return svg`<line class="grid--line" ?minor=${!major} ?strong=${major && grid.minor > 0}
+      x1=${x1} y1=${y1} x2=${x2} y2=${y2} style=${stroke} />`;
   }
 
   setTooltip(entity, index, value, label = null) {
@@ -1403,6 +1486,9 @@ class MiniGraphCard extends LitElement {
         || !this.bound || this.primaryYaxisSeries.length === 0) {
       return html``;
     }
+    // A value grid names every line it draws, which says more than the bounds
+    const grid = this.renderGridLabelsY('primary');
+    if (grid) return grid;
     // index is not passed into computeState() for a primary axis
     return html`
       <div class="graph__labels --primary flex">
@@ -1416,11 +1502,93 @@ class MiniGraphCard extends LitElement {
   * Renders secondary Y-axis labels
   * @returns {TemplateResult} Lit template result
   */
+  /**
+   * Labels for a value grid: one per full line, at the line. Replaces the
+   * bounds in the column that already exists, so it inherits its placement,
+   * its theming & "show.labels: hover" - no second visual language.
+   * @param {string} axis "primary" or "secondary"
+   * @returns {TemplateResult|undefined} Lit template result
+   */
+  renderGridLabelsY(axis) {
+    const grid = this.config.grid_y;
+    // without labels the column falls back to naming the bounds, as it always did
+    if (!grid || !grid.labels || (grid.axis || 'primary') !== axis) return undefined;
+    const secondary = axis === 'secondary';
+    const onAxis = (this.Graph || []).find((item, index) => item && item.coords.length > 0
+      && (this.config.entities[index].y_axis === 'secondary') === secondary);
+    if (!onAxis) return undefined;
+
+    const bound = secondary ? this.boundSecondary : this.bound;
+    let lastY = -Infinity;
+    const labels = getGridValues(bound[0], bound[1], {
+      ...grid, logarithmic: this.config.logarithmic, height: this.graphHeight,
+    }).filter(line => line.major).reduce((result, { value }) => {
+      const y = onAxis.getY(value);
+      // a label is smaller than a grid gap, but two must still not overlap
+      if (Math.abs(y - lastY) < GRID_LABEL_MIN_SPACING) return result;
+      lastY = y;
+      result.push(html`
+        <span style="top: ${y}px">${this.computeState(value, secondary ? -1 : undefined)}</span>`);
+      return result;
+    }, []);
+    if (labels.length === 0) return undefined;
+    return html`
+      <div class="graph__labels --${axis} --grid" ?always=${grid.labels === 'always'}>
+        ${labels}
+      </div>`;
+  }
+
+  /**
+   * Labels for a time grid, along the bottom. Only for intervals which name a
+   * date - an hourly grid would be a dozen labels saying very little.
+   * @returns {TemplateResult} Lit template result
+   */
+  renderGridLabelsX() {
+    const grid = this.config.grid_x;
+    // "show.labels" is the card's switch for axis text of any kind, time
+    // labels included - it named only the Y axis until there was an X one.
+    if (!grid || !grid.labels || !this.config.show.labels) return html``;
+    const graph = (this.Graph || []).find(item => item && item.coords.length > 0);
+    if (!graph) return html``;
+    const { hours_to_show: hours } = this.config;
+    const interval = !grid.interval || grid.interval === 'auto'
+      ? getGridInterval(hours, this.graphWidth)
+      : grid.interval;
+    if (!GRID_LABEL_INTERVALS.includes(interval)) return html``;
+
+    const locale = this._hass && this._hass.locale && this._hass.locale.language;
+    const options = interval === 'month' ? { month: 'short' }
+      : interval === 'week' ? { day: 'numeric', month: 'short' }
+        : (hours <= 24 * 8 ? { weekday: 'short' } : { day: 'numeric', month: 'numeric' });
+    const formatter = getDateTimeFormat(locale, options);
+
+    const times = getGridTimes(graph._endTime, hours, { ...grid, width: this.graphWidth })
+      .filter(line => line.major)
+      .map(({ time }) => ({ time, text: formatter.format(new Date(time)) }));
+    // A label is wider than the line it names, so a grid which reads well can
+    // still have labels which collide: show every Nth of them instead.
+    const fontSize = this.config.font_size * 0.15 + 8.5;
+    const widest = times.reduce((most, item) => Math.max(most, item.text.length), 0);
+    const stride = getLabelStride(times.length, this.graphWidth, widest * fontSize * 0.6 + 6);
+
+    const labels = times
+      .filter((item, index) => index % stride === 0)
+      .map(({ time, text }) => html`
+        <span style="left: ${graph.getX(time)}px">${text}</span>`);
+    return labels.length
+      ? html`<div class="graph__labels --grid --grid-x" ?hover=${grid.labels === 'hover'}>
+          ${labels}
+        </div>`
+      : html``;
+  }
+
   renderLabelsSecondary() {
     if (!this.config.show.labels_secondary
         || !this.boundSecondary || this.secondaryYaxisSeries.length === 0) {
       return html``;
     }
+    const grid = this.renderGridLabelsY('secondary');
+    if (grid) return grid;
     // index "-1" is passed into computeState() for a secondary axis
     return html`
       <div class="graph__labels --secondary flex">

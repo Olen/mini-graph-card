@@ -404,6 +404,24 @@ const style = css`
   .graph__static_value_labels > span[inactive] {
     opacity: 0;
   }
+  /* Grid lines sit behind the data & must not take the pointer from it. */
+  .grid {
+    pointer-events: none;
+  }
+  .grid--line {
+    stroke: var(--mcg-grid-color, var(--divider-color));
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .grid--line[minor] {
+    opacity: .4;
+  }
+  /* With minor lines between them the full ones need to carry more weight,
+     or the grid reads as one undifferentiated mesh. */
+  .grid--line[strong] {
+    stroke: var(--mcg-grid-major-color, var(--secondary-text-color));
+    opacity: .55;
+  }
   .line--point {
     cursor: pointer;
     fill: var(--primary-background-color, white);
@@ -419,7 +437,9 @@ const style = css`
     fill: transparent;
     pointer-events: all;
   }
-  .line--point--selected {
+  /* Marks the point or bar being read; not line-specific despite living
+     among the point styles. */
+  .hover--marker {
     pointer-events: none;
     transition: none;
   }
@@ -470,6 +490,54 @@ const style = css`
     align-items: flex-end;
     grid-column: 1;
     grid-row: 1;
+  }
+  /* Grid labels sit AT their line rather than at the ends of the box, so they
+     are placed individually instead of by the column's space-between. */
+  .graph__labels.--grid {
+    display: block;
+    padding: 0;
+  }
+  .graph__labels.--grid > span {
+    position: absolute;
+    white-space: nowrap;
+  }
+  /* "labels: always" outranks show.labels' hover gating - more specific than
+     the "ha-card[labels] .graph__labels.--primary" rule which hides them. */
+  ha-card[labels] .graph__labels.--primary.--grid[always],
+  ha-card[labels-secondary] .graph__labels.--secondary.--grid[always] {
+    opacity: var(--mcg-label-axis-opacity, .75);
+    transition: none;
+  }
+  .graph__labels.--grid.--primary > span {
+    left: .6em;
+    transform: translateY(-50%);
+  }
+  .graph__labels.--grid.--secondary > span {
+    right: .6em;
+    transform: translateY(-50%);
+  }
+  .graph__labels.--grid-x {
+    grid-column: 1;
+    grid-row: 1;
+    position: relative;
+    font-size: calc(.15em + 8.5px);
+    opacity: var(--mcg-label-axis-opacity, .75);
+    pointer-events: none;
+  }
+  /* "labels: hover" follows show.labels' own idea of hover: nothing at rest,
+     revealed with the card. */
+  .graph__labels.--grid-x[hover] {
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  ha-card:hover .graph__labels.--grid-x[hover] {
+    opacity: var(--mcg-label-axis-opacity, .75);
+  }
+  .graph__labels.--grid-x > span {
+    bottom: .2em;
+    /* against the line, not centred on it: a centred label on the first line
+       would hang off the left edge of the card */
+    margin-left: .3em;
   }
   .graph__labels > span {
     cursor: pointer;
