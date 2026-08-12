@@ -51,6 +51,14 @@ up. See [Card size](#card-size). ([upstream #1111](https://github.com/kalkih/min
 and where [#1155](https://github.com/kalkih/mini-graph-card/pull/1155) /
 [#1199](https://github.com/kalkih/mini-graph-card/pull/1199) were heading)
 
+### A visual editor
+
+The card has a configuration UI, so it can be added and set up from the
+dashboard editor without writing any yaml. It is
+[upstream PR #1128](https://github.com/kalkih/mini-graph-card/pull/1128) by
+[@selvalt7](https://github.com/selvalt7), plus this fork's own options and the
+fixes below. See [Visual editor](#visual-editor).
+
 ### Fixes
 
 - `aggregate_func: median` sorted the items rather than their states, so every
@@ -202,6 +210,31 @@ know about.
 
 We recommend looking at the [Example usage section](#example-usage) to understand the basics to configure this card.
 (also) pay attention to the **required** options mentioned below.
+
+### Visual editor
+
+The card can be configured from the dashboard editor: add it from the card
+picker, or open an existing card and edit it there. Entities are a list you can
+reorder by dragging, and each one opens its own page for a name, a colour, an
+axis and its own `show_*` options. Everything else is grouped under
+*Appearance*, with bounds, alignment, font sizes and the `show` options folded
+into it, and the colour thresholds and the state map below.
+
+**It does not cover every option, and it does not need to.** The card has over
+a hundred, and yaml stays the way to reach the rest - which is the same
+arrangement Home Assistant's own cards use. Two things make mixing the two
+safe:
+
+- **An option the editor does not know is left exactly as it is.** Editing a
+  card in the UI never drops the parts of its yaml the form has no field for.
+- **`statistics`, `grid_x` and `grid_y` are switches here, objects in yaml.**
+  Each is off, on, or a whole block of settings. The switch reads *on* for a
+  block, and the block is put back untouched when you change anything else on
+  the card, so using the editor cannot flatten a hand-written grid. Switching
+  one *off* does remove it - that is what off means.
+
+If you configure your dashboards in yaml, the editor is still the fastest way
+to try something: open a card, change it, and read the result off the yaml tab.
 
 ### Options
 
