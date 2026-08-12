@@ -116,4 +116,6 @@ class MGCList extends LitElement {
   }
 }
 
-customElements.define('ha-form-mgc-list', MGCList);
+if (!customElements.get('ha-form-mgc-list')) {
+  customElements.define('ha-form-mgc-list', MGCList);
+}

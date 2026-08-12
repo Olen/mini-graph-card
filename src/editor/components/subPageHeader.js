@@ -55,4 +55,6 @@ class SubPageHeader extends LitElement {
   }
 }
 
-customElements.define('mini-graph-card-subpage-header', SubPageHeader);
+if (!customElements.get('mini-graph-card-subpage-header')) {
+  customElements.define('mini-graph-card-subpage-header', SubPageHeader);
+}

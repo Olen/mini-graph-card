@@ -127,4 +127,6 @@ export class CustomColorSelector extends LitElement {
   }
 }
 
-customElements.define('ha-selector-hex_color', CustomColorSelector);
+if (!customElements.get('ha-selector-hex_color')) {
+  customElements.define('ha-selector-hex_color', CustomColorSelector);
+}

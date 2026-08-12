@@ -169,4 +169,6 @@ class MiniGraphCardEditor extends LitElement {
   }
 }
 
-customElements.define('mini-graph-card-editor', MiniGraphCardEditor);
+if (!customElements.get('mini-graph-card-editor')) {
+  customElements.define('mini-graph-card-editor', MiniGraphCardEditor);
+}

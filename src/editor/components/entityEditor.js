@@ -79,4 +79,6 @@ class EntityEditor extends LitElement {
   }
 }
 
-customElements.define('mini-graph-card-entity-editor', EntityEditor);
+if (!customElements.get('mini-graph-card-entity-editor')) {
+  customElements.define('mini-graph-card-entity-editor', EntityEditor);
+}
