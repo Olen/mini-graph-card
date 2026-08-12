@@ -64,6 +64,13 @@ fixes below. See [Visual editor](#visual-editor).
 - `aggregate_func: median` sorted the items rather than their states, so every
   comparison was `NaN` and the list was never sorted: it returned the middle
   value **in time order**. Broken since v0.11.0.
+- The history cache blocked the first render of **every** dashboard, whether or
+  not a card was on it: the startup purge decompressed each record in turn to
+  read two numbers, before anything was drawn. It now reads metadata stored
+  beside the payload, and waits for the browser to be idle. Measured over 315
+  records: 361ms → 1ms. `compress` also works for the first time - the code
+  read an option name that was never set - so a payload is ~8x smaller.
+  ([upstream #1392](https://github.com/kalkih/mini-graph-card/issues/1392))
 - A graph could not shrink into its card and was cut off at the bottom.
 - A single-entity card reserved 19.6px on the right for a states container that
   was never filled.
@@ -256,7 +263,8 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | aggregate_func | string | `avg` | v0.8.0 | Specify [aggregate function](#aggregate-functions) used to calculate point/bar in the graph.
 | group_by | string | `interval` | v0.8.0 | Specify type of grouping of data, dynamic `interval`, `date` or `hour`.
 | update_interval | number |  | v0.4.0 | Specify a custom update interval of the history data (in seconds), instead of on every state change.
-| cache | boolean | `true` | v0.9.0 | Enable/disable local caching of history data.
+| cache | boolean | `true` | v0.9.0 | Enable/disable local caching of history data. A card caches the rows the recorder returned, so the next load asks only for what happened since, instead of the whole window again.
+| compress | boolean | `true` | v0.9.0 | Compress a cached payload before storing it. Roughly 8x smaller, which is what keeps the startup purge cheap - it reads a record's metadata without touching the payload. Costs a visible card under a millisecond to unpack.
 | statistics | boolean *or* object |  |  | Read the series from statistics instead of raw history, see [Statistics](#statistics).
 | show | list |  | v0.2.0 | List of UI elements to display/hide, for available items see [available show options](#available-show-options).
 | animate | boolean | `false` | v0.2.0 | Add a reveal animation to the graph.

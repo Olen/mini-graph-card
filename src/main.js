@@ -7,6 +7,7 @@ import Graph from './graph';
 import style from './style';
 import handleClick from './handleClick';
 import buildConfig from './buildConfig';
+import { packEntry, unpackEntry } from './cache';
 import './editor/editor';
 import {
   blankBeforePercent,
@@ -53,7 +54,6 @@ import {
 import {
   getMin, getAvg, getMax,
   getMilli,
-  compress, decompress,
   getFirstDefinedItem,
   compareArray,
   log,
@@ -2392,15 +2392,12 @@ class MiniGraphCard extends LitElement {
     );
   }
 
-  async getCache(key, compressed) {
-    const data = await localForage.getItem(`${key}_${this._md5Config}${(compressed ? '' : '_raw')}`);
-    return data ? (compressed ? decompress(data) : data) : null;
+  async getCache(key) {
+    return unpackEntry(await localForage.getItem(`${key}_${this._md5Config}`));
   }
 
-  async setCache(key, data, compressed) {
-    return compressed
-      ? localForage.setItem(`${key}_${this._md5Config}`, compress(data))
-      : localForage.setItem(`${key}_${this._md5Config}_raw`, data);
+  async setCache(key, entry, compressed) {
+    return localForage.setItem(`${key}_${this._md5Config}`, packEntry(entry, compressed));
   }
 
   async updateEntity(entity, index, initStart, end) {
@@ -2456,7 +2453,7 @@ class MiniGraphCard extends LitElement {
     let skipInitialState = false;
 
     const history = this.config.cache
-      ? await this.getCache(`${entity.entity_id}_${index}`, this.config.useCompress)
+      ? await this.getCache(`${entity.entity_id}_${index}`)
       : undefined;
     if (history && history.hours_to_show === this.config.hours_to_show) {
       stateHistory = history.data;
@@ -2527,7 +2524,7 @@ class MiniGraphCard extends LitElement {
             last_fetched: new Date(),
             data: stateHistory,
             version,
-          }, this.config.useCompress)
+          }, this.config.compress)
           .catch((err) => {
             log(err);
             localForage.clear();
