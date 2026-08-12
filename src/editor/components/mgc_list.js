@@ -1,8 +1,14 @@
 import { mdiPlus, mdiClose } from '@mdi/js';
 import { fireEvent } from 'custom-card-helpers';
 import { LitElement, css, html } from 'lit-element';
+import { localize } from '../../localize/localize';
 
 class MGCList extends LitElement {
+  constructor() {
+    super();
+    this.computeLabel = this.computeLabel.bind(this);
+  }
+
   static get properties() {
     return {
       hass: { attribute: false },
@@ -12,11 +18,9 @@ class MGCList extends LitElement {
   }
 
   computeLabel(schema) {
-    const localized = this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`);
-    if (localized !== '') {
-      return localized;
-    }
-    return this.hass.localize(`ui.panel.lovelace.editor.card.mgc.${schema.name}`);
+    return this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`)
+      || localize(this.hass, schema.name)
+      || schema.name;
   }
 
   render() {
@@ -116,4 +120,6 @@ class MGCList extends LitElement {
   }
 }
 
-customElements.define('ha-form-mgc-list', MGCList);
+if (!customElements.get('ha-form-mgc-list')) {
+  customElements.define('ha-form-mgc-list', MGCList);
+}

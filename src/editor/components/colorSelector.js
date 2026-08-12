@@ -3,6 +3,11 @@ import { fireEvent } from 'custom-card-helpers';
 import { css, html, LitElement } from 'lit-element';
 import { isValidHex, convertColorNameToHex } from '../editorUtils';
 
+// Anything a <input type="color"> can stand for: a hex value or a plain CSS
+// colour name. Notably NOT "rgba(...)" (it has an alpha channel a swatch
+// cannot show) or "var(--x)" (its value is not known until the card renders).
+const isSwatchable = value => !value || /^#[0-9a-f]{3,8}$/i.test(value) || /^[a-z]+$/i.test(value);
+
 export const colorSelector = {
   hex_color: {},
 };
@@ -18,6 +23,25 @@ export class CustomColorSelector extends LitElement {
   }
 
   render() {
+    // A swatch can only stand for a single opaque colour. The card also accepts
+    // "rgba(...)" and "var(--accent-color)", which a colour input would silently
+    // redraw as black & then overwrite on the first click - so those get a text
+    // field showing what is really there.
+    if (!isSwatchable(this.value)) {
+      return html`
+      <div class="color-container">
+        <label id="hex" for="color-text">
+          <span class="label">${this.label}</span>
+          <input class="free-text"
+            id="color-text"
+            type="text"
+            .value=${this.value || ''}
+            @change=${this.textChanged}>
+        </label>
+      </div>
+      `;
+    }
+
     const isHex = isValidHex(this.value);
     const colorValue = isHex ? this.value : convertColorNameToHex(this.value);
     return html`
@@ -46,13 +70,17 @@ export class CustomColorSelector extends LitElement {
     `;
   }
 
+  textChanged(ev) {
+    fireEvent(this, 'value-changed', { value: ev.target.value || undefined });
+  }
+
   valueChanged(ev) {
     const value = (ev.target).value || '#000000';
     fireEvent(this, 'value-changed', { value });
   }
 
   clearValue() {
-    fireEvent(this, 'value-changed', { undefined });
+    fireEvent(this, 'value-changed', { value: undefined });
   }
 
   static get styles() {
@@ -97,7 +125,7 @@ export class CustomColorSelector extends LitElement {
         border-radius: inherit;
       }
 
-      #hex input {
+      #hex input[type="color"] {
         min-width: 200%;
         min-height: 200%;
       }
@@ -119,6 +147,18 @@ export class CustomColorSelector extends LitElement {
         align-items: center;
       }
 
+      .free-text {
+        flex: 1;
+        min-width: 0;
+        font-family: inherit;
+        font-size: 1em;
+        padding: 8px;
+        color: var(--primary-text-color);
+        background: var(--secondary-background-color);
+        border: 1px solid var(--outline-color);
+        border-radius: 4px;
+      }
+
       .clear-button {
         --mdc-icon-size: 20px;
         color: var(--input-dropdown-icon-color);
@@ -127,4 +167,6 @@ export class CustomColorSelector extends LitElement {
   }
 }
 
-customElements.define('ha-selector-hex_color', CustomColorSelector);
+if (!customElements.get('ha-selector-hex_color')) {
+  customElements.define('ha-selector-hex_color', CustomColorSelector);
+}

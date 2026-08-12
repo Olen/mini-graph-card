@@ -1,10 +1,17 @@
 import { fireEvent } from 'custom-card-helpers';
 import { LitElement, html } from 'lit-element';
 import { ENTITYSCHEMA } from '../editorConst';
+import { localize } from '../../localize/localize';
 import './colorSelector';
 import './subPageHeader';
 
 class EntityEditor extends LitElement {
+  constructor() {
+    super();
+    this.computeLabel = this.computeLabel.bind(this);
+    this.localizeValue = this.localizeValue.bind(this);
+  }
+
   static get properties() {
     return {
       hass: { attribute: false },
@@ -13,19 +20,13 @@ class EntityEditor extends LitElement {
   }
 
   computeLabel(schema) {
-    const localized = this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`);
-    if (localized !== '') {
-      return localized;
-    }
-    return this.hass.localize(`ui.panel.lovelace.editor.card.mgc.${schema.name}`);
+    return this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`)
+      || localize(this.hass, schema.name)
+      || schema.name;
   }
 
   localizeValue(key) {
-    const localized = this.hass.localize(`ui.panel.lovelace.editor.card.mgc.values.${key}`);
-    if (localized !== '') {
-      return localized;
-    }
-    return key;
+    return localize(this.hass, `values.${key}`) || key;
   }
 
   computeHelper(schema, data) {
@@ -48,7 +49,7 @@ class EntityEditor extends LitElement {
 
     return html`
       <mini-graph-card-subpage-header
-        .name=${this.hass.localize('ui.panel.lovelace.editor.card.mgc.edit_entity')}
+        .name=${localize(this.hass, 'edit_entity')}
         @go-back=${this.goBack}
       ></mini-graph-card-subpage-header>
       <ha-form
@@ -79,4 +80,6 @@ class EntityEditor extends LitElement {
   }
 }
 
-customElements.define('mini-graph-card-entity-editor', EntityEditor);
+if (!customElements.get('mini-graph-card-entity-editor')) {
+  customElements.define('mini-graph-card-entity-editor', EntityEditor);
+}

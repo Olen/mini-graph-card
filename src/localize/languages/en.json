@@ -83,7 +83,11 @@
         "left": "Left",
         "right": "Right",
         "center": "Center",
-        "state": "State"
+        "state": "State",
+        "top-left": "Top left",
+        "top-right": "Top right",
+        "bottom-left": "Bottom left",
+        "bottom-right": "Bottom right"
       }
     },
     "state": {
@@ -122,10 +126,48 @@
       }
     },
     "y_axis": {
-      "options":{
+      "options": {
         "primary": "Primary",
         "secondary": "Secondary"
       }
+    },
+    "density": {
+      "options": {
+        "auto": "Auto",
+        "comfortable": "Comfortable",
+        "compact": "Compact"
+      }
+    },
+    "hover_mode": {
+      "options": {
+        "nearest": "Nearest point",
+        "point": "Only over a point"
+      }
     }
+  },
+  "height": "Card height",
+  "graph_height": "Graph height",
+  "density": "Density",
+  "hover_mode": "Hover",
+  "font_sizes": "Font sizes",
+  "font_size": "Base font size (%)",
+  "font_size_header": "Name",
+  "font_size_state": "State",
+  "font_size_secondary": "Secondary state",
+  "font_size_legend": "Legend",
+  "font_size_extrema": "Extrema",
+  "font_size_labels": "Axis labels",
+  "options": "More options",
+  "statistics": "Long-term statistics",
+  "grid_x": "Vertical grid lines",
+  "grid_y": "Horizontal grid lines",
+  "hold_action": "Hold behavior",
+  "helpers": {
+    "statistics": "Read from long-term statistics. Set a type or period in YAML.",
+    "grid_x": "Lines on whole hours and midnights. Set interval, colour and labels in YAML.",
+    "grid_y": "Lines on round values. Set step, axis, colour and labels in YAML.",
+    "graph_height": "Pixels, or a percentage of the card. Leave empty to fill what is left.",
+    "height": "The height of the card itself, in pixels.",
+    "font_size": "Scales the state and everything sized from it. A percentage, not pixels."
   }
 }

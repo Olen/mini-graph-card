@@ -1,6 +1,8 @@
 import {
   mdiAlignHorizontalLeft, mdiArrowExpandVertical, mdiEye,
   mdiFormatColorFill,
+  mdiFormatSize,
+  mdiGrid,
   mdiPalette,
   mdiStateMachine,
 } from '@mdi/js';
@@ -108,6 +110,63 @@ const MAINSCHEMA = [
             name: 'logarithmic',
             selector: { boolean: {} },
           },
+          {
+            name: 'height',
+            selector: { number: { min: 0, mode: 'box' } },
+          },
+          {
+            // Takes "180" or "60%", so it cannot be a number selector.
+            name: 'graph_height',
+            selector: { text: {} },
+          },
+          {
+            name: 'density',
+            selector: {
+              select: {
+                options: [
+                  { label: 'Auto', value: 'auto' },
+                  { label: 'Comfortable', value: 'comfortable' },
+                  { label: 'Compact', value: 'compact' },
+                ],
+                mode: 'dropdown',
+                translation_key: 'density',
+              },
+            },
+          },
+          {
+            name: 'hover_mode',
+            selector: {
+              select: {
+                options: [
+                  { label: 'Nearest', value: 'nearest' },
+                  { label: 'Point', value: 'point' },
+                ],
+                mode: 'dropdown',
+                translation_key: 'hover_mode',
+              },
+            },
+          },
+        ],
+      },
+      {
+        name: 'font_sizes',
+        type: 'expandable',
+        iconPath: mdiFormatSize,
+        flatten: true,
+        schema: [
+          {
+            name: '',
+            type: 'grid',
+            schema: [
+              { name: 'font_size', selector: { number: { min: 0.1, step: 0.1 } } },
+              { name: 'font_size_header', selector: { number: { min: 0.1, step: 0.1 } } },
+              { name: 'font_size_state', selector: { number: { min: 0.1, step: 0.1 } } },
+              { name: 'font_size_secondary', selector: { number: { min: 0.1, step: 0.1 } } },
+              { name: 'font_size_legend', selector: { number: { min: 0.1, step: 0.1 } } },
+              { name: 'font_size_extrema', selector: { number: { min: 0.1, step: 0.1 } } },
+              { name: 'font_size_labels', selector: { number: { min: 0.1, step: 0.1 } } },
+            ],
+          },
         ],
       },
       {
@@ -201,6 +260,10 @@ const MAINSCHEMA = [
                       { label: 'Left', value: 'left' },
                       { label: 'Right', value: 'right' },
                       { label: 'Center', value: 'center' },
+                      { label: 'Top left', value: 'top-left' },
+                      { label: 'Top right', value: 'top-right' },
+                      { label: 'Bottom left', value: 'bottom-left' },
+                      { label: 'Bottom right', value: 'bottom-right' },
                     ],
                     mode: 'dropdown',
                     translation_key: 'alignment',
@@ -260,6 +323,8 @@ const MAINSCHEMA = [
               },
               {
                 name: 'fill',
+                // Ignored by Home Assistant before 2026.8, which just shows it.
+                visible: { field: 'graph', operator: 'not_eq', value: 'hide' },
                 selector: {
                   select: {
                     options: [
@@ -274,6 +339,8 @@ const MAINSCHEMA = [
               },
               {
                 name: 'points',
+                // Ignored by Home Assistant before 2026.8, which just shows it.
+                visible: { field: 'graph', operator: 'not_eq', value: 'hide' },
                 selector: {
                   select: {
                     options: [
@@ -401,7 +468,28 @@ const MAINSCHEMA = [
     ],
   },
   {
+    name: 'options',
+    type: 'expandable',
+    flatten: true,
+    iconPath: mdiGrid,
+    schema: [
+      {
+        name: '',
+        type: 'grid',
+        schema: [
+          { name: 'statistics', selector: { boolean: {} } },
+          { name: 'grid_x', selector: { boolean: {} } },
+          { name: 'grid_y', selector: { boolean: {} } },
+        ],
+      },
+    ],
+  },
+  {
     name: 'tap_action',
+    selector: { ui_action: {} },
+  },
+  {
+    name: 'hold_action',
     selector: { ui_action: {} },
   },
 ];
@@ -539,8 +627,18 @@ const BOOLEANS = [
   'icon_adaptive_color',
 ];
 
+// Each of these is "off, on, or a whole object of settings" in yaml. The
+// editor shows a switch; editor.js puts an existing object back untouched, so
+// switching something else does not flatten a hand-written configuration.
+const OBJECT_TOGGLES = [
+  'statistics',
+  'grid_x',
+  'grid_y',
+];
+
 export {
   MAINSCHEMA,
   ENTITYSCHEMA,
   BOOLEANS,
+  OBJECT_TOGGLES,
 };

@@ -13,6 +13,7 @@ class EntitiesEditor extends LitElement {
   constructor() {
     super();
     this.newEntity = {};
+    this.computeLabel = this.computeLabel.bind(this);
   }
 
   static get properties() {
@@ -24,7 +25,8 @@ class EntitiesEditor extends LitElement {
   }
 
   computeLabel(schema) {
-    return this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`);
+    return this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`)
+      || schema.name;
   }
 
   computeHelper(schema, data) {
@@ -175,4 +177,6 @@ class EntitiesEditor extends LitElement {
   }
 }
 
-customElements.define('mini-graph-card-entities-editor', EntitiesEditor);
+if (!customElements.get('mini-graph-card-entities-editor')) {
+  customElements.define('mini-graph-card-entities-editor', EntitiesEditor);
+}

@@ -3,11 +3,21 @@ import { LitElement, html } from 'lit-element';
 import './components/entitiesEditor';
 import './components/entityEditor';
 import './components/mgc_list';
-import { setupTranslations } from '../localize/localize';
-import { MAINSCHEMA, BOOLEANS } from './editorConst';
+import { localize } from '../localize/localize';
+import { MAINSCHEMA, BOOLEANS, OBJECT_TOGGLES } from './editorConst';
 import { booleanToString, stringToBoolean } from './editorUtils';
 
 class MiniGraphCardEditor extends LitElement {
+  constructor() {
+    super();
+    // ha-form calls these as its own methods, so an unbound one would read the
+    // form's hass rather than ours. Bind once: a fresh closure per render would
+    // change identity every time & make ha-form re-render.
+    this.computeLabel = this.computeLabel.bind(this);
+    this.computeHelper = this.computeHelper.bind(this);
+    this.localizeValue = this.localizeValue.bind(this);
+  }
+
   static get properties() {
     return {
       hass: {},
@@ -19,7 +29,37 @@ class MiniGraphCardEditor extends LitElement {
   setConfig(config) {
     this._config = config;
     this._entities = config.entities;
-    setupTranslations(this.hass);
+  }
+
+  /**
+   * Options that are a whole object in yaml but a plain switch here.
+   *
+   * "grid_x: true" and "grid_x: {interval: day, minor: 1}" both mean "on", and
+   * only the first can be expressed as a toggle. So the toggle shows on, and
+   * the object is put back untouched unless the user actually switches it off.
+   */
+  buildToggles(config) {
+    const toggles = {};
+    OBJECT_TOGGLES.forEach((key) => {
+      if (config[key] !== undefined) {
+        toggles[key] = !!config[key];
+      }
+    });
+    return toggles;
+  }
+
+  restoreToggles(newConfig) {
+    const restored = {};
+    OBJECT_TOGGLES.forEach((key) => {
+      const next = newConfig[key];
+      if (next === true) {
+        const previous = this._config[key];
+        restored[key] = typeof previous === 'object' && previous !== null ? previous : true;
+      } else if (next === false) {
+        restored[key] = undefined;
+      }
+    });
+    return restored;
   }
 
   valueChanged(ev) {
@@ -43,6 +83,7 @@ class MiniGraphCardEditor extends LitElement {
       config:
       {
         ...newConfig,
+        ...this.restoreToggles(newConfig),
         show: Object.keys(newShow).length !== 0 ? newShow : undefined,
       },
     });
@@ -71,24 +112,20 @@ class MiniGraphCardEditor extends LitElement {
     fireEvent(this, 'config-changed', { config: { ...this._config, entities: ev.detail } });
   }
 
+  // Ask Home Assistant first: every option a stock card also has is already
+  // translated into every language HA ships, in the user's own language.
   computeLabel(schema) {
-    let localized = this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`);
-    if (localized !== '') {
-      return localized;
-    }
-    localized = this.hass.localize(`ui.panel.lovelace.editor.card.mgc.${schema.name}`);
-    if (localized !== '') {
-      return localized;
-    }
-    return schema.name;
+    return this.hass.localize(`ui.panel.lovelace.editor.card.generic.${schema.name}`)
+      || localize(this.hass, schema.name)
+      || schema.name;
+  }
+
+  computeHelper(schema) {
+    return localize(this.hass, `helpers.${schema.name}`);
   }
 
   localizeValue(key) {
-    const localized = this.hass.localize(`ui.panel.lovelace.editor.card.mgc.values.${key}`);
-    if (localized !== '') {
-      return localized;
-    }
-    return key;
+    return localize(this.hass, `values.${key}`) || key;
   }
 
   render() {
@@ -103,6 +140,7 @@ class MiniGraphCardEditor extends LitElement {
     const SHOW = this._config.show;
     const DATA = {
       ...this._config,
+      ...this.buildToggles(this._config),
       show: this.buildShowObject(SHOW),
     };
 
@@ -119,6 +157,7 @@ class MiniGraphCardEditor extends LitElement {
         .data=${DATA}
         .schema=${MAINSCHEMA}
         .computeLabel=${this.computeLabel}
+        .computeHelper=${this.computeHelper}
         .localizeValue=${this.localizeValue}
         @value-changed=${this.valueChanged}
       ></ha-form>
@@ -169,4 +208,6 @@ class MiniGraphCardEditor extends LitElement {
   }
 }
 
-customElements.define('mini-graph-card-editor', MiniGraphCardEditor);
+if (!customElements.get('mini-graph-card-editor')) {
+  customElements.define('mini-graph-card-editor', MiniGraphCardEditor);
+}

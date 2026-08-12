@@ -1,44 +1,38 @@
-import * as en from './languages/en.json';
-import * as de from './languages/de.json';
+import en from './languages/en.json';
+import de from './languages/de.json';
 
-const languages = {
+const LANGUAGES = {
   en,
   de,
 };
 
 const DEFAULT_LANG = 'en';
 
-function processTranslations(obj) {
-  let keys = [];
-  Object.keys(obj).forEach((key) => {
-    if (typeof obj[key] === 'object') {
-      const subKeys = processTranslations(obj[key]);
-      keys = keys.concat(subKeys.map(subkey => `${key}.${subkey}`));
-    } else {
-      keys.push(key);
-    }
-  });
-  return keys;
-}
+// "nb-NO" and "nb" both mean the same file to us.
+const languageOf = hass => (hass
+  && hass.locale
+  && hass.locale.language
+  ? hass.locale.language.split('-')[0]
+  : DEFAULT_LANG);
 
-export default function setupTranslations(hass) {
-  const lang = hass.locale.language || DEFAULT_LANG;
-  const hassObject = hass;
-  const resources = hassObject.resources[hass.locale.language];
-  const languageObject = languages[lang] || languages[DEFAULT_LANG];
+const lookup = (obj, key) => key.split('.')
+  .reduce((node, part) => (node ? node[part] : undefined), obj);
 
-  const keys = processTranslations(languageObject);
+/**
+ * The card's own strings, for the options Home Assistant knows nothing about.
+ *
+ * Home Assistant has no public way for a custom card to add translations - see
+ * home-assistant/frontend#6482 - and the private one is to write into
+ * `hass.resources`, which is the frontend's own shared store. Reading from our
+ * own bundle instead keeps the card out of hass entirely, and costs nothing:
+ * `computeLabel` asks Home Assistant first, so every option that also exists on
+ * a stock card is still translated into every language HA ships.
+ *
+ * Returns '' for a key we do not have, so callers can fall back with `||`.
+ */
+const localize = (hass, key) => lookup(LANGUAGES[languageOf(hass)], key)
+  || lookup(LANGUAGES[DEFAULT_LANG], key)
+  || '';
 
-  keys.forEach((key) => {
-    if (!key.startsWith('default')) {
-      const nestedKeys = key.split('.');
-      const value = nestedKeys.reduce((a, c) => a[c], languageObject);
-
-      if (value) {
-        resources[`ui.panel.lovelace.editor.card.mgc.${key}`] = value;
-      }
-    }
-  });
-}
-
-export { setupTranslations };
+export default localize;
+export { localize };
