@@ -7,6 +7,7 @@ import Graph from './graph';
 import style from './style';
 import handleClick from './handleClick';
 import buildConfig from './buildConfig';
+import './editor/editor';
 import {
   blankBeforePercent,
   formatNumber,
@@ -109,6 +110,10 @@ class MiniGraphCard extends LitElement {
     // for a currently unavailable entity
     this.preserved_uom = [];
     this.preserved_order = [];
+  }
+
+  static getConfigElement() {
+    return document.createElement('mini-graph-card-editor');
   }
 
   static get styles() {
