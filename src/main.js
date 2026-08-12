@@ -26,6 +26,7 @@ import {
   DEFAULT_GRAPH_WIDTH,
   STATE_UOM_RATIO,
   CARD_PADDING,
+  MIN_GRAPH_HEIGHT,
   DEFAULT_MARGIN,
   HOLD_TIME,
   HOLD_MOVE_TOLERANCE,
@@ -45,7 +46,7 @@ import {
   isNumeric, getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
-  getLabelStride,
+  getLabelStride, getChromeHeight,
 } from './others';
 
 import {
@@ -333,6 +334,7 @@ class MiniGraphCard extends LitElement {
       // updateGraphSizeObserver() would take it for "already observed" and a
       // reconnected card would never learn its size again.
       this.observedElement = undefined;
+      this.observingCard = false;
     }
     this.cancelHold();
     super.disconnectedCallback();
@@ -348,14 +350,28 @@ class MiniGraphCard extends LitElement {
       // Exact, not rounded: a viewBox matching an element to a fraction of a
       // pixel keeps preserveAspectRatio a no-op. Rounding it up makes a
       // drawing be scaled down to fit & letterboxed by a pixel or two.
-      const { width, height } = entries[0].contentRect;
-      // A sub-pixel jitter must not start a resize/redraw loop
-      if (width <= 0 || height <= 0
-        || (Math.abs(height - this.graphHeight) < 0.5
-          && Math.abs(width - this.graphWidth) < 0.5)) return;
-      [this._graphWidth, this._graphHeight] = [width, height];
-      this.redrawForSize(width, height);
-      this.requestUpdate();
+      entries.forEach((entry) => {
+        if (entry.target !== this.observedElement) {
+          // The host, for "density: auto". Its height is set from outside in a
+          // Sections cell, so compacting cannot change it & set off a loop.
+          const cardHeight = entry.contentRect.height;
+          if (Math.abs(cardHeight - (this._cardHeight || 0)) < 0.5) return;
+          this._cardHeight = cardHeight;
+          this.requestUpdate();
+          return;
+        }
+        // Exact, not rounded: a viewBox matching an element to a fraction of a
+        // pixel keeps preserveAspectRatio a no-op. Rounding it up makes a
+        // drawing be scaled down to fit & letterboxed by a pixel or two.
+        const { width, height } = entry.contentRect;
+        // A sub-pixel jitter must not start a resize/redraw loop
+        if (width <= 0 || height <= 0
+          || (Math.abs(height - this.graphHeight) < 0.5
+            && Math.abs(width - this.graphWidth) < 0.5)) return;
+        [this._graphWidth, this._graphHeight] = [width, height];
+        this.redrawForSize(width, height);
+        this.requestUpdate();
+      });
     });
   }
 
@@ -376,6 +392,43 @@ class MiniGraphCard extends LitElement {
    * graph is what absorbs a card being shrunk into a smaller cell.
    * @returns {string} Style string
    */
+  /**
+   * Whether to spend the smaller padding. "auto" does so when a card is too
+   * short to give a graph room after its chrome - which only happens where
+   * something outside fixes the height, a Sections cell. A Masonry card grows
+   * to fit its content, so there is nothing there to adapt to.
+   * @returns {boolean} True if the card should be compact
+   */
+  get isCompact() {
+    const { density } = this.config;
+    if (density === 'compact') return true;
+    if (density !== 'auto' || !this._cardHeight) return false;
+    return this._cardHeight < getChromeHeight(this.config) + MIN_GRAPH_HEIGHT;
+  }
+
+  /**
+   * Sizes for the parts of a card which can be sized on their own. Each is a
+   * custom property the stylesheet falls back from, so an unset one keeps the
+   * size it always had.
+   * @returns {string} Style string
+   */
+  getFontStyle() {
+    const { font_size_secondary: secondary } = this.config;
+    return [
+      ['--mcg-secondary-value-size', secondary],
+      // a unit keeps its proportion to the value it follows, as it does for
+      // the primary state
+      ['--mcg-secondary-uom-size', secondary === undefined
+        ? undefined
+        : Math.round(secondary * STATE_UOM_RATIO * 100) / 100],
+      ['--mcg-legend-size', this.config.font_size_legend],
+      ['--mcg-extrema-size', this.config.font_size_extrema],
+      ['--mcg-label-size', this.config.font_size_labels],
+    ].reduce((css, [name, size]) => (size === undefined
+      ? css
+      : `${css} ${name}: ${size}px;`), '');
+  }
+
   getCardStyle() {
     return this.config.graph_height.mode === GRAPH_HEIGHT_AUTO
       ? ''
@@ -414,8 +467,14 @@ class MiniGraphCard extends LitElement {
 
   /** (Re)attach a size observer to a currently rendered graph area. */
   updateGraphSizeObserver() {
-    if (!this.config.show.graph) return;
     this.observeGraphSize();
+    // "density: auto" needs the height the card was GIVEN, which is the host's:
+    // its own content height would change as the padding does & oscillate.
+    if (this.resizeObserver && !this.observingCard) {
+      this.resizeObserver.observe(this);
+      this.observingCard = true;
+    }
+    if (!this.config.show.graph) return;
     const element = this.shadowRoot && this.shadowRoot.querySelector('.graph__container__svg');
     if (!this.resizeObserver || !element || element === this.observedElement) return;
     if (this.observedElement) this.resizeObserver.unobserve(this.observedElement);
@@ -476,7 +535,8 @@ class MiniGraphCard extends LitElement {
         ?labels=${config.show.labels === 'hover'}
         ?labels-secondary=${config.show.labels_secondary === 'hover'}
         ?hover=${config.tap_action.action !== 'none'}
-        style="font-size: ${config.font_size}px; ${this.getCardStyle()}"
+        ?compact=${this.isCompact}
+        style="font-size: ${config.font_size}px; ${this.getCardStyle()}${this.getFontStyle()}"
         @mousemove=${e => this.handleCardHover(e)}
         @mouseleave=${() => (this.tooltip = {})}
         @pointerdown=${e => this.handlePointerDown(e)}

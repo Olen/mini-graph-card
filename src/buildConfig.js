@@ -9,6 +9,8 @@ import {
   DEFAULT_ALIGN_ICON,
   HOVER_MODES,
   DEFAULT_HOVER_MODE,
+  DENSITIES,
+  DEFAULT_DENSITY,
   DEFAULT_BAR_SPACING,
   DEFAULT_MARGIN,
   DEFAULT_HOURS_TO_SHOW,
@@ -183,6 +185,14 @@ export default (config) => {
   conf.align_icon = checkStringOption(conf, 'align_icon', ALIGN_ICON, DEFAULT_ALIGN_ICON);
 
   conf.hover_mode = checkStringOption(conf, 'hover_mode', HOVER_MODES, DEFAULT_HOVER_MODE);
+  conf.density = checkStringOption(conf, 'density', DENSITIES, DEFAULT_DENSITY);
+
+  // Each part of a card can be sized on its own; unset, it keeps the size it
+  // has always had relative to font_size.
+  ['font_size_secondary', 'font_size_legend', 'font_size_extrema', 'font_size_labels']
+    .forEach((option) => {
+      conf[option] = checkNumericOption(conf, option, undefined, 0.1, undefined, true);
+    });
 
   // "tap_action: more-info" is the natural thing to write & handleClick reads
   // actionConfig.action, so a bare string silently did nothing at all.

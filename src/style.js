@@ -34,6 +34,17 @@ const style = css`
   ha-card > div {
     padding: 0px 16px 16px 16px;
   }
+  /* "density: compact" - only the padding changes; every part of the card has
+     a font size option of its own. */
+  ha-card[compact] {
+    padding-top: 8px;
+  }
+  ha-card[compact] > div {
+    padding-bottom: 8px;
+  }
+  ha-card[compact] .graph__legend {
+    padding-bottom: 4px;
+  }
   ha-card > div:last-child {
     padding-bottom: 0;
   }
@@ -228,9 +239,10 @@ const style = css`
   .states--secondary {
     /* An absolute size set for the primary state must not be inherited here:
        secondary states are scaled down relative to their own wrapper, and
-       "initial" makes the custom property invalid so the var() fallback wins. */
-    --mcg-state-value-size: initial;
-    --mcg-state-uom-size: initial;
+       "initial" makes the custom property invalid so the var() fallback wins.
+       font_size_secondary sets its own pair, which take over when given. */
+    --mcg-state-value-size: var(--mcg-secondary-value-size, initial);
+    --mcg-state-uom-size: var(--mcg-secondary-uom-size, initial);
     display: flex;
     flex-flow: column;
     flex-wrap: wrap;
@@ -485,7 +497,7 @@ const style = css`
     flex-direction: column;
     justify-content: space-between;
     align-items: flex-start;
-    font-size: calc(.15em + 8.5px);
+    font-size: var(--mcg-label-size, calc(.15em + 8.5px));
     padding: .6em;
     pointer-events: none;
     opacity: var(--mcg-label-axis-opacity, .75);
@@ -527,7 +539,7 @@ const style = css`
     grid-column: 1;
     grid-row: 1;
     position: relative;
-    font-size: calc(.15em + 8.5px);
+    font-size: var(--mcg-label-size, calc(.15em + 8.5px));
     opacity: var(--mcg-label-axis-opacity, .75);
     pointer-events: none;
   }
@@ -551,7 +563,7 @@ const style = css`
     border-radius: var(--mcg-label-axis-border-radius, 1em);
   }
   .graph__static_value_labels {
-    font-size: calc(.15em + 8.5px);
+    font-size: var(--mcg-label-size, calc(.15em + 8.5px));
     position: absolute;
     pointer-events: none;
     top: 0; bottom: 0;
@@ -573,6 +585,7 @@ const style = css`
     transform: translate(-50%, -50%);
   }
   .graph__legend {
+    font-size: var(--mcg-legend-size, 1em);
     display: flex;
     flex-direction: row;
     justify-content: space-evenly;
@@ -594,6 +607,7 @@ const style = css`
     min-width: 10px;
   }
   .info {
+    font-size: var(--mcg-extrema-size, 1em);
     justify-content: space-between;
     align-items: middle;
   }

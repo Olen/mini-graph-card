@@ -565,7 +565,9 @@ const getLabelStride = (count, width, labelWidth) => {
  */
 const getGridOptions = (config) => {
   const rows = getGridRows(getDesiredCardHeight(config));
-  const minRows = getGridRows(getCardHeight(config, config.show.graph ? MIN_GRAPH_HEIGHT : 0));
+  const minRows = getGridRows(getCardHeight(
+    config, config.show.graph ? MIN_GRAPH_HEIGHT : 0, CARD_PADDING_COMPACT,
+  ));
   return {
     rows,
     min_rows: Math.min(minRows, rows),

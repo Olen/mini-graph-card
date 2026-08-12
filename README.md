@@ -33,6 +33,8 @@ has not been released - the last stable upstream release is v0.13.0.
 | `font_size_state` | Size the current state on its own, without scaling extrema and axis labels along with it. ([upstream #752](https://github.com/kalkih/mini-graph-card/issues/752)) |
 | [`graph_height`](#card-size) | Size the graph independently of the card. A graph is anchored to the bottom, so a percentage decides how much of the card's own chrome it sits behind - `100%` puts it behind everything, as a backdrop. |
 | [`hold_action`](#tapping--holding) | Hold a card for half a second to act on it, the way stock Home Assistant cards behave. |
+| [`density`](#density) | A card too short to afford its padding spends less of it, so a 2-row card is a graph rather than a stack of margins. ([upstream #1153](https://github.com/kalkih/mini-graph-card/issues/1153)) |
+| `font_size_secondary` / `_legend` / `_extrema` / `_labels` | Size each part of the card on its own, instead of everything but the header and the state scaling off one number. |
 | [`grid_x` / `grid_y`](#grid-lines) | Grid lines, with labels. Vertical ones land on real midnights and whole hours, horizontal ones on round values, and both thin out on a small card. ([upstream #837](https://github.com/kalkih/mini-graph-card/issues/837), [#739](https://github.com/kalkih/mini-graph-card/issues/739), and where [#1179](https://github.com/kalkih/mini-graph-card/pull/1179) was heading) |
 | [`hover_mode`](#hovering) | Hover anywhere in the graph to read the nearest value, instead of having to hit a point a few pixels wide. Works with several entities & on a touch screen. ([upstream #1357](https://github.com/kalkih/mini-graph-card/issues/1357)) |
 
@@ -242,6 +244,11 @@ We recommend looking at the [Example usage section](#example-usage) to understan
 | font_size | number | `100` | v0.0.3 | Adjust the font size of the state, as percentage of the original size.
 | font_size_header | number | `14` | v0.3.1 | Adjust the font size of the header, size in pixels.
 | font_size_state | number |  |  | Adjust the font size of the current state, size in pixels. The unit follows at the same proportion as by default.
+| font_size_secondary | number |  |  | Size of the states shown beside the primary one, in pixels. Its unit follows in proportion, as the primary state's does.
+| font_size_legend | number |  |  | Size of the legend, in pixels.
+| font_size_extrema | number |  |  | Size of the extrema row, in pixels.
+| font_size_labels | number |  |  | Size of the axis, [grid](#grid-lines) and static-value labels, in pixels.
+| density | string | `auto` | | How much padding a card spends between its rows: `comfortable` (16px), `compact` (8px), or `auto` to compact a card too short to afford it. See [Density](#density).
 | align_header | string | `default` | v0.2.0 | Set the alignment of the header, `left`, `right`, `center` or `default`.
 | align_icon | string | `right` | v0.2.0 | Set the alignment of the icon, `left`, `right` or `state`. A `right` icon shares its corner with a `top-right` state, see [Card size](#card-size).
 | grid_x | boolean *or* [grid object](#grid-lines) | `false` | | Draw vertical grid lines at real clock boundaries, see [Grid lines](#grid-lines). `true` uses the defaults.
@@ -519,6 +526,33 @@ A graph is redrawn for the size it really got, so nothing is scaled: a `viewBox`
 matches its element 1:1. `line_width`, `bar_spacing` and a point radius are
 therefore in real pixels; previously they were in units of a 500-wide drawing
 stretched to a card, so they grew on a wide card and shrank on a narrow one.
+
+### Density
+
+A card spends 16px between each of its rows - the header, the state, the graph,
+the extrema. On a card with a header and a state that is 48px before the graph
+is drawn at all, which is fine on a tall card and most of the card on a short
+one.
+
+`density: compact` spends 8px instead. Nothing else changes: every part of the
+card has a font size of its own (`font_size_header`, `font_size_state`,
+`font_size_secondary`, `font_size_legend`, `font_size_extrema`,
+`font_size_labels`), so padding and type are separate decisions.
+
+`density: auto`, the default, uses the compact padding when a card is too short
+to give the graph room after its chrome, and the comfortable padding otherwise.
+It reacts to the height the card is **given**, so it only ever triggers where
+something outside sets that: a cell in a Sections view. A Masonry card grows to
+fit its own content, so there is nothing there to adapt to and `auto` leaves it
+comfortable.
+
+```yaml
+type: custom:mini-graph-card
+entities:
+  - sensor.outside_temperature
+density: compact
+font_size_state: 18
+```
 
 ### Grid lines
 
