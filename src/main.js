@@ -7,7 +7,7 @@ import Graph from './graph';
 import style from './style';
 import handleClick from './handleClick';
 import buildConfig from './buildConfig';
-import { packEntry, unpackEntry } from './cache';
+import { packEntry, unpackEntry, isUsable } from './cache';
 import './editor/editor';
 import {
   blankBeforePercent,
@@ -2417,8 +2417,8 @@ class MiniGraphCard extends LitElement {
     return unpackEntry(await localForage.getItem(`${key}_${this._md5Config}`));
   }
 
-  async setCache(key, entry, compressed) {
-    return localForage.setItem(`${key}_${this._md5Config}`, packEntry(entry, compressed));
+  async setCache(key, entry) {
+    return localForage.setItem(`${key}_${this._md5Config}`, packEntry(entry));
   }
 
   async updateEntity(entity, index, initStart, end) {
@@ -2476,7 +2476,16 @@ class MiniGraphCard extends LitElement {
     const history = this.config.cache
       ? await this.getCache(`${entity.entity_id}_${index}`)
       : undefined;
-    if (history && history.hours_to_show === this.config.hours_to_show) {
+    // A cached window is appended to, never re-read, so anything wrong in it
+    // stays wrong. isUsable() puts an age on that & rejects the two states a
+    // record cannot honestly be in; when it says no the whole window is
+    // fetched again, which is what a cold start would have done anyway.
+    const usable = isUsable(history, this.config.hours_to_show, entity && entity.last_updated);
+    // Keep the age of the entry, not of its last append - otherwise saving
+    // resets the clock on every load & the window is never refetched.
+    let firstFetched = new Date();
+    if (usable) {
+      firstFetched = new Date(history.first_fetched || history.last_fetched);
       stateHistory = history.data;
 
       let currDataIndex = stateHistory.findIndex(item => new Date(item.last_changed) > initStart);
@@ -2542,10 +2551,11 @@ class MiniGraphCard extends LitElement {
         this
           .setCache(`${entity.entity_id}_${index}`, {
             hours_to_show: this.config.hours_to_show,
+            first_fetched: firstFetched,
             last_fetched: new Date(),
             data: stateHistory,
             version,
-          }, this.config.compress)
+          })
           .catch((err) => {
             log(err);
             localForage.clear();

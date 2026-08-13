@@ -72,12 +72,24 @@ fixes below. See [Visual editor](#visual-editor).
   so "nothing was reported" and "nothing changed" are the same thing to the
   recorder, and a flat line is the more truthful of the available lies.
   ([upstream #414](https://github.com/kalkih/mini-graph-card/issues/414))
+- The history cache was appended to for ever and never re-read, so a recorder
+  that was purged, restored or corrected showed through until the card's config
+  changed. A window is now refetched whole once it is older than `hours_to_show`
+  or a day, whichever is shorter, and a record written by a clock ahead of this
+  one - which freezes a graph by pushing the next fetch's start past its end -
+  is discarded. See [Caching](#caching).
+  ([upstream #933](https://github.com/kalkih/mini-graph-card/issues/933),
+  [#944](https://github.com/kalkih/mini-graph-card/issues/944),
+  [#992](https://github.com/kalkih/mini-graph-card/issues/992))
 - The history cache blocked the first render of **every** dashboard, whether or
   not a card was on it: the startup purge decompressed each record in turn to
   read two numbers, before anything was drawn. It now reads metadata stored
   beside the payload, and waits for the browser to be idle. Measured over 315
-  records: 361ms → 1ms. `compress` also works for the first time - the code
-  read an option name that was never set - so a payload is ~8x smaller.
+  records: 361ms → 1ms. The `compress` option is gone: it never worked (the
+  code read an option name nothing assigned), and measuring it showed why it
+  should not be revived - compressing a 16k-row payload costs ~110ms of the
+  main thread on every save, against ~8ms to hand the same payload to the
+  purge uncompressed.
   ([upstream #1392](https://github.com/kalkih/mini-graph-card/issues/1392))
 - A graph could not shrink into its card and was cut off at the bottom.
 - A single-entity card reserved 19.6px on the right for a states container that
@@ -279,8 +291,7 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | aggregate_func | string | `avg` | v0.8.0 | Specify [aggregate function](#aggregate-functions) used to calculate point/bar in the graph.
 | group_by | string | `interval` | v0.8.0 | Specify type of grouping of data, dynamic `interval`, `date` or `hour`.
 | update_interval | number |  | v0.4.0 | Specify a custom update interval of the history data (in seconds), instead of on every state change.
-| cache | boolean | `true` | v0.9.0 | Enable/disable local caching of history data. A card caches the rows the recorder returned, so the next load asks only for what happened since, instead of the whole window again.
-| compress | boolean | `true` | v0.9.0 | Compress a cached payload before storing it. Roughly 8x smaller, which is what keeps the startup purge cheap - it reads a record's metadata without touching the payload. Costs a visible card under a millisecond to unpack.
+| cache | boolean | `true` | v0.9.0 | Enable/disable local caching of history data, see [Caching](#caching).
 | statistics | boolean *or* object |  |  | Read the series from statistics instead of raw history, see [Statistics](#statistics).
 | show | list |  | v0.2.0 | List of UI elements to display/hide, for available items see [available show options](#available-show-options).
 | animate | boolean | `false` | v0.2.0 | Add a reveal animation to the graph.
@@ -509,6 +520,27 @@ These buckets are converted later to single point/bar on the graph. Aggregate fu
 | `sum` | v0.9.2 |
 | `delta` | v0.9.4 | Calculates difference between max and min value
 | `diff` | v0.11.0 | Calculates difference between first and last value
+
+### Caching
+
+A card keeps the rows the recorder returned, so the next load asks only for
+what has happened since. What that saves depends entirely on the entity: a
+sensor that reports every half hour costs about 6ms to fetch a whole day of,
+and caching it saves nothing worth measuring, while a power meter that changes
+every few seconds costs 384ms for the same day - and 9.6 seconds for a
+fortnight. Long windows are better served by [statistics](#statistics), which
+are aggregated by the server and are not cached at all.
+
+**A cached window is fetched again from scratch once it is old enough** - after
+`hours_to_show`, or a day, whichever is shorter. Nothing re-reads a cached row
+otherwise: the card appends to it and trusts it, so a recorder that was purged,
+restored or corrected would otherwise show through for as long as the card was
+open. Two impossible states are rejected as well: a record written by a clock
+ahead of this one, and one holding a row newer than the entity's own last
+update.
+
+If a graph is showing something the recorder disagrees with, `cache: false` is
+the way to rule the cache out.
 
 ### Placing the name & icon
 

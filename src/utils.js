@@ -1,4 +1,3 @@
-import { compress as lzStringCompress, decompress as lzStringDecompress } from '@kalkih/lz-string';
 
 const getMin = (arr, val) => arr.reduce((min, p) => (
   Number(p[val]) < Number(min[val]) ? p : min
@@ -12,10 +11,6 @@ const getMax = (arr, val) => arr.reduce((max, p) => (
 
 const getMilli = hours => hours * 60 ** 2 * 10 ** 3;
 
-const compress = data => lzStringCompress(JSON.stringify(data));
-
-const decompress = data => (typeof data === 'string' ? JSON.parse(lzStringDecompress(data)) : data);
-
 const getFirstDefinedItem = (...collection) => collection
   .find(item => item !== undefined && item !== null);
 
@@ -28,7 +23,7 @@ const log = (message) => {
 };
 
 export {
-  getMin, getAvg, getMax, getMilli, compress, decompress, log,
+  getMin, getAvg, getMax, getMilli, log,
   getFirstDefinedItem,
   compareArray,
 };
