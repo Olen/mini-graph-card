@@ -107,26 +107,42 @@ const style = css`
     display: -webkit-flex;
     min-width: 0;
   }
+  /* Three columns - icon, name, icon - so nothing has to shrink-wrap or be
+     flung apart by "space-between". Which column each part lands in is decided
+     in renderHeader(). From upstream #1413. */
   .header {
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+    grid-template-rows: 1fr;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
   }
-  .header[loc="center"] {
-    justify-content: space-around;
-  }
-  /* "center" & "right" place the header as a block within the card, so it is
-     only as wide as its content. "left" must NOT: a fit-content header leaves
-     an icon's "margin-left: auto" with no space to consume, so an icon aligned
-     right (the default) sat against the name instead of at the card's edge.
-     The name takes the slack instead - which also keeps an icon on the LEFT
-     next to the name, rather than "space-between" flinging them apart. */
-  .header[loc="right"] {
-    align-self: flex-end;
+  .header > * {
+    grid-row: 1;
   }
   .name {
-    align-items: center;
-    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     min-width: 0;
+    width: 100%;
     letter-spacing: var(--mcg-title-letter-spacing, normal);
+    overflow: hidden;
+  }
+  .name[loc="left"] {
+    grid-column: 1 / 3;
+    justify-self: start;
+    text-align: left;
+  }
+  .name[loc="center"] {
+    grid-column: 1 / 4;
+    justify-self: center;
+    text-align: center;
+  }
+  .name[loc="right"] {
+    grid-column: 2 / 4;
+    justify-self: end;
+    text-align: right;
   }
   .name > span {
     font-size: 1.2em;
@@ -137,21 +153,18 @@ const style = css`
   }
   .icon {
     color: var(--state-icon-color, #44739e);
-    display: inline-block;
-    flex: 0 0 1.7em;
-    text-align: center;
   }
   .icon > ha-icon {
     height: 1.7em;
     width: 1.7em;
   }
   .icon[loc="left"] {
-    order: -1;
-    margin-right: .6em;
-    margin-left: 0;
+    grid-column: 1;
+    justify-self: start;
   }
   .icon[loc="right"] {
-    margin-left: auto;
+    grid-column: 3;
+    justify-self: end;
   }
   .icon[loc="state"] {
     align-self: center;

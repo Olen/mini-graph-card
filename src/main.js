@@ -578,14 +578,33 @@ class MiniGraphCard extends LitElement {
       show, align_icon, align_header, font_size_header,
     } = this.config;
     const showIcon = show.icon && align_icon !== 'state';
+
+    // Where each part sits is decided here rather than in the config, so the
+    // icon can follow the name: a right-aligned name pushes the icon left,
+    // which is the only arrangement that reads as a header. That means
+    // align_icon MUST be able to be undefined - buildConfig deliberately does
+    // not give it a default. See upstream #1413.
+    let iconLoc;
+    if (align_icon === undefined) {
+      iconLoc = align_header === 'right' && show.name
+        ? 'left'
+        : 'right';
+    } else {
+      iconLoc = align_icon;
+    }
+    const nameLoc = align_header === 'center'
+      ? 'center'
+      : iconLoc === 'left'
+        ? 'right'
+        : 'left';
+
     return show.name || showIcon
       ? html`
           <div
-            class="header flex"
-            loc="${align_header || 'left'}"
+            class="header"
             style="font-size: ${font_size_header}px;"
           >
-            ${show.name ? this.renderName() : html``}${showIcon ? this.renderIcon() : html``}
+            ${show.name ? this.renderName(nameLoc) : html``}${showIcon ? this.renderIcon(iconLoc) : html``}
           </div>
         `
       : html``;
@@ -593,12 +612,13 @@ class MiniGraphCard extends LitElement {
 
   /**
   * Renders an icon
+  * @param {string} iconLoc Where the icon sits: left, right or state
   * @returns {TemplateResult} Lit template result
   */
-  renderIcon() {
+  renderIcon(iconLoc) {
     if (this.config.icon_image !== undefined) {
       return html`
-        <div class="icon" loc="${this.config.align_icon}">
+        <div class="icon" loc="${iconLoc}">
           <img src="${this.config.icon_image}" height="25"/>
         </div>
       `;
@@ -618,7 +638,7 @@ class MiniGraphCard extends LitElement {
     return html`
       <div
         class="icon"
-        loc="${this.config.align_icon}"
+        loc="${iconLoc}"
         style="${iconColor !== undefined ? `color: ${iconColor};` : ''}"
       >
         <ha-icon .icon=${this.computeIcon(this.entity[0])}></ha-icon>
@@ -628,9 +648,10 @@ class MiniGraphCard extends LitElement {
 
   /**
   * Renders a name
+  * @param {string} nameLoc Where the name sits: left, right or center
   * @returns {TemplateResult} Lit template result
   */
-  renderName() {
+  renderName(nameLoc) {
     if (!this.config.show.name) {
       return html``;
     }
@@ -642,7 +663,7 @@ class MiniGraphCard extends LitElement {
       ? `opacity: 1; color: ${this.color};`
       : '';
     return html`
-      <div class="name flex">
+      <div class="name" loc="${nameLoc}">
         <span
           class="ellipsis"
           style="${color}"
@@ -683,7 +704,7 @@ class MiniGraphCard extends LitElement {
           <div class="states--secondary">
             ${this.config.entities.slice(1).map((entityConfig, i) => this.renderState(i + 1))}
           </div>` : ''}
-        ${this.config.align_icon === 'state' ? this.renderIcon() : html``}
+        ${this.config.align_icon === 'state' ? this.renderIcon('state') : html``}
       </div>
     `;
   }

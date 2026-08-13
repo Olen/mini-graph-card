@@ -12,10 +12,10 @@ const ALIGN_STATE = [
 ];
 const DEFAULT_ALIGN_STATE = 'left';
 // "state" moves the icon out of the header & next to the current state.
-// Upstream documents "right" as the default but never implemented one, so an
-// unconfigured icon matched no rule at all & sat against the name.
 const ALIGN_ICON = ['left', 'right', 'state'];
-const DEFAULT_ALIGN_ICON = 'right';
+// Both are left undefined when unset: renderHeader() places the icon opposite
+// the name, which it can only do when it can tell "unset" from "right".
+const ALIGN_HEADER = ['left', 'right', 'center'];
 const DEFAULT_BAR_SPACING = 4;
 const DEFAULT_GRAPH_HEIGHT = 100;
 // A width a graph is drawn in until a card is measured
@@ -188,7 +188,7 @@ export {
   ALIGN_STATE,
   DEFAULT_ALIGN_STATE,
   ALIGN_ICON,
-  DEFAULT_ALIGN_ICON,
+  ALIGN_HEADER,
   DEFAULT_BAR_SPACING,
   DEFAULT_GRAPH_HEIGHT,
   DEFAULT_GRAPH_WIDTH,

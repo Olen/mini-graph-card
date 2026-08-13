@@ -228,7 +228,6 @@ const MAINSCHEMA = [
                 selector: {
                   select: {
                     options: [
-                      { label: 'Default', value: 'default' },
                       { label: 'Left', value: 'left' },
                       { label: 'Right', value: 'right' },
                       { label: 'Center', value: 'center' },

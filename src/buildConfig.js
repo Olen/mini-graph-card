@@ -6,7 +6,7 @@ import {
   ALIGN_STATE,
   DEFAULT_ALIGN_STATE,
   ALIGN_ICON,
-  DEFAULT_ALIGN_ICON,
+  ALIGN_HEADER,
   HOVER_MODES,
   DEFAULT_HOVER_MODE,
   DENSITIES,
@@ -182,7 +182,11 @@ export default (config) => {
   conf.align_state = checkStringOption(conf, 'align_state', ALIGN_STATE, DEFAULT_ALIGN_STATE);
   // Without a default the icon rendered with loc="undefined", matching neither
   // .icon[loc="left"] nor .icon[loc="right"] - so it was never pushed anywhere.
-  conf.align_icon = checkStringOption(conf, 'align_icon', ALIGN_ICON, DEFAULT_ALIGN_ICON);
+  // Left undefined on purpose: renderHeader() then places the icon opposite
+  // the name instead of always on the right. A default here would make that
+  // branch unreachable & the option would silently do nothing.
+  conf.align_icon = checkStringOption(conf, 'align_icon', ALIGN_ICON, undefined);
+  conf.align_header = checkStringOption(conf, 'align_header', ALIGN_HEADER, undefined);
 
   conf.hover_mode = checkStringOption(conf, 'hover_mode', HOVER_MODES, DEFAULT_HOVER_MODE);
   conf.density = checkStringOption(conf, 'density', DENSITIES, DEFAULT_DENSITY);

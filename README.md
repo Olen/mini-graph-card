@@ -87,12 +87,14 @@ fixes below. See [Visual editor](#visual-editor).
   asked for, and a card taller than its cell overlapped its neighbours.
 - The tooltip's time range was sized in `rem` - against the document, not the
   card - so it was the one element which ignored `font_size`.
-- `align_icon` had no default in the code, only in the docs, so an unconfigured
-  icon rendered as `loc="undefined"`, matched neither CSS rule and sat against
-  the name. The documented `right` is now actually applied - and a left-aligned
-  header no longer shrinks to fit its content, which had left the icon's
-  `margin-left: auto` with no space to push into. An invalid value now warns
-  instead of silently landing in the same state.
+- The header laid its name and icon out with `justify-content`, which meant an
+  unconfigured icon rendered as `loc="undefined"`, matched neither CSS rule and
+  sat against the name; a left-aligned header shrank to fit its content, so the
+  icon's `margin-left: auto` had no space to push into; and `align_header:
+  center` centred the name *and* the icon as a pair rather than the name. The
+  header is now a three-column grid and each part is placed explicitly, so an
+  icon can no longer end up with no position at all. Taken from
+  [upstream #1413](https://github.com/kalkih/mini-graph-card/pull/1413).
 - An `icon_image` was never given an alignment at all.
 - `npm run build` failed on a clean checkout, because it runs the linter and
   the linter did not pass.
@@ -126,6 +128,12 @@ every render. The test suite - almost entirely datetime formatting - went from
 - **Hovering a graph selects the nearest value** rather than only a point
   directly under the cursor, see [Hovering](#hovering). Set
   `hover_mode: point` to get the old behaviour back.
+- **`align_header` aligns the NAME, not the name-and-icon pair**, and an unset
+  `align_icon` now puts the icon at whichever end the name is not using - so
+  `align_header: right` moves the icon to the left instead of leaving both
+  right. Set `align_icon` explicitly to pin it. `align_header: default` is no
+  longer a value; leave it unset. See
+  [Placing the name & icon](#placing-the-name--icon).
 - **`show.state: last` now works with `show.points: false`.** It reads the last
   plotted point, and the coordinates only existed when the points were drawn -
   so it used to silently show the current state instead.
@@ -298,8 +306,8 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | font_size_extrema | number |  |  | Size of the extrema row, in pixels.
 | font_size_labels | number |  |  | Size of the axis, [grid](#grid-lines) and static-value labels, in pixels.
 | density | string | `auto` | | How much padding a card spends between its rows: `comfortable` (16px), `compact` (8px), or `auto` to compact a card too short to afford it. See [Density](#density).
-| align_header | string | `default` | v0.2.0 | Set the alignment of the header, `left`, `right`, `center` or `default`.
-| align_icon | string | `right` | v0.2.0 | Set the alignment of the icon, `left`, `right` or `state`. A `right` icon shares its corner with a `top-right` state, see [Card size](#card-size).
+| align_header | string |  | v0.2.0 | Set the alignment of the **name** in the header: `left`, `right` or `center`. See [Placing the name & icon](#placing-the-name--icon).
+| align_icon | string |  | v0.2.0 | Set the alignment of the icon: `left`, `right` or `state`. Left unset the icon takes the end opposite the name. A `right` icon shares its corner with a `top-right` state, see [Card size](#card-size). See [Placing the name & icon](#placing-the-name--icon).
 | grid_x | boolean *or* [grid object](#grid-lines) | `false` | | Draw vertical grid lines at real clock boundaries, see [Grid lines](#grid-lines). `true` uses the defaults.
 | grid_y | boolean *or* [grid object](#grid-lines) | `false` | | Draw horizontal grid lines at round values, see [Grid lines](#grid-lines). `true` uses the defaults.
 | hover_mode | string | `nearest` | | How a value is picked when hovering the graph: `nearest` selects the point closest to the cursor from anywhere in the graph, `point` only when the cursor is over the point itself. See [Hovering](#hovering).
@@ -501,6 +509,32 @@ These buckets are converted later to single point/bar on the graph. Aggregate fu
 | `sum` | v0.9.2 |
 | `delta` | v0.9.4 | Calculates difference between max and min value
 | `diff` | v0.11.0 | Calculates difference between first and last value
+
+### Placing the name & icon
+
+The header holds two things, and they are placed relative to each other rather
+than each being positioned on its own. `align_header` sets where the **name**
+goes; `align_icon` sets where the icon goes, and left unset the icon simply
+takes the end the name is not using.
+
+| `align_header` | `align_icon` | Name | Icon |
+|---|---|---|---|
+| unset | unset | left | right |
+| `left` | unset | left | right |
+| `center` | unset | centre | right |
+| `right` | unset | right | **left** |
+| unset | `left` | right | left |
+| unset | `right` | left | right |
+| `center` | `left` \| `right` | centre | as set |
+| any | `state` | as set | out of the header, beside the current state |
+
+`align_icon` wins where they disagree: setting it pins the icon and the name
+takes the other end. With `show.icon: false` the name follows `align_header`
+alone, and with `show.name: false` an unset `align_icon` leaves the icon on the
+right.
+
+The header is a three-column grid - icon, name, icon - so a long name is
+truncated rather than pushing the icon off the card, and nothing shrink-wraps.
 
 ### Card size
 
