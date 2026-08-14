@@ -201,18 +201,7 @@ export default class Graph {
       coords[1] = [this.width + this.margin[X], 0, coords[0][V]];
     }
     coords = this._calcY(this.coords);
-    if (this._smoothing) {
-      let last = coords[0];
-      coords.shift();
-      return coords.map((point, i) => {
-        const Z = this._midPoint(last[X], last[Y], point[X], point[Y]);
-        const sum = (last[V] + point[V]) / 2;
-        last = point;
-        return [Z[X], Z[Y], sum, i + 1];
-      });
-    } else {
-      return coords.map((point, i) => [point[X], point[Y], point[V], i]);
-    }
+    return coords.map((point, i) => [point[X], point[Y], point[V], i]);
   }
 
 
@@ -222,19 +211,63 @@ export default class Graph {
       coords[1] = [this.width + this.margin[X], 0, coords[0][V]];
     }
     coords = this._calcY(this.coords);
-    let next; let Z;
-    let path = '';
-    let last = coords[0];
-    path += `M${last[X]},${last[Y]}`;
+    if (this._smoothing && coords.length > 2) {
+      return this._smoothPath(coords);
+    }
+    return coords.reduce(
+      (path, point, i) => `${path}${i ? ' L' : 'M'}${point[X]},${point[Y]}`,
+      '',
+    );
+  }
 
-    coords.forEach((point) => {
-      next = point;
-      Z = this._smoothing ? this._midPoint(last[X], last[Y], next[X], next[Y]) : next;
-      path += ` ${Z[X]},${Z[Y]}`;
-      path += ` Q ${next[X]},${next[Y]}`;
-      last = next;
-    });
-    path += ` ${next[X]},${next[Y]}`;
+  /**
+   * A smooth path THROUGH the coordinates rather than one that merely aims at
+   * them. The tangents are a Catmull-Rom spline's, damped wherever the data
+   * turns (Fritsch-Carlson) so the curve never bulges past a value that was
+   * never measured - a rounded line still has to be a truthful one.
+   * @param {Array} coords Screen coordinates, ascending in X
+   * @returns {string} SVG path
+   */
+  _smoothPath(coords) {
+    const n = coords.length;
+    const dx = [];
+    const slope = [];
+    for (let i = 0; i < n - 1; i += 1) {
+      dx[i] = coords[i + 1][X] - coords[i][X];
+      slope[i] = dx[i] ? (coords[i + 1][Y] - coords[i][Y]) / dx[i] : 0;
+    }
+
+    // tangent at each point: the average of the slopes either side, flat at a turn
+    const m = [slope[0]];
+    for (let i = 1; i < n - 1; i += 1) {
+      m[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+    }
+    m[n - 1] = slope[n - 2];
+
+    // damp the tangents that would overshoot their segment
+    for (let i = 0; i < n - 1; i += 1) {
+      if (slope[i] === 0) {
+        m[i] = 0;
+        m[i + 1] = 0;
+      } else {
+        const a = m[i] / slope[i];
+        const b = m[i + 1] / slope[i];
+        const sum = a * a + b * b;
+        if (sum > 9) {
+          const t = 3 / Math.sqrt(sum);
+          m[i] = t * a * slope[i];
+          m[i + 1] = t * b * slope[i];
+        }
+      }
+    }
+
+    let path = `M${coords[0][X]},${coords[0][Y]}`;
+    for (let i = 0; i < n - 1; i += 1) {
+      const h = dx[i] / 3;
+      path += ` C ${coords[i][X] + h},${coords[i][Y] + m[i] * h}`
+        + ` ${coords[i + 1][X] - h},${coords[i + 1][Y] - m[i + 1] * h}`
+        + ` ${coords[i + 1][X]},${coords[i + 1][Y]}`;
+    }
     return path;
   }
 
@@ -328,12 +361,6 @@ export default class Graph {
       width: bar_width,
       value: coord[V],
     }));
-  }
-
-  _midPoint(Ax, Ay, Bx, By) {
-    const Zx = (Ax - Bx) / 2 + Bx;
-    const Zy = (Ay - By) / 2 + By;
-    return [Zx, Zy];
   }
 
   _average(items) {
