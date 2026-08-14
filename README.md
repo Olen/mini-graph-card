@@ -37,6 +37,7 @@ has not been released - the last stable upstream release is v0.13.0.
 | `font_size_secondary` / `_legend` / `_extrema` / `_labels` | Size each part of the card on its own, instead of everything but the header and the state scaling off one number. |
 | [`grid_x` / `grid_y`](#grid-lines) | Grid lines, with labels. Vertical ones land on real midnights and whole hours, horizontal ones on round values, and both thin out on a small card. ([upstream #837](https://github.com/kalkih/mini-graph-card/issues/837), [#739](https://github.com/kalkih/mini-graph-card/issues/739), and where [#1179](https://github.com/kalkih/mini-graph-card/pull/1179) was heading) |
 | [`hover_mode`](#hovering) | Hover anywhere in the graph to read the nearest value, instead of having to hit a point a few pixels wide. Works with several entities & on a touch screen. ([upstream #1357](https://github.com/kalkih/mini-graph-card/issues/1357)) |
+| [`format`](#duration-format) | Write a value as `[h:]mm:ss` rather than as a number, converted from whatever unit the entity reports it in - 9.11 minutes is a time, and `9:07` is how a time reads. |
 
 ### The card sizes itself
 
@@ -72,6 +73,15 @@ fixes below. See [Visual editor](#visual-editor).
   so "nothing was reported" and "nothing changed" are the same thing to the
   recorder, and a flat line is the more truthful of the available lies.
   ([upstream #414](https://github.com/kalkih/mini-graph-card/issues/414))
+- `smoothing` did not just curve the line, it replaced the data: every point
+  became the midpoint of itself and the one before - position **and value** -
+  and the line was drawn through those midpoints, using the measurements only
+  as control points. So the line never touched a measured value, the newest
+  point was never drawn, and a hover label or `show: state: last` read the mean
+  of two buckets while naming one of them. At a point per minute that is
+  invisible; at a point per day every number on the card is wrong. The line is
+  now a spline **through** the measurements, damped so a curve cannot bulge
+  past a value that was never measured.
 - The history cache was appended to for ever and never re-read, so a recorder
   that was purged, restored or corrected showed through until the card's config
   changed. A window is now refetched whole once it is older than `hours_to_show`
