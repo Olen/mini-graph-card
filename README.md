@@ -305,6 +305,7 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | color_thresholds | list |  | v0.2.3 | Set thresholds for dynamic graph colors, see [Line color object](#line-color-object).
 | color_thresholds_transition | string | `smooth` | v0.4.3 | Color threshold transition, `smooth` or `hard`.
 | decimals | integer |  | v0.0.9 | Specify the exact number of decimals to show for number values, see [Number format](#number-format).
+| format | string | `number` | v2026.8.16 | Set to `duration` to write values as `[h:]mm:ss`, see [Duration format](#duration-format).
 | decimals_primary_labels | integer |  | v0.14.0 | Specify the exact number of decimals to show for primary Y-axis labels, see [Number format](#number-format).
 | decimals_secondary_labels | integer |  | v0.14.0 | Specify the exact number of decimals to show for secondary Y-axis labels, see [Number format](#number-format).
 | hour24 | boolean |  | v0.2.1 | Set to `true` to display times in 24-hour format. See more details [here](#custom-format-for-datetime-values).
@@ -356,6 +357,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | unit | string |         | Set a custom unit of measurement, overrides `unit` set in base config (`''` value for an empty unit).
 | aggregate_func | string |         | Override for aggregate function used to calculate point on the graph, `avg`, `median`, `min`, `max`, `first`, `last`, `sum`.
 | decimals | integer |    | Override the exact number of decimals to show for number values, see [Number format](#number-format).
+| format | string |    | Override the value format, `number` or `duration`, see [Duration format](#duration-format).
 | show_state | boolean |         | Display the current state.
 | show_legend_state | boolean |  false  | Display the current state as part of the legend.
 | show_indicator | boolean |         | Display a color indicator next to the state.
@@ -931,6 +933,22 @@ A "default presentation" refers to a default look in HA:
 3. For Y-axis labels, [static values](#static-lines): "maximum 2 decimals" accuracy is used.
 And for all values, HA number format settings (like `xxxx.xx` or `x xxx.x` or `x,xxx.x`) are used.
 
+
+### Duration format
+
+`format: duration` writes a value as `[h:]mm:ss` instead of as a number - the hours group only appears when there is one, so a 9.11 minute commute reads `9:07` and a 128.5 second rowing pace reads `2:09`.
+
+The value is converted from the unit the entity reports (`ms`, `s`, `min`, `h`, `d`; anything else is taken to be seconds), so it works on a sensor in minutes as well as one in seconds. `decimals` sizes the seconds group rather than the whole number - `decimals: 1` gives `2:08.5`. The unit is not drawn, since the `:` groups already carry it.
+
+Set card-wide or per entity, and it applies to the state, extrema, average, hover labels and Y-axis labels alike. Y-axis labels take their unit from the first entity drawn against that axis.
+
+```yaml
+type: custom:mini-graph-card
+format: duration
+decimals: 0
+entities:
+  - sensor.commute_moving_time    # reports minutes
+```
 
 ### Custom format for datetime values
 

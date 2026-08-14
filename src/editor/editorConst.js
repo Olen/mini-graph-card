@@ -32,6 +32,19 @@ const MAINSCHEMA = [
             selector: { text: {} },
           },
           {
+            name: 'format',
+            selector: {
+              select: {
+                options: [
+                  { label: 'Number', value: 'number' },
+                  { label: 'Duration (h:mm:ss)', value: 'duration' },
+                ],
+                mode: 'dropdown',
+                translation_key: 'format',
+              },
+            },
+          },
+          {
             name: 'hour24',
             selector: { boolean: {} },
           },
@@ -514,6 +527,19 @@ const ENTITYSCHEMA = [
       {
         name: 'unit',
         selector: { text: {} },
+      },
+      {
+        name: 'format',
+        selector: {
+          select: {
+            options: [
+              { label: 'Number', value: 'number' },
+              { label: 'Duration (h:mm:ss)', value: 'duration' },
+            ],
+            mode: 'dropdown',
+            translation_key: 'format',
+          },
+        },
       },
       {
         name: 'color',

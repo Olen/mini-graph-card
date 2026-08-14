@@ -50,7 +50,14 @@
   "bounds": "Bounds",
   "alignment": "Alignment",
   "show": "Display",
+  "format": "Value format",
   "values": {
+    "format": {
+      "options": {
+        "number": "Number",
+        "duration": "Duration (h:mm:ss)"
+      }
+    },
     "aggregate_func": {
       "options": {
         "avg": "Average",
@@ -168,6 +175,7 @@
     "grid_y": "Lines on round values. Set step, axis, colour and labels in YAML.",
     "graph_height": "Pixels, or a percentage of the card. Leave empty to fill what is left.",
     "height": "The height of the card itself, in pixels.",
-    "font_size": "Scales the state and everything sized from it. A percentage, not pixels."
+    "font_size": "Scales the state and everything sized from it. A percentage, not pixels.",
+    "format": "Duration reads the unit (ms/s/min/h/d) and writes 9:07 instead of 9.11 min."
   }
 }

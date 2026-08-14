@@ -12,6 +12,8 @@ import './editor/editor';
 import {
   blankBeforePercent,
   formatNumber,
+  formatDuration,
+  DURATION_UNITS,
   formatDateTime,
   parseDateTimeFormatFromCfg,
   getDateFormat, getTimeFormat,
@@ -29,6 +31,7 @@ import {
   STATE_UOM_RATIO,
   CARD_PADDING,
   MIN_GRAPH_HEIGHT,
+  VALUE_FORMAT_DURATION,
   DEFAULT_MARGIN,
   HOLD_TIME,
   HOLD_MOVE_TOLERANCE,
@@ -2031,6 +2034,43 @@ class MiniGraphCard extends LitElement {
   }
 
   /**
+  * Returns the "format" setting in effect for a value
+  * @returns {string|undefined} "number", "duration" or undefined
+  * @param {number} index Index of an entry in config.entities,
+  * "undefined" for a primary Y-axis, "-1" for a secondary one
+  */
+  computeFormat(index) {
+    if (index === undefined || index === -1
+      || this.config.entities[index].format === undefined) {
+      return this.config.format;
+    }
+    return this.config.entities[index].format;
+  }
+
+  /**
+  * Returns how many seconds a unit of a value is worth, so that "format:
+  * duration" can render an entity reporting minutes or hours just as well as
+  * one reporting seconds. An unrecognised unit is taken to be seconds.
+  * Y-axis labels borrow the unit of the first entity drawn against that axis.
+  * @returns {number} Seconds per unit
+  * @param {number} index Index of an entry in config.entities,
+  * "undefined" for a primary Y-axis, "-1" for a secondary one
+  * @param {number|string} inState Value of a state/attribute
+  */
+  computeDurationScale(index, inState = undefined) {
+    let unitIndex = index;
+    if (index === undefined || index === -1) {
+      const secondary = index === -1;
+      unitIndex = this.config.entities
+        .findIndex(entity => (entity.y_axis === 'secondary') === secondary);
+      if (unitIndex === -1) return 1;
+    }
+    // computeUom() reads this.entity[], which is not populated yet on a first render
+    if (!this.entity[unitIndex] && !this.isStaticValue(unitIndex)) return 1;
+    return DURATION_UNITS[this.computeUom(unitIndex, inState)] || 1;
+  }
+
+  /**
   * Returns a string value for a state/attribute or a static_value:
   * localized, following locale settings,
   * (for entities:) accounting possible individual accuracy settings & possible "decimals" options
@@ -2091,6 +2131,18 @@ class MiniGraphCard extends LitElement {
       dec = this.config.entities[index].decimals !== undefined
         ? this.config.entities[index].decimals
         : this.config.decimals;
+    }
+
+    // A duration is written out as [h:]mm:ss rather than as a number, so it
+    // never reaches formatNumber() and the entity's own display precision does
+    // not apply either - "decimals" sizes the seconds group instead.
+    if (this.computeFormat(index) === VALUE_FORMAT_DURATION
+      && !Number.isNaN(Number(state))) {
+      return formatDuration(
+        state * this.computeDurationScale(index, inState),
+        dec,
+        this._hass.locale,
+      );
     }
 
     let value;
@@ -2238,8 +2290,10 @@ class MiniGraphCard extends LitElement {
     // get a state/attribute value or a static_value
     const state = this.computeState(inState, index);
 
-    // get a unit
-    const unit = hideUnit ? '' : this.computeUom(index, inState);
+    // get a unit - a duration already carries its units in the ":" groups
+    const unit = hideUnit || this.computeFormat(index) === VALUE_FORMAT_DURATION
+      ? ''
+      : this.computeUom(index, inState);
 
     // get native order & delimiter
     const { directOrder, delimiter: nativeDelimiter } = this.computeStateOrder(index, inState);

@@ -96,6 +96,12 @@ const DEFAULT_DENSITY = 'auto';
 // A graph is allowed to shrink to this height when a card is resized.
 const MIN_GRAPH_HEIGHT = 32;
 
+// How a value is written out. "duration" reads the entity's unit (ms/s/min/h/d)
+// and renders [h:]mm:ss instead; "decimals" then applies to the seconds.
+const VALUE_FORMAT_NUMBER = 'number';
+const VALUE_FORMAT_DURATION = 'duration';
+const VALUE_FORMATS = [VALUE_FORMAT_NUMBER, VALUE_FORMAT_DURATION];
+
 // Interaction
 // How a point is selected on hover:
 // "nearest" - the point nearest to the cursor anywhere in the graph,
@@ -180,6 +186,9 @@ export {
   DENSITIES,
   DEFAULT_DENSITY,
   MIN_GRAPH_HEIGHT,
+  VALUE_FORMAT_NUMBER,
+  VALUE_FORMAT_DURATION,
+  VALUE_FORMATS,
   MAX_BARS,
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_SIZE_HEADER,

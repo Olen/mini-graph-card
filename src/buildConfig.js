@@ -13,6 +13,7 @@ import {
   DEFAULT_DENSITY,
   DEFAULT_BAR_SPACING,
   DEFAULT_MARGIN,
+  VALUE_FORMATS,
   DEFAULT_HOURS_TO_SHOW,
   DEFAULT_POINTS_PER_HOUR,
   DEFAULT_STATIC_VALUE_LABEL_OFFSET,
@@ -187,6 +188,8 @@ export default (config) => {
   conf.align_icon = checkStringOption(conf, 'align_icon', ALIGN_ICON, undefined);
   conf.align_header = checkStringOption(conf, 'align_header', ALIGN_HEADER, undefined);
 
+  conf.format = checkStringOption(conf, 'format', VALUE_FORMATS, undefined);
+
   conf.hover_mode = checkStringOption(conf, 'hover_mode', HOVER_MODES, DEFAULT_HOVER_MODE);
   conf.density = checkStringOption(conf, 'density', DENSITIES, DEFAULT_DENSITY);
 
@@ -252,6 +255,7 @@ export default (config) => {
       // check numeric per-entity options for validity
       entity.line_width = checkNumericOption(entity, 'line_width', conf.line_width, 0, undefined, true);
       entity.decimals = checkIntegerOption(entity, 'decimals', conf.decimals, 0, undefined, true);
+      entity.format = checkStringOption(entity, 'format', VALUE_FORMATS, conf.format);
       entity.fill_baseline = checkNumericOption(entity, 'fill_baseline', undefined, undefined, undefined, true);
 
       if (entity.color_thresholds) {

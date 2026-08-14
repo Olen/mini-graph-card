@@ -675,6 +675,47 @@ const formatNumber = (
   .join('');
 
 /**
+ * Seconds per unit, for the units HA uses on a "duration" device class.
+ * Anything else is taken to be seconds already.
+ */
+const DURATION_UNITS = {
+  ms: 0.001,
+  s: 1,
+  min: 60,
+  h: 3600,
+  d: 86400,
+};
+
+/**
+ * Formats a number of seconds as [h:]mm:ss - the hours group is dropped when
+ * there are none, so a commute reads 9:07 and not 0:09:07.
+ * @param {number} seconds Value to format
+ * @param {number} [fractionDigits] Decimals on the seconds group (max 3)
+ * @param {FrontendLocaleData} [localeOptions] Object containing
+ * a user-selected language and formatting settings
+ * @returns {string} Formatted duration
+ */
+const formatDuration = (seconds, fractionDigits = 0, localeOptions = undefined) => {
+  const digits = Math.min(Math.max(Math.floor(fractionDigits) || 0, 0), 3);
+  const sign = seconds < 0 ? '-' : '';
+  // Round before splitting, or 59.6s at zero digits comes out as 0:60.
+  const scale = 10 ** digits;
+  const total = Math.round(Math.abs(seconds) * scale) / scale;
+
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  // Passed on as a string, so formatNumber() keeps the trailing zeros and only
+  // swaps in the locale's decimal separator
+  const secsValue = (total % 60).toFixed(digits);
+  const secs = (localeOptions ? formatNumber(secsValue, localeOptions) : secsValue)
+    .padStart(digits ? digits + 3 : 2, '0');
+
+  return hours > 0
+    ? `${sign}${hours}:${String(minutes).padStart(2, '0')}:${secs}`
+    : `${sign}${minutes}:${secs}`;
+};
+
+/**
  * Memoized blankPercent dictionary for each language
  */
 const blankPercentCache = new Map();
@@ -709,6 +750,8 @@ const blankBeforePercent = (localeOptions) => {
 
 export {
   formatNumber,
+  formatDuration,
+  DURATION_UNITS,
   getDateTimeFormat,
   parseDateTimeFormatFromCfg,
   getDateFormat, getTimeFormat,
