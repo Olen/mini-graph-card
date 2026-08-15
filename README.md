@@ -283,6 +283,8 @@ to try something: open a card, change it, and read the result off the yaml tab.
 
 ### Options
 
+**★** is new in this fork, **◆** exists upstream but behaves differently here — see [What this fork changes](#what-this-fork-changes) for why. Everything unmarked is upstream's and works as it does there.
+
 #### Card options
 | Name | Type | Default | Since | Description |
 |------|:----:|:-------:|:-----:|-------------|
@@ -291,22 +293,22 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | icon | string |  | v0.0.1 | Set a custom icon from any of the available mdi icons.
 | icon_color | string |  | v0.14.0 | Set a custom icon color. Takes precedence over `icon_adaptive_color`.
 | icon_image | string |  | v0.12.0 | Override icon with an image url.
-| name | string |  | v0.0.1 | Set a custom name which is displayed beside the icon. Can be a [template](#templated-names).
+| name ◆ | string |  | v0.0.1 | Set a custom name which is displayed beside the icon. Can be a [template](#templated-names).
 | unit | string |  | v0.0.1 | Set a custom unit of measurement (`''` value for an empty unit).
-| tap_action | [action object](#action-object-options) |  | v0.7.0 | Action on click/tap, see [Tapping & holding](#tapping--holding).
-| hold_action | [action object](#action-object-options) | `more-info` | | Action on a press held for half a second, see [Tapping & holding](#tapping--holding).
+| tap_action ◆ | [action object](#action-object-options) |  | v0.7.0 | Action on click/tap, see [Tapping & holding](#tapping--holding).
+| hold_action ★ | [action object](#action-object-options) | `more-info` | | Action on a press held for half a second, see [Tapping & holding](#tapping--holding).
 | group | boolean | `false` | v0.2.0 | Disable paddings and box-shadow, useful when nesting the card.
 | hours_to_show | integer | `24` | v0.0.2 | Specify how many hours of history the graph should present.
 | points_per_hour | number | `0.5` | v0.2.0 | Specify amount of data points the graph should display for each hour, *(basically the detail/accuracy/smoothing of the graph)*.
 | aggregate_func | string | `avg` | v0.8.0 | Specify [aggregate function](#aggregate-functions) used to calculate point/bar in the graph.
 | group_by | string | `interval` | v0.8.0 | Specify type of grouping of data, dynamic `interval`, `date` or `hour`.
 | update_interval | number |  | v0.4.0 | Specify a custom update interval of the history data (in seconds), instead of on every state change.
-| cache | boolean | `true` | v0.9.0 | Enable/disable local caching of history data, see [Caching](#caching).
-| statistics | boolean *or* object |  |  | Read the series from statistics instead of raw history, see [Statistics](#statistics).
+| cache ◆ | boolean | `true` | v0.9.0 | Enable/disable local caching of history data, see [Caching](#caching).
+| statistics ★ | boolean *or* object |  |  | Read the series from statistics instead of raw history, see [Statistics](#statistics).
 | show | list |  | v0.2.0 | List of UI elements to display/hide, for available items see [available show options](#available-show-options).
 | animate | boolean | `false` | v0.2.0 | Add a reveal animation to the graph.
-| height | number |  | v0.0.1 | Set a desired height of the **card**, see [Card size](#card-size). Left unset, a card asks for as much as it needs.
-| graph_height | number *or* string | `auto` | | How tall the graph is drawn **inside** the card: a number of pixels, a percentage of the card (`60%`), or `auto` to fill what the rest of the card leaves. See [Card size](#card-size).
+| height ◆ | number |  | v0.0.1 | Set a desired height of the **card**, see [Card size](#card-size). Left unset, a card asks for as much as it needs.
+| graph_height ★ | number *or* string | `auto` | | How tall the graph is drawn **inside** the card: a number of pixels, a percentage of the card (`60%`), or `auto` to fill what the rest of the card leaves. See [Card size](#card-size).
 | bar_spacing | number | `4` | v0.9.0 | Set the spacing between bars in bar graph. Value `-1` is used to place bars on each other. See [examples](#bar-spacing-examples).
 | bar_spacing_group | number |   | 0.14.0 | Set an additional spacing between bar groups (multiple entities) in bar graph. Fallback to `bar_spacing` if undefined; if `bar_spacing: -1` - then a default `4` value is used. See [examples](#bar-spacing-examples).
 | line_width | number | `5` | v0.0.1 | Set the thickness of the line.
@@ -315,32 +317,32 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | color_thresholds | list |  | v0.2.3 | Set thresholds for dynamic graph colors, see [Line color object](#line-color-object).
 | color_thresholds_transition | string | `smooth` | v0.4.3 | Color threshold transition, `smooth` or `hard`.
 | decimals | integer |  | v0.0.9 | Specify the exact number of decimals to show for number values, see [Number format](#number-format).
-| format | string | `number` | v2026.8.16 | Set to `duration` to write values as `[h:]mm:ss`, see [Duration format](#duration-format).
+| format ★ | string | `number` | v2026.8.16 | Set to `duration` to write values as `[h:]mm:ss`, see [Duration format](#duration-format).
 | decimals_primary_labels | integer |  | v0.14.0 | Specify the exact number of decimals to show for primary Y-axis labels, see [Number format](#number-format).
 | decimals_secondary_labels | integer |  | v0.14.0 | Specify the exact number of decimals to show for secondary Y-axis labels, see [Number format](#number-format).
 | hour24 | boolean |  | v0.2.1 | Set to `true` to display times in 24-hour format. See more details [here](#custom-format-for-datetime-values).
 | datetime_format | string | | v.0.14.0 | Set a custom [format](#custom-format-for-datetime-values) for datetime values.
 | font_size | number | `100` | v0.0.3 | Adjust the font size of the state, as percentage of the original size.
 | font_size_header | number | `14` | v0.3.1 | Adjust the font size of the header, size in pixels.
-| font_size_state | number |  |  | Adjust the font size of the current state, size in pixels. The unit follows at the same proportion as by default.
-| font_size_secondary | number |  |  | Size of the states shown beside the primary one, in pixels. Its unit follows in proportion, as the primary state's does.
-| font_size_legend | number |  |  | Size of the legend, in pixels.
-| font_size_extrema | number |  |  | Size of the extrema row, in pixels.
-| font_size_labels | number |  |  | Size of the axis, [grid](#grid-lines) and static-value labels, in pixels.
-| density | string | `auto` | | How much padding a card spends between its rows: `comfortable` (16px), `compact` (8px), or `auto` to compact a card too short to afford it. See [Density](#density).
-| align_header | string |  | v0.2.0 | Set the alignment of the **name** in the header: `left`, `right` or `center`. See [Placing the name & icon](#placing-the-name--icon).
-| align_icon | string |  | v0.2.0 | Set the alignment of the icon: `left`, `right` or `state`. Left unset the icon takes the end opposite the name. A `right` icon shares its corner with a `top-right` state, see [Card size](#card-size). See [Placing the name & icon](#placing-the-name--icon).
-| grid_x | boolean *or* [grid object](#grid-lines) | `false` | | Draw vertical grid lines at real clock boundaries, see [Grid lines](#grid-lines). `true` uses the defaults.
-| grid_y | boolean *or* [grid object](#grid-lines) | `false` | | Draw horizontal grid lines at round values, see [Grid lines](#grid-lines). `true` uses the defaults.
-| hover_mode | string | `nearest` | | How a value is picked when hovering the graph: `nearest` selects the point closest to the cursor from anywhere in the graph, `point` only when the cursor is over the point itself. See [Hovering](#hovering).
-| align_state | string | `left` | v0.2.0 | Set the alignment of the current state: `left`, `right`, `center`, or `top-left`, `top-right`, `bottom-left`, `bottom-right` to pin it to a corner of the card, see [Card size](#card-size) - a `top-*` state wants `align_icon: state` or `left` to stay clear of the icon.
+| font_size_state ★ | number |  |  | Adjust the font size of the current state, size in pixels. The unit follows at the same proportion as by default.
+| font_size_secondary ★ | number |  |  | Size of the states shown beside the primary one, in pixels. Its unit follows in proportion, as the primary state's does.
+| font_size_legend ★ | number |  |  | Size of the legend, in pixels.
+| font_size_extrema ★ | number |  |  | Size of the extrema row, in pixels.
+| font_size_labels ★ | number |  |  | Size of the axis, [grid](#grid-lines) and static-value labels, in pixels.
+| density ★ | string | `auto` | | How much padding a card spends between its rows: `comfortable` (16px), `compact` (8px), or `auto` to compact a card too short to afford it. See [Density](#density).
+| align_header ◆ | string |  | v0.2.0 | Set the alignment of the **name** in the header: `left`, `right` or `center`. See [Placing the name & icon](#placing-the-name--icon).
+| align_icon ◆ | string |  | v0.2.0 | Set the alignment of the icon: `left`, `right` or `state`. Left unset the icon takes the end opposite the name. A `right` icon shares its corner with a `top-right` state, see [Card size](#card-size). See [Placing the name & icon](#placing-the-name--icon).
+| grid_x ★ | boolean *or* [grid object](#grid-lines) | `false` | | Draw vertical grid lines at real clock boundaries, see [Grid lines](#grid-lines). `true` uses the defaults.
+| grid_y ★ | boolean *or* [grid object](#grid-lines) | `false` | | Draw horizontal grid lines at round values, see [Grid lines](#grid-lines). `true` uses the defaults.
+| hover_mode ★ | string | `nearest` | | How a value is picked when hovering the graph: `nearest` selects the point closest to the cursor from anywhere in the graph, `point` only when the cursor is over the point itself. See [Hovering](#hovering).
+| align_state ◆ | string | `left` | v0.2.0 | Set the alignment of the current state: `left`, `right`, `center`, or `top-left`, `top-right`, `bottom-left`, `bottom-right` to pin it to a corner of the card, see [Card size](#card-size) - a `top-*` state wants `align_icon: state` or `left` to stay clear of the icon.
 | lower_bound | number *or* string |  | v0.2.3 | Set a fixed lower bound for the graph Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
 | upper_bound | number *or* string |  | v0.2.3 | Set a fixed upper bound for the graph Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
 | min_bound_range | number |  | v0.x.x | Applied after everything, makes sure there's a minimum range that the Y-axis will have. Useful for not making small changes look large because of scale.
 | lower_bound_secondary | number *or* string |  | v0.5.0 | Set a fixed lower bound for the graph secondary Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
 | upper_bound_secondary | number *or* string |  | v0.5.0 | Set a fixed upper bound for the graph secondary Y-axis. String value starting with ~ (e.g. `~50`) specifies soft bound.
 | min_bound_range_secondary | number |  | v0.x.x | Applied after everything, makes sure there's a minimum range that the secondary Y-axis will have. Useful for not making small changes look large because of scale.
-| smoothing | boolean | `true` | v0.8.0 | Whether to make graph line smooth. The line is curved through the measured values, never past them - points, hover labels and `state: last` always read real data.
+| smoothing ◆ | boolean | `true` | v0.8.0 | Whether to make graph line smooth. The line is curved through the measured values, never past them - points, hover labels and `state: last` always read real data.
 | state_map | [state map object](#state-map-object) |  | v0.8.0 | List of entity states to convert (order matters as position becomes a value on the graph).
 | value_factor | number or object |   | v0.9.4<br>v0.14.0 | Scale a value, see [Value factor](#value-factor).
 | value_factor_secondary | number or object |   | v0.14.0 | Scale a value, see [Value factor](#value-factor).
@@ -358,7 +360,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | entity ***(required)*** | string |         | Entity id of the sensor. Either `entity` or `static_value` must be defined.
 | attribute | string |         | Retrieves an attribute or [sub-attribute (attr1.attr2...)](#accessing-attributes-in-complex-structures) instead of the state
 | static_value | number |         | Set a value for a [static line](#static-lines). Either `entity` or `static_value` must be defined.
-| name | string |         | Set a custom display name, defaults to entity's friendly_name or a `Static` label for a [static value](#static-lines). Can be a [template](#templated-names).
+| name ◆ | string |         | Set a custom display name, defaults to entity's friendly_name or a `Static` label for a [static value](#static-lines). Can be a [template](#templated-names).
 | line_width | number |         | Override for a thickness of the line.
 | line_style | string |   | Override the style of the line (see [Line styles](#line-styles)).
 | color | string |         | Set a custom color, overrides all other color options including thresholds.
@@ -367,7 +369,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | unit | string |         | Set a custom unit of measurement, overrides `unit` set in base config (`''` value for an empty unit).
 | aggregate_func | string |         | Override for aggregate function used to calculate point on the graph, `avg`, `median`, `min`, `max`, `first`, `last`, `sum`.
 | decimals | integer |    | Override the exact number of decimals to show for number values, see [Number format](#number-format).
-| format | string |    | Override the value format, `number` or `duration`, see [Duration format](#duration-format).
+| format ★ | string |    | Override the value format, `number` or `duration`, see [Duration format](#duration-format).
 | show_state | boolean |         | Display the current state.
 | show_legend_state | boolean |  false  | Display the current state as part of the legend.
 | show_indicator | boolean |         | Display a color indicator next to the state.
@@ -379,7 +381,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | show_static_inactive | boolean |         | Set to true to disable hiding the line when a point of a line of another entity selected; meaningful for a [static line](#static-lines) only.
 | state_adaptive_color | boolean |         | Make the color of the state adapt to the entity/static value color.
 | y_axis | string |         | If 'secondary', displays using the secondary Y-axis on the right.
-| statistics | boolean *or* object |         | Override statistics for this entity only, see [Statistics](#statistics).
+| statistics ★ | boolean *or* object |         | Override statistics for this entity only, see [Statistics](#statistics).
 | fixed_value | boolean |         | Set to true to graph the entity's current state as a fixed value instead of graphing its state history.
 | smoothing | boolean |         | Override for a flag indicating whether to make graph line smooth.
 | logarithmic | boolean |         | Override logarithmic scaling for this entity only (see [Logarithmic options](#logarithmic-options)).
@@ -411,7 +413,7 @@ All properties are optional.
 | average | `false` | `true` / `false` / `below` | Display average information; `below` - place below a graph.
 | extrema | `false` | `true` / `false` / `below` | Display max/min information; `below` - place below a graph.
 | info_hide_unit | `false` | `true` / `false` | Do not show a unit for the average & max/min information.
-| labels | `hover` | `true` / `false` / `hover` | Display axis labels: the Y-axis bounds, and the labels of a [grid](#grid-lines) on either axis. `false` removes all axis text from the card.
+| labels ◆ | `hover` | `true` / `false` / `hover` | Display axis labels: the Y-axis bounds, and the labels of a [grid](#grid-lines) on either axis. `false` removes all axis text from the card.
 | labels_secondary | `hover` | `true` / `false` / `hover` | Display secondary Y-axis labels.
 | name_adaptive_color | `false` | `true` / `false` | Make the name color adapt with the primary entity/static value color.
 | icon_adaptive_color | `false` | `true` / `false` | Make the icon color adapt with the primary entity/static value color.
@@ -950,16 +952,22 @@ A `name` - the card's own or an entity's - may be a Jinja template. Home Assista
 
 ```yaml
 type: custom:mini-graph-card
-name: "{{ state_attr('plant.plant_004', 'friendly_name') }}"
+name: "{{ state_attr('climate.living_room', 'friendly_name') }}"
 entities:
-  - sensor.plant_004_soil_moisture
+  - sensor.living_room_temperature
+```
+
+So renaming the thermostat renames the card, and a card can be named after something it does not graph. A name can also carry a value:
+
+```yaml
+name: "Power - {{ states('sensor.electricity_price') }} øre/kWh"
 ```
 
 The name is blank until the first result arrives, so raw Jinja is never shown. A template that will not render logs the reason to the console and leaves the name empty.
 
 Anything without `{{` or `{%` is used exactly as written, so existing names are unaffected.
 
-> **With [lovelace_gen](https://github.com/thomasloven/hass-config/wiki/lovelace_gen)**, wrap the template in `{% raw %}` … `{% endraw %}` - otherwise lovelace_gen renders it away before the card ever sees it.
+> **With [lovelace_gen](https://github.com/thomasloven/hass-config/wiki/lovelace_gen)**, wrap the template in `{% raw %}` … `{% endraw %}` - it renders Jinja itself, before the card ever sees the config, so an unprotected template is gone by then. Passing one as an include argument needs no fence: lovelace_gen does not look for delimiters inside a Jinja string literal, and it does not re-render what it substitutes.
 
 ### Duration format
 
