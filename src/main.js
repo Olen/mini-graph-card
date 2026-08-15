@@ -8,6 +8,7 @@ import style from './style';
 import handleClick from './handleClick';
 import buildConfig from './buildConfig';
 import { packEntry, unpackEntry, isUsable } from './cache';
+import { isTemplate, TemplateSubscriber } from './templates';
 import './editor/editor';
 import {
   blankBeforePercent,
@@ -113,6 +114,10 @@ class MiniGraphCard extends LitElement {
     // for a currently unavailable entity
     this.preserved_uom = [];
     this.preserved_order = [];
+
+    // A templated "name" is rendered by Home Assistant, which pushes a new
+    // result whenever the template's own entities change
+    this._templates = new TemplateSubscriber(() => this.requestUpdate());
   }
 
   static getConfigElement() {
@@ -124,7 +129,9 @@ class MiniGraphCard extends LitElement {
   }
 
   set hass(hass) {
+    const first = !this._hass;
     this._hass = hass;
+    if (first) this.syncTemplates();
     let updated = false;
     const queue = [];
 
@@ -266,6 +273,8 @@ class MiniGraphCard extends LitElement {
         }),
       );
     }
+    // A name may have been edited into or out of a template
+    if (this._hass) this.syncTemplates();
   }
 
   /**
@@ -320,6 +329,8 @@ class MiniGraphCard extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    // disconnectedCallback dropped them; a card moved in the DOM comes back
+    this.syncTemplates();
     if (this.config.update_interval) {
       window.requestAnimationFrame(() => {
         this.updateOnInterval();
@@ -345,6 +356,7 @@ class MiniGraphCard extends LitElement {
       this.observingCard = false;
     }
     this.cancelHold();
+    this._templates.destroy();
     super.disconnectedCallback();
   }
 
@@ -661,7 +673,7 @@ class MiniGraphCard extends LitElement {
 
     const name = this.tooltip.entity !== undefined
       ? this.computeName(this.tooltip.entity)
-      : this.config.name || this.computeName(0);
+      : this.computeTemplatedName('name', this.config.name) || this.computeName(0);
     const color = this.config.show.name_adaptive_color
       ? `opacity: 1; color: ${this.color};`
       : '';
@@ -1921,12 +1933,39 @@ class MiniGraphCard extends LitElement {
   * @returns {string} Name of an entity/static value
   * @param {number} index Index of an entry in config.entities
   */
+  /**
+  * Subscribes Home Assistant to every "name" written as a template, and drops
+  * the subscriptions for any that are gone. Safe to call repeatedly.
+  */
+  syncTemplates() {
+    const templates = {};
+    if (isTemplate(this.config.name)) templates.name = this.config.name;
+    (this.config.entities || []).forEach((entity, index) => {
+      if (isTemplate(entity.name)) templates[`entity.${index}.name`] = entity.name;
+    });
+    this._templates.sync(this._hass, templates);
+  }
+
+  /**
+  * Returns a name as written, or - for a template - what Home Assistant last
+  * rendered it to. Empty until the first result arrives, so raw Jinja is
+  * never shown to the user.
+  * @returns {string} Name to display
+  * @param {string} key Key the template is subscribed under
+  * @param {string} value Configured name
+  */
+  computeTemplatedName(key, value) {
+    if (!isTemplate(value)) return value;
+    const rendered = this._templates.results[key];
+    return rendered === undefined ? '' : String(rendered);
+  }
+
   computeName(index) {
     // use a possibly defined "name" option
     const entityConfig = this.config.entities[index];
     if (entityConfig
       && entityConfig.name !== undefined && entityConfig.name !== null) {
-      return String(entityConfig.name);
+      return this.computeTemplatedName(`entity.${index}.name`, String(entityConfig.name));
     }
     // use a possibly present friendly_name for an entity
     const stateObj = this.entity && this.entity[index];

@@ -291,7 +291,7 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | icon | string |  | v0.0.1 | Set a custom icon from any of the available mdi icons.
 | icon_color | string |  | v0.14.0 | Set a custom icon color. Takes precedence over `icon_adaptive_color`.
 | icon_image | string |  | v0.12.0 | Override icon with an image url.
-| name | string |  | v0.0.1 | Set a custom name which is displayed beside the icon.
+| name | string |  | v0.0.1 | Set a custom name which is displayed beside the icon. Can be a [template](#templated-names).
 | unit | string |  | v0.0.1 | Set a custom unit of measurement (`''` value for an empty unit).
 | tap_action | [action object](#action-object-options) |  | v0.7.0 | Action on click/tap, see [Tapping & holding](#tapping--holding).
 | hold_action | [action object](#action-object-options) | `more-info` | | Action on a press held for half a second, see [Tapping & holding](#tapping--holding).
@@ -358,7 +358,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | entity ***(required)*** | string |         | Entity id of the sensor. Either `entity` or `static_value` must be defined.
 | attribute | string |         | Retrieves an attribute or [sub-attribute (attr1.attr2...)](#accessing-attributes-in-complex-structures) instead of the state
 | static_value | number |         | Set a value for a [static line](#static-lines). Either `entity` or `static_value` must be defined.
-| name | string |         | Set a custom display name, defaults to entity's friendly_name or a `Static` label for a [static value](#static-lines).
+| name | string |         | Set a custom display name, defaults to entity's friendly_name or a `Static` label for a [static value](#static-lines). Can be a [template](#templated-names).
 | line_width | number |         | Override for a thickness of the line.
 | line_style | string |   | Override the style of the line (see [Line styles](#line-styles)).
 | color | string |         | Set a custom color, overrides all other color options including thresholds.
@@ -943,6 +943,23 @@ A "default presentation" refers to a default look in HA:
 3. For Y-axis labels, [static values](#static-lines): "maximum 2 decimals" accuracy is used.
 And for all values, HA number format settings (like `xxxx.xx` or `x xxx.x` or `x,xxx.x`) are used.
 
+
+### Templated names
+
+A `name` - the card's own or an entity's - may be a Jinja template. Home Assistant renders it and pushes a new result whenever anything the template reads changes, so the name follows the state rather than the config:
+
+```yaml
+type: custom:mini-graph-card
+name: "{{ state_attr('plant.plant_004', 'friendly_name') }}"
+entities:
+  - sensor.plant_004_soil_moisture
+```
+
+The name is blank until the first result arrives, so raw Jinja is never shown. A template that will not render logs the reason to the console and leaves the name empty.
+
+Anything without `{{` or `{%` is used exactly as written, so existing names are unaffected.
+
+> **With [lovelace_gen](https://github.com/thomasloven/hass-config/wiki/lovelace_gen)**, wrap the template in `{% raw %}` … `{% endraw %}` - otherwise lovelace_gen renders it away before the card ever sees it.
 
 ### Duration format
 
