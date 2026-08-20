@@ -1400,20 +1400,19 @@ class MiniGraphCard extends LitElement {
     if (!bars) return;
     const hoverable = this.config.hover_mode === HOVER_POINT;
     const isAnimated = isEntryAnimated(this.config, index);
+    const graphHeight = this.graphHeight !== undefined
+      ? this.graphHeight : DEFAULT_GRAPH_HEIGHT;
     const items = bars.map((bar, i) => {
-      const animation = isAnimated
-        ? svg`
-          <animate attributeName='y' from=${this.graphHeight} to=${bar.y} dur='1s' fill='remove'
-            calcMode='spline' keyTimes='0; 1' keySplines='0.215 0.61 0.355 1'>
-          </animate>`
+      const barsStyle = isAnimated
+        ? `transform-origin: ${bar.x}px ${graphHeight}px;`
         : '';
       const color = this.computeColor(bar.value, index);
       return svg`
         <rect class='bar' x=${bar.x} y=${bar.y}
           height=${bar.height} width=${bar.width} fill=${color}
+          style=${barsStyle}
           @mouseover=${hoverable ? () => this.setTooltip(index, i, bar.value) : undefined}
           @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}>
-          ${animation}
         </rect>`;
     });
     const inactive = this.tooltip.entity !== undefined
