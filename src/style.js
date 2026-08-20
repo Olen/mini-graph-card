@@ -479,6 +479,7 @@ const style = css`
     animation: pop .25s cubic-bezier(0.215, 0.61, 0.355, 1);
   }
   .bars[anim] .bar {
+    transform-box: view-box;
     animation: growbar .6s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
   }
   .bars[anim] {
@@ -488,7 +489,7 @@ const style = css`
     transition: opacity .25s cubic-bezier(0.215, 0.61, 0.355, 1);
   }
   .bar:hover {
-    opacity: .5 !important;
+    opacity: .5;
     cursor: pointer;
   }
   path,
