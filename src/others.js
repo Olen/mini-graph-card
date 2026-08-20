@@ -682,6 +682,20 @@ const findNearestBar = (barsPerEntity, x, y) => {
       : best));
 };
 
+/**
+ * Checks if animation is enabled for a specific entry in config.entities.
+ * @param {object} config Config object
+ * @param {number} index Index of an entry in config.entities
+ * @returns {boolean} True if animated, false - otherwise
+ */
+const isEntryAnimated = (config, index) => {
+  const entryConf = config.entities && config.entities[index];
+  if (entryConf && entryConf.animate !== undefined && entryConf.animate !== null) {
+    return entryConf.animate === true;
+  }
+  return config.animate === true;
+};
+
 export {
   isNumeric,
   findNearestPoint,
@@ -706,4 +720,5 @@ export {
   logStringWarning,
   getFactor,
   getBound,
+  isEntryAnimated,
 };
