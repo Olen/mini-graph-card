@@ -49,7 +49,7 @@ import {
   STATISTICS_PERIOD_FALLBACK,
 } from './const';
 import {
-  isNumeric, getStatisticsType, getCardSizeUnits, getGridOptions,
+  isNumeric, isEntryAnimated, getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
   getLabelStride, getChromeHeight,
@@ -523,14 +523,18 @@ class MiniGraphCard extends LitElement {
     super.updated(changedProperties);
     this.updateGraphSizeObserver();
 
-    if (this.config.animate && changedProperties.has('line')) {
-      if (this.length.length < this.entity.length) {
+    const hasAnimation = this.config.entities.some(
+      (_, index) => isEntryAnimated(this.config, index),
+    );
+    if (hasAnimation && changedProperties.has('line')) {
+      if (this.length.length < this.config.entities.length) {
         this.shadowRoot.querySelectorAll('svg path.line').forEach((ele) => {
-          this.length[ele.id] = ele.getTotalLength();
+          const index = ele.id;
+          this.length[index] = isEntryAnimated(this.config, index) ? ele.getTotalLength() : 'none';
         });
         this.length = [...this.length];
       } else {
-        this.length = Array(this.entity.length).fill('none');
+        this.length = Array(this.config.entities.length).fill('none');
       }
     }
   }
@@ -1043,6 +1047,7 @@ class MiniGraphCard extends LitElement {
   */
   renderSvgFill(fill, index) {
     if (!fill) return;
+    const isAnimated = isEntryAnimated(this.config, index);
     const fade = this.config.show.fill === 'fade';
     const init = this.length[index] || this.config.entities[index].show_line === false;
     return svg`
@@ -1058,8 +1063,8 @@ class MiniGraphCard extends LitElement {
       <mask id=${`fill-${this.id}-${index}`}>
         <path class='fill'
           type=${this.config.show.fill}
-          .id=${index} anim=${this.config.animate} ?init=${init}
-          style="animation-delay: ${this.config.animate ? `${index * 0.5}s` : '0s'}"
+          .id=${index} anim=${isAnimated} ?init=${init}
+          style="animation-delay: ${isAnimated ? `${index * 0.5}s` : '0s'}"
           fill='white'
           mask=${fade ? `url(#fill-grad-mask-${this.id}-${index})` : ''}
           d=${this.fill[index]}
@@ -1075,10 +1080,15 @@ class MiniGraphCard extends LitElement {
   */
   renderSvgLine(line, index) {
     if (!line) return;
-    const strokeDashArray = (this.config.animate
+    const isAnimated = isEntryAnimated(this.config, index);
+    // line_style is ignored if animate=true
+    const strokeDashArray = (isAnimated
       ? this.length[index]
       : this.config.entities[index].line_style || this.config.line_style)
       || 'none';
+    const strokeDashOffset = isAnimated
+      ? this.length[index] || 'none'
+      : 'none';
     const lineWidth = getFirstDefinedItem(
       this.config.entities[index].line_width,
       this.config.line_width,
@@ -1087,10 +1097,10 @@ class MiniGraphCard extends LitElement {
       <path
         class='line'
         .id=${index}
-        anim=${this.config.animate} ?init=${this.length[index]}
-        style="animation-delay: ${this.config.animate ? `${index * 0.5}s` : '0s'}"
+        anim=${isAnimated} ?init=${this.length[index]}
+        style="animation-delay: ${isAnimated ? `${index * 0.5}s` : '0s'}"
         fill='none'
-        stroke-dasharray=${strokeDashArray} stroke-dashoffset=${this.length[index] || 'none'}
+        stroke-dasharray=${strokeDashArray} stroke-dashoffset=${strokeDashOffset}
         stroke=${'white'}
         stroke-width=${lineWidth}
         d=${this.line[index]}
@@ -1303,13 +1313,14 @@ class MiniGraphCard extends LitElement {
       this.config.line_width,
     );
     const hoverable = this.config.hover_mode === HOVER_POINT;
+    const isAnimated = isEntryAnimated(this.config, index);
     return svg`
       <g class='line--points'
         ?tooltip=${this.tooltip.entity === index}
         ?inactive=${inactive}
         ?init=${this.length[index]}
-        anim=${this.config.animate && this.config.show.points !== 'hover'}
-        style="animation-delay: ${this.config.animate ? `${index * 0.5 + 0.5}s` : '0s'}"
+        anim=${isAnimated && this.config.show.points !== 'hover'}
+        style="animation-delay: ${isAnimated ? `${index * 0.5 + 0.5}s` : '0s'}"
         fill=${color}
         stroke=${color}
         stroke-width=${radius / 2}>
@@ -1396,8 +1407,9 @@ class MiniGraphCard extends LitElement {
   renderSvgBars(bars, index) {
     if (!bars) return;
     const hoverable = this.config.hover_mode === HOVER_POINT;
+    const isAnimated = isEntryAnimated(this.config, index);
     const items = bars.map((bar, i) => {
-      const animation = this.config.animate
+      const animation = isAnimated
         ? svg`
           <animate attributeName='y' from=${this.graphHeight} to=${bar.y} dur='1s' fill='remove'
             calcMode='spline' keyTimes='0; 1' keySplines='0.215 0.61 0.355 1'>
@@ -1418,7 +1430,7 @@ class MiniGraphCard extends LitElement {
     return svg`
       <g
         class='bars'
-        ?anim=${this.config.animate}
+        ?anim=${isAnimated}
         ?inactive=${inactive}
       >${items}</g>`;
   }
