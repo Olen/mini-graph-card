@@ -17,8 +17,8 @@ const makeGraph = (values: number[], smoothing: boolean) => {
     width: 500,
     height: 100,
     margin: [0, 0],
-    hours: values.length,
-    points: 1,
+    hours_to_show: values.length,
+    points_per_hour: 1,
     smoothing,
   });
   // one point per hour, oldest first, landing mid-bucket

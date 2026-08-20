@@ -16,8 +16,8 @@ const makeGraph = (over = {}) => new Graph({
   width: 500,
   height: 100,
   margin: [0, 0],
-  hours: 24,
-  points: 1,
+  hours_to_show: 24,
+  points_per_hour: 1,
   ...over,
 });
 
@@ -65,7 +65,7 @@ describe('Graph.update', () => {
   });
 
   it('still bins a history which does hold something', () => {
-    const graph = makeGraph({ hours: 1, points: 2 });
+    const graph = makeGraph({ hours_to_show: 1, points_per_hour: 2 });
     graph.update([
       { last_changed: recently(45), state: '10' },
       { last_changed: recently(5), state: '20' },
@@ -75,7 +75,7 @@ describe('Graph.update', () => {
   });
 
   it('recovers once a history arrives after an empty one', () => {
-    const graph = makeGraph({ hours: 1, points: 2 });
+    const graph = makeGraph({ hours_to_show: 1, points_per_hour: 2 });
     graph.update([]);
     graph.update([{ last_changed: recently(5), state: '7' }]);
     expect(graph.coords.length).toBeGreaterThan(0);
@@ -97,14 +97,14 @@ describe('Graph.update: the start of a graph', () => {
   });
 
   it('starts where the data starts, not at the left edge', () => {
-    const graph = makeGraph({ points: 1 });        // 24 buckets of an hour
+    const graph = makeGraph({ points_per_hour: 1 });        // 24 buckets of an hour
     graph.update([at(90, '20'), at(30, '22')]);    // nothing older than 90 min
     expect(graph.coords.length).toBeLessThan(24);
     expect(graph.coords.length).toBeGreaterThan(0);
   });
 
   it('draws no reading from before the entity had one', () => {
-    const graph = makeGraph({ points: 1 });
+    const graph = makeGraph({ points_per_hour: 1 });
     graph.update([at(90, '20'), at(30, '22')]);
     // the left-most point is the first real reading, not a copy of it moved back
     const firstX = graph.coords[0][0];
@@ -112,7 +112,7 @@ describe('Graph.update: the start of a graph', () => {
   });
 
   it('still carries a value forward across a later quiet spell', () => {
-    const graph = makeGraph({ points: 1 });
+    const graph = makeGraph({ points_per_hour: 1 });
     graph.update([at(23 * 60, '20'), at(30, '22')]);
     // 23 hours with nothing reported between them: a flat line, not a hole
     expect(graph.coords.length).toBeGreaterThan(20);
@@ -121,7 +121,7 @@ describe('Graph.update: the start of a graph', () => {
   });
 
   it('fills the whole window when the data does', () => {
-    const graph = makeGraph({ points: 1 });
+    const graph = makeGraph({ points_per_hour: 1 });
     const full = Array.from({ length: 24 }, (_, i) => at(i * 60 + 1, `${20 + i}`));
     graph.update(full.reverse());
     expect(graph.coords.length).toBe(24);
