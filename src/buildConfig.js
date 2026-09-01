@@ -176,10 +176,10 @@ export default (config) => {
   // check numeric options for validity
   // font_size is a percentage of the default size, so validate it as one.
   // checkNumericOption reports an unset option as undefined, not as the default.
-  const fontSizePercent = checkNumericOption(conf, 'font_size', 100, 0.1, undefined, true);
+  const fontSizePercent = checkNumericOption(conf, 'font_size', 100, { minBound: 0.1, allowString: true });
   conf.font_size = fontSizePercent === undefined ? 100 : fontSizePercent;
-  conf.font_size_header = checkNumericOption(conf, 'font_size_header', DEFAULT_FONT_SIZE_HEADER, 0.1, undefined, true);
-  conf.font_size_state = checkNumericOption(conf, 'font_size_state', undefined, 0.1, undefined, true);
+  conf.font_size_header = checkNumericOption(conf, 'font_size_header', DEFAULT_FONT_SIZE_HEADER, { minBound: 0.1, allowString: true });
+  conf.font_size_state = checkNumericOption(conf, 'font_size_state', undefined, { minBound: 0.1, allowString: true });
 
   conf.align_state = checkStringOption(conf, 'align_state', ALIGN_STATE, DEFAULT_ALIGN_STATE);
   // Without a default the icon rendered with loc="undefined", matching neither
@@ -199,7 +199,9 @@ export default (config) => {
   // has always had relative to font_size.
   ['font_size_secondary', 'font_size_legend', 'font_size_extrema', 'font_size_labels']
     .forEach((option) => {
-      conf[option] = checkNumericOption(conf, option, undefined, 0.1, undefined, true);
+      conf[option] = checkNumericOption(
+        conf, option, undefined, { minBound: 0.1, allowString: true },
+      );
     });
 
   // "tap_action: more-info" is the natural thing to write & handleClick reads
@@ -208,45 +210,43 @@ export default (config) => {
     if (typeof conf[option] === 'string') conf[option] = { action: conf[option] };
   });
 
-  conf.bar_spacing = checkNumericOption(conf, 'bar_spacing', DEFAULT_BAR_SPACING, -1, undefined, true);
-  conf.bar_spacing_group = checkNumericOption(conf, 'bar_spacing_group', undefined, 0, undefined, true);
+  conf.bar_spacing = checkNumericOption(conf, 'bar_spacing', DEFAULT_BAR_SPACING, { minBound: -1, allowString: true });
+  conf.bar_spacing_group = checkNumericOption(conf, 'bar_spacing_group', undefined, { minBound: 0, allowString: true });
 
   // A desired CARD height. Left unset, getDesiredCardHeight() asks for as much
   // as the chrome needs plus a default-sized graph - i.e. what a card took before.
-  conf.height = checkNumericOption(conf, 'height', undefined, 0, undefined, true);
+  conf.height = checkNumericOption(conf, 'height', undefined, { minBound: 0, allowString: true });
   conf.graph_height = parseGraphHeight(conf.graph_height);
   conf.grid_x = parseGrid(conf.grid_x, 'grid_x');
   conf.grid_y = parseGrid(conf.grid_y, 'grid_y');
 
-  conf.line_width = checkNumericOption(conf, 'line_width', DEFAULT_MARGIN, 0, undefined, true);
+  conf.line_width = checkNumericOption(conf, 'line_width', DEFAULT_MARGIN, { minBound: 0, allowString: true });
 
-  conf.hours_to_show = checkNumericOption(conf, 'hours_to_show', DEFAULT_HOURS_TO_SHOW, 0.01, undefined, true);
-  conf.points_per_hour = checkNumericOption(conf, 'points_per_hour', DEFAULT_POINTS_PER_HOUR, 0.001, undefined, true);
-  conf.update_interval = checkNumericOption(conf, 'update_interval', undefined, 0, undefined, true);
+  conf.hours_to_show = checkNumericOption(conf, 'hours_to_show', DEFAULT_HOURS_TO_SHOW, { minBound: 0.01, allowString: true });
+  conf.points_per_hour = checkNumericOption(conf, 'points_per_hour', DEFAULT_POINTS_PER_HOUR, { minBound: 0.001, allowString: true });
+  conf.update_interval = checkNumericOption(conf, 'update_interval', undefined, { minBound: 0, allowString: true });
 
   ({ lowerBound: conf.lower_bound, upperBound: conf.upper_bound } = checkBounds(conf));
 
-  conf.min_bound_range = checkNumericOption(conf, 'min_bound_range', undefined, 0, undefined, true);
-  conf.min_bound_range_secondary = checkNumericOption(conf, 'min_bound_range_secondary', undefined, 0, undefined, true);
+  conf.min_bound_range = checkNumericOption(conf, 'min_bound_range', undefined, { minBound: 0, allowString: true });
+  conf.min_bound_range_secondary = checkNumericOption(conf, 'min_bound_range_secondary', undefined, { minBound: 0, allowString: true });
 
-  conf.decimals_primary_labels = checkIntegerOption(conf, 'decimals_primary_labels', undefined, 0, undefined, true);
-  conf.decimals_secondary_labels = checkIntegerOption(conf, 'decimals_secondary_labels', undefined, 0, undefined, true);
-  conf.decimals = checkIntegerOption(conf, 'decimals', undefined, 0, undefined, true);
+  conf.decimals_primary_labels = checkIntegerOption(conf, 'decimals_primary_labels', undefined, { minBound: 0, allowString: true });
+  conf.decimals_secondary_labels = checkIntegerOption(conf, 'decimals_secondary_labels', undefined, { minBound: 0, allowString: true });
+  conf.decimals = checkIntegerOption(conf, 'decimals', undefined, { minBound: 0, allowString: true });
 
   conf.static_value_label_offset = checkNumericOption(
     conf,
     'static_value_label_offset',
     DEFAULT_STATIC_VALUE_LABEL_OFFSET,
-    0,
-    100,
-    true,
+    { minBound: 0, maxBound: 100, allowString: true },
   );
   if (conf.static_value_label_offset === undefined
     || conf.static_value_label_offset === null) {
     conf.static_value_label_offset = DEFAULT_STATIC_VALUE_LABEL_OFFSET;
   }
 
-  conf.fill_baseline = checkNumericOption(conf, 'fill_baseline', undefined, undefined, undefined, true);
+  conf.fill_baseline = checkNumericOption(conf, 'fill_baseline', undefined, { allowString: true });
 
   // process per-entity configs
   /* eslint-disable no-param-reassign */
@@ -255,10 +255,10 @@ export default (config) => {
       conf.entities[i] = { entity };
     } else {
       // check numeric per-entity options for validity
-      entity.line_width = checkNumericOption(entity, 'line_width', conf.line_width, 0, undefined, true);
-      entity.decimals = checkIntegerOption(entity, 'decimals', conf.decimals, 0, undefined, true);
+      entity.line_width = checkNumericOption(entity, 'line_width', conf.line_width, { minBound: 0, allowString: true });
+      entity.decimals = checkIntegerOption(entity, 'decimals', conf.decimals, { minBound: 0, allowString: true });
       entity.format = checkStringOption(entity, 'format', VALUE_FORMATS, conf.format);
-      entity.fill_baseline = checkNumericOption(entity, 'fill_baseline', undefined, undefined, undefined, true);
+      entity.fill_baseline = checkNumericOption(entity, 'fill_baseline', undefined, { allowString: true });
 
       if (entity.color_thresholds) {
         // check color_thresholds

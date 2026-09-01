@@ -203,9 +203,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            undefined,
-            undefined,
-            variant.allowString,
+            { allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -218,9 +216,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            undefined,
-            undefined,
-            variant.allowString,
+            { allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -233,9 +229,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            undefined,
-            undefined,
-            variant.allowString,
+            { allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -248,9 +242,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            HUGE_NEGATIVE,
-            undefined,
-            variant.allowString,
+            { minBound: HUGE_NEGATIVE, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -263,9 +255,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            undefined,
-            HUGE_POSITIVE,
-            variant.allowString,
+            { maxBound: HUGE_POSITIVE, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -278,9 +268,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            HUGE_NEGATIVE,
-            HUGE_POSITIVE,
-            variant.allowString,
+            { minBound: HUGE_NEGATIVE, maxBound: HUGE_POSITIVE, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -295,9 +283,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            valueNumber,
-            undefined,
-            variant.allowString,
+            { minBound: valueNumber, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -310,9 +296,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            undefined,
-            valueNumber,
-            variant.allowString,
+            { maxBound: valueNumber, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -325,9 +309,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            valueNumber,
-            valueNumber,
-            variant.allowString,
+            { minBound: valueNumber, maxBound: valueNumber, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -340,9 +322,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            valueSmaller,
-            undefined,
-            variant.allowString,
+            { minBound: valueSmaller, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -355,9 +335,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            undefined,
-            valueBigger,
-            variant.allowString,
+            { maxBound: valueBigger, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -370,9 +348,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            valueSmaller,
-            valueNumber,
-            variant.allowString,
+            { minBound: valueSmaller, maxBound: valueNumber, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -385,9 +361,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            valueNumber,
-            valueBigger,
-            variant.allowString,
+            { minBound: valueNumber, maxBound: valueBigger, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -400,9 +374,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            valueSmaller,
-            valueBigger,
-            variant.allowString,
+            { minBound: valueSmaller, maxBound: valueBigger, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -421,9 +393,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            valueBigger,
-            undefined,
-            variant.allowString,
+            { minBound: valueBigger, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -436,9 +406,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            valueBigger,
-            valueMuchBigger,
-            variant.allowString,
+            { minBound: valueBigger, maxBound: valueMuchBigger, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -451,9 +419,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            undefined,
-            valueSmaller,
-            variant.allowString,
+            { maxBound: valueSmaller, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,
@@ -466,9 +432,7 @@ describe("checkNumericOption, checkIntegerOption", () => {
             config,
             option,
             variant.defaultValue,
-            valueMuchSmaller,
-            valueSmaller,
-            variant.allowString,
+            { minBound: valueMuchSmaller, maxBound: valueSmaller, allowString: variant.allowString },
           );
           assert.strictEqual(
             result,

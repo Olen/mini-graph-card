@@ -16,19 +16,20 @@ import {
  * @param {object} config Config object
  * @param {string} option Name of option to be checked
  * @param {number} defaultValue Default fallback value
- * @param {number} minBound Optional minimum allowed value
- * @param {number} maxBound Optional maximum allowed value
- * @param {boolean} [allowString=false] Optional flag
- * to allow string representations of numbers (like "123")
+ * @param {object} [params={}] Optional parameters
+ * @param {number} [params.minBound] Minimum allowed value
+ * @param {number} [params.maxBound] Maximum allowed value
+ * @param {boolean} [params.allowString=false] Allow string representations
+ * of numbers (like "123")
+ * @param {string} [params.logOptionName] Name to use in log output, when the
+ * option sits under a nested key and `option` alone would not identify it
  * @returns {number} Cleared value
  */
 const checkNumericOption = (
   config,
   option,
   defaultValue,
-  minBound = undefined,
-  maxBound = undefined,
-  allowString = false,
+  params = {},
 ) => {
   const value = config[option];
 
@@ -36,9 +37,17 @@ const checkNumericOption = (
     return undefined;
   }
 
+  const {
+    minBound = undefined,
+    maxBound = undefined,
+    allowString = false,
+    logOptionName = undefined,
+  } = params;
+  const displayOption = logOptionName || option;
+
   if (isNumeric(value, allowString)) {
     // log a warning in case of a string presentation of a number
-    logStringWarning(value, option);
+    logStringWarning(value, displayOption);
 
     const valueNumeric = Number(value);
     const isMinValid = minBound === undefined || valueNumeric >= minBound;
@@ -61,7 +70,7 @@ const checkNumericOption = (
       errorDescr = `out of bounds, maximum allowed: ${maxBound}`;
     }
   }
-  log(`Invalid option ${option}: [${invalidValue}] (${errorDescr}); adjusting value to ${clearedValue}`);
+  log(`Invalid option ${displayOption}: [${invalidValue}] (${errorDescr}); adjusting value to ${clearedValue}`);
   return clearedValue;
 };
 
@@ -72,24 +81,20 @@ const checkNumericOption = (
  * @param {object} config Config object
  * @param {string} option Name of option to be checked
  * @param {number} defaultValue Default fallback value
- * @param {number} minBound Optional minimum allowed value
- * @param {number} maxBound Optional maximum allowed value
- * @param {boolean} [allowString=false] Optional flag
- * to allow string representations of numbers (like "123")
+ * @param {object} [params={}] Optional parameters, as for checkNumericOption
  * @returns {number} Cleared value
  */
 const checkIntegerOption = (
   config,
   option,
   defaultValue,
-  minBound = undefined,
-  maxBound = undefined,
-  allowString = false,
+  params = {},
 ) => {
-  const value = checkNumericOption(config, option, defaultValue, minBound, maxBound, allowString);
+  const value = checkNumericOption(config, option, defaultValue, params);
   if (value !== undefined && !Number.isInteger(value)) {
     const roundedValue = Math.round(value) + 0; // prevent "-0" value
-    log(`Invalid integer option ${option}: [${value}]; rounding value to ${roundedValue}`);
+    const displayOption = params.logOptionName || option;
+    log(`Invalid integer option ${displayOption}: [${value}]; rounding value to ${roundedValue}`);
     return roundedValue;
   }
   return value;
@@ -125,12 +130,14 @@ const checkStringOption = (config, option, allowed, defaultValue) => {
  * @param {string} option Name of the option to be checked
  * @returns {number|string|undefined} Cleared value in its original format, or undefined
  */
-const checkBoundOption = (config, option) => {
+const checkBoundOption = (config, option, logOptionName) => {
   const value = config[option];
 
   if (value === undefined || value === null) {
     return undefined;
   }
+
+  const displayOption = logOptionName || option;
 
   if (typeof value === 'number' || typeof value === 'string') {
     const parsed = getBound(value);
@@ -138,11 +145,11 @@ const checkBoundOption = (config, option) => {
       if (!parsed.soft && typeof value === 'string') {
         // check for a "string number" since this will not be cleared below
         // log a warning in case of a string presentation of a number
-        logStringWarning(value, option);
+        logStringWarning(value, displayOption);
       }
 
       const cfg = { [option]: parsed.value };
-      if (checkNumericOption(cfg, option, undefined) !== undefined) {
+      if (checkNumericOption(cfg, option, undefined, { logOptionName }) !== undefined) {
         return parsed.soft ? value : parsed.value;
       }
     }
@@ -150,7 +157,7 @@ const checkBoundOption = (config, option) => {
 
   // invalid type or value of the option
   const invalidValue = typeof value === 'object' ? JSON.stringify(value) : value;
-  log(`Invalid option ${option}: [${invalidValue}] (not a numeric value); adjusting value to undefined`);
+  log(`Invalid option ${displayOption}: [${invalidValue}] (not a numeric value); adjusting value to undefined`);
   return undefined;
 };
 
