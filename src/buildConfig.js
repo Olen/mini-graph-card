@@ -148,7 +148,6 @@ export default (config) => {
 
   const conf = {
     animate: false,
-    font_size: DEFAULT_FONT_SIZE,
     font_size_header: DEFAULT_FONT_SIZE_HEADER,
     hours_to_show: DEFAULT_HOURS_TO_SHOW,
     points_per_hour: DEFAULT_POINTS_PER_HOUR,
@@ -175,7 +174,10 @@ export default (config) => {
   };
 
   // check numeric options for validity
-  conf.font_size = checkNumericOption(conf, 'font_size', 100, 0.1, undefined, true);
+  // font_size is a percentage of the default size, so validate it as one.
+  // checkNumericOption reports an unset option as undefined, not as the default.
+  const fontSizePercent = checkNumericOption(conf, 'font_size', 100, 0.1, undefined, true);
+  conf.font_size = fontSizePercent === undefined ? 100 : fontSizePercent;
   conf.font_size_header = checkNumericOption(conf, 'font_size_header', DEFAULT_FONT_SIZE_HEADER, 0.1, undefined, true);
   conf.font_size_state = checkNumericOption(conf, 'font_size_state', undefined, 0.1, undefined, true);
 
@@ -291,7 +293,7 @@ export default (config) => {
   if (typeof config.line_color === 'string')
     conf.line_color = [config.line_color, ...DEFAULT_COLORS];
 
-  conf.font_size = (config.font_size / 100) * DEFAULT_FONT_SIZE || DEFAULT_FONT_SIZE;
+  conf.font_size = (conf.font_size / 100) * DEFAULT_FONT_SIZE;
 
   // check color_thresholds
   checkColorThresholds(conf, 'config');

@@ -37,14 +37,14 @@ const VARIANTS: any[] = [
     expected: { lowerBound: '~123', upperBound: undefined },
   },
   {
-    description: 'invalid soft value for upper',
+    description: 'soft value for upper',
     config: { upper_bound: '~456' },
-    expected: { lowerBound: undefined, upperBound: undefined },
+    expected: { lowerBound: undefined, upperBound: '~456' },
   },
   {
-    description: 'valid soft value for lower, invalid soft value for upper',
+    description: 'soft value for both bounds',
     config: { lower_bound: '~123', upper_bound: '~456' },
-    expected: { lowerBound: '~123', upperBound: undefined },
+    expected: { lowerBound: '~123', upperBound: '~456' },
   },
   {
     description: 'valid soft value for lower, valid value for upper',

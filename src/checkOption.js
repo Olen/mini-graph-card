@@ -164,18 +164,14 @@ const checkBoundOption = (config, option) => {
  */
 const checkBounds = (config) => {
   const lowerBound = checkBoundOption(config, 'lower_bound');
-  let upperBound = checkNumericOption(
-    config,
-    'upper_bound',
-    undefined,
-    undefined,
-    undefined,
-    true, // allowString
-  );
+  // Both bounds accept a soft "~50" form, so both have to be parsed the same
+  // way - comparing a raw "~50" against a cleaned number never fired.
+  let upperBound = checkBoundOption(config, 'upper_bound');
 
   if (lowerBound !== undefined && upperBound !== undefined) {
-    const cleanLowerBount = getBound(lowerBound).value;
-    if (upperBound <= cleanLowerBount) {
+    const cleanLowerBound = getBound(lowerBound).value;
+    const cleanUpperBound = getBound(upperBound).value;
+    if (cleanUpperBound <= cleanLowerBound) {
       log(`Invalid lower & upper bounds: [${lowerBound}, ${upperBound}]; unsetting value of upper_bound to undefined`);
       upperBound = undefined;
     }
