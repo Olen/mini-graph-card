@@ -165,22 +165,24 @@ const checkBoundOption = (config, option, logOptionName) => {
 /**
  * Check both upper/lower bounds for valid values.
  * @param {object} config Config object
+ * @param {string} [yAxis] Axis name, for log output
  * @returns {{
  *   lowerBound: string|number|undefined,
  *   upperBound: string|number|undefined
  * }} Cleared bounds
  */
-const checkBounds = (config) => {
-  const lowerBound = checkBoundOption(config, 'lower_bound');
+const checkBounds = (config, yAxis) => {
+  const prefix = yAxis ? `${yAxis}.` : '';
+  const lowerBound = checkBoundOption(config, 'lower_bound', `${prefix}lower_bound`);
   // Both bounds accept a soft "~50" form, so both have to be parsed the same
   // way - comparing a raw "~50" against a cleaned number never fired.
-  let upperBound = checkBoundOption(config, 'upper_bound');
+  let upperBound = checkBoundOption(config, 'upper_bound', `${prefix}upper_bound`);
 
   if (lowerBound !== undefined && upperBound !== undefined) {
     const cleanLowerBound = getBound(lowerBound).value;
     const cleanUpperBound = getBound(upperBound).value;
     if (cleanUpperBound <= cleanLowerBound) {
-      log(`Invalid lower & upper bounds: [${lowerBound}, ${upperBound}]; unsetting value of upper_bound to undefined`);
+      log(`Invalid ${prefix}lower & upper bounds: [${lowerBound}, ${upperBound}]; unsetting value of ${prefix}upper_bound to undefined`);
       upperBound = undefined;
     }
   }

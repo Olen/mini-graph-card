@@ -94,17 +94,15 @@ const getFactor = (config, index = undefined) => {
   if (validIndex && config.entities[index].value_factor !== undefined) {
     // provided a per-entity value_factor
     ({ value_factor } = config.entities[index]);
-  } else if (validIndex && config.entities[index].y_axis === 'secondary') {
-    // use value_factor_secondary for entities with 'y_axis: secondary'
-    // if value_factor_secondary = undefined, then later it will fallback to 1
-    value_factor = config.value_factor_secondary;
-  } else if (index === -1) {
-    // use value_factor_secondary for secondary Y-axis labels
-    // if value_factor_secondary = undefined, then later it will fallback to 1
-    value_factor = config.value_factor_secondary;
+  } else if ((validIndex && config.entities[index].y_axis === 'secondary')
+    || index === -1) {
+    // the secondary axis: its entities, and index -1 for its labels.
+    // undefined falls back to 1 below
+    value_factor = config.y_axis && config.y_axis.secondary
+      && config.y_axis.secondary.value_factor;
   } else {
-    // use a global value_factor
-    ({ value_factor } = config);
+    value_factor = config.y_axis && config.y_axis.primary
+      && config.y_axis.primary.value_factor;
   }
 
   if (value_factor === undefined || value_factor === null) {

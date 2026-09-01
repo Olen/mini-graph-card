@@ -3,7 +3,17 @@
  */
 
 import { assert, describe, it } from 'vitest';
-import { getFactor } from '../others';
+import { getFactor as getFactorRaw } from '../others';
+import { migrateYaxisConfig } from '../migrate';
+
+// The fixtures below are written in the legacy flat form, which is what
+// users still have in their YAML. buildConfig migrates before anything
+// reads it, so the tests do the same - covering the migration too.
+const getFactor = (config?: any, index?: number) => (
+  config === undefined
+    ? getFactorRaw()
+    : getFactorRaw(migrateYaxisConfig(config), index)
+);
 
 interface ValueFactorType {
   type?: string | any,

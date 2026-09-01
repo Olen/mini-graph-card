@@ -2159,13 +2159,13 @@ class MiniGraphCard extends LitElement {
     // attempting to get "decimals" settings
     if (index === undefined) {
       // for a primary Y-axis
-      dec = this.config.decimals_primary_labels !== undefined
-        ? this.config.decimals_primary_labels
+      dec = this.axisOption('primary', 'decimals') !== undefined
+        ? this.axisOption('primary', 'decimals')
         : this.config.decimals;
     } else if (index === -1) {
       // for a secondary Y-axis
-      dec = this.config.decimals_secondary_labels !== undefined
-        ? this.config.decimals_secondary_labels
+      dec = this.axisOption('secondary', 'decimals') !== undefined
+        ? this.axisOption('secondary', 'decimals')
         : this.config.decimals;
     } else {
       // for a state or attribute value
@@ -2490,21 +2490,34 @@ class MiniGraphCard extends LitElement {
     return boundary;
   }
 
+  /**
+   * Read an option off one of the Y axes.
+   * @param {string} yAxis 'primary' or 'secondary'
+   * @param {string} option Option name within the axis
+   * @param {object} [config] Config to read, defaulting to this.config
+   * @returns {any} The option value, or undefined
+   */
+  axisOption(yAxis, option, config = this.config) {
+    return config.y_axis && config.y_axis[yAxis]
+      ? config.y_axis[yAxis][option]
+      : undefined;
+  }
+
   updateBounds({ config } = this) {
     this.bound = this.getBoundaries(
       this.primaryYaxisSeries,
-      config.lower_bound,
-      config.upper_bound,
+      this.axisOption('primary', 'lower_bound', config),
+      this.axisOption('primary', 'upper_bound', config),
       this.bound,
-      config.min_bound_range,
+      this.axisOption('primary', 'min_bound_range', config),
     );
 
     this.boundSecondary = this.getBoundaries(
       this.secondaryYaxisSeries,
-      config.lower_bound_secondary,
-      config.upper_bound_secondary,
+      this.axisOption('secondary', 'lower_bound', config),
+      this.axisOption('secondary', 'upper_bound', config),
       this.boundSecondary,
-      config.min_bound_range_secondary,
+      this.axisOption('secondary', 'min_bound_range', config),
     );
   }
 

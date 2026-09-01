@@ -1,3 +1,4 @@
+import { migrateYaxisConfig } from './migrate';
 import {
   URL_DOCS,
   MAX_BARS,
@@ -147,6 +148,9 @@ export default (config) => {
       `"line_color_above/line_color_below" was removed, please use "color_thresholds".\n See ${URL_DOCS}`,
     );
 
+  // legacy flat axis options still work; they are copied into y_axis here
+  const migratedConfig = migrateYaxisConfig(config);
+
   const conf = {
     animate: false,
     font_size_header: DEFAULT_FONT_SIZE_HEADER,
@@ -170,8 +174,8 @@ export default (config) => {
     hold_action: {
       action: 'more-info',
     },
-    ...JSON.parse(JSON.stringify(config)),
-    show: { ...DEFAULT_SHOW, ...config.show },
+    ...JSON.parse(JSON.stringify(migratedConfig)),
+    show: { ...DEFAULT_SHOW, ...migratedConfig.show },
   };
 
   // check numeric options for validity
@@ -227,13 +231,24 @@ export default (config) => {
   conf.points_per_hour = checkNumericOption(conf, 'points_per_hour', DEFAULT_POINTS_PER_HOUR, { minBound: 0.001, allowString: true });
   conf.update_interval = checkNumericOption(conf, 'update_interval', undefined, { minBound: 0, allowString: true });
 
-  ({ lowerBound: conf.lower_bound, upperBound: conf.upper_bound } = checkBounds(conf));
+  // axis options; the secondary axis was previously never validated at all
+  ['primary', 'secondary'].forEach((yAxis) => {
+    const axis = conf.y_axis && conf.y_axis[yAxis];
+    if (!axis) return;
 
-  conf.min_bound_range = checkNumericOption(conf, 'min_bound_range', undefined, { minBound: 0, allowString: true });
-  conf.min_bound_range_secondary = checkNumericOption(conf, 'min_bound_range_secondary', undefined, { minBound: 0, allowString: true });
+    const bounds = checkBounds(axis, yAxis);
+    axis.lower_bound = bounds.lowerBound;
+    axis.upper_bound = bounds.upperBound;
 
-  conf.decimals_primary_labels = checkIntegerOption(conf, 'decimals_primary_labels', undefined, { minBound: 0, allowString: true });
-  conf.decimals_secondary_labels = checkIntegerOption(conf, 'decimals_secondary_labels', undefined, { minBound: 0, allowString: true });
+    axis.min_bound_range = checkNumericOption(
+      axis, 'min_bound_range', undefined,
+      { minBound: 0, allowString: true, logOptionName: `${yAxis}.min_bound_range` },
+    );
+    axis.decimals = checkIntegerOption(
+      axis, 'decimals', undefined,
+      { minBound: 0, allowString: true, logOptionName: `${yAxis}.decimals` },
+    );
+  });
   conf.decimals = checkIntegerOption(conf, 'decimals', undefined, { minBound: 0, allowString: true });
 
   conf.static_value_label_offset = checkNumericOption(
