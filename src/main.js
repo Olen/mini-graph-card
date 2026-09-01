@@ -96,7 +96,11 @@ class MiniGraphCard extends LitElement {
     this.updateQueue = [];
     this.updating = false;
     // set once to "true" when a history is set for a particular entry[index] with static_value
-    this.staticValueUpdated = [];
+    // array of flags: true if an entity config holds a valid `static_value`
+    this._isStaticValue = [];
+    // array of flags: true if that static_value has `show_static_inactive: true`
+    this._isShowStaticInactive = [];
+    this._staticValueUpdated = [];
     this.stateChanged = false;
     this.initial = true;
     this._md5Config = undefined;
@@ -107,13 +111,13 @@ class MiniGraphCard extends LitElement {
     this._graphWidth = undefined;
 
     // update datetime settings periodically
-    this.updateHour24 = true;
-    this.updateDateTimeFormat = true;
+    this._updateHour24 = true;
+    this._updateDateTimeFormat = true;
 
     // Keeps a native unit/order for an entity: used for historical data
     // for a currently unavailable entity
-    this.preserved_uom = [];
-    this.preserved_order = [];
+    this._preservedUom = [];
+    this._preservedOrder = [];
 
     // A templated "name" is rendered by Home Assistant, which pushes a new
     // result whenever the template's own entities change
@@ -145,10 +149,10 @@ class MiniGraphCard extends LitElement {
         queue.push(`${entityState.entity_id}-${index}`);
         updated = true;
       } else if (!entity.entity
-          && this.isStaticValue(index) && !this.staticValueUpdated[index]) {
+          && this._isStaticValue[index] && !this._staticValueUpdated[index]) {
         this.entity[index] = undefined;
         queue.push(`static_value-${index}`);
-        this.staticValueUpdated[index] = true; // updated only once
+        this._staticValueUpdated[index] = true; // updated only once
         updated = true;
       }
     });
@@ -213,9 +217,16 @@ class MiniGraphCard extends LitElement {
   setConfig(config) {
     ({
       config: this.config,
-      entityFactors: this.entityFactors, // predefined factors
-      axisFactors: this.axisFactors, // predefined factors
+      entityFactors: this._entityFactors, // predefined factors
+      axisFactors: this._axisFactors, // predefined factors
     } = buildConfig(config));
+
+    this._isStaticValue = this.config.entities.map(
+      entity => entity && typeof entity === 'object' && isNumeric(entity.static_value),
+    );
+    this._isShowStaticInactive = this.config.entities.map(
+      (entity, index) => this._isStaticValue[index] && entity.show_static_inactive === true,
+    );
 
     this._md5Config = SparkMD5.hash(JSON.stringify(this.config));
     const entitiesChanged = !compareArray(this.config.entities || [], config.entities);
@@ -228,8 +239,8 @@ class MiniGraphCard extends LitElement {
     this._visibleLegendsCache = null;
 
     // update datetime settings periodically
-    this.updateHour24 = config.hour24 === undefined;
-    this.updateDateTimeFormat = config.datetime_format === undefined;
+    this._updateHour24 = config.hour24 === undefined;
+    this._updateDateTimeFormat = config.datetime_format === undefined;
 
     if (!this.Graph || entitiesChanged) {
       if (this._hass) this.hass = this._hass;
@@ -249,8 +260,8 @@ class MiniGraphCard extends LitElement {
           width: this.graphWidth,
           height: this.graphHeight,
           margin,
-          hours: this.config.hours_to_show,
-          points: this.config.points_per_hour,
+          hours_to_show: this.config.hours_to_show,
+          points_per_hour: this.config.points_per_hour,
           aggregateFuncName: entity.aggregate_func || this.config.aggregate_func,
           groupBy: this.config.group_by,
           smoothing: getFirstDefinedItem(
@@ -311,15 +322,15 @@ class MiniGraphCard extends LitElement {
   * @param {boolean|undefined} forced True to forcibly update a format
   */
   updateFormatFromLocale(forced) {
-    if (this.updateDateTimeFormat || forced) {
-      this.datetimeFormatDateOptions = getDateFormat(
+    if (this._updateDateTimeFormat || forced) {
+      this._datetimeFormatDateOptions = getDateFormat(
         this.config,
         this.datetimeFormatFromCfgParsed,
         this._hass,
       );
     }
-    if (this.updateHour24 || this.updateDateTimeFormat || forced) {
-      this.datetimeFormatTimeOptions = getTimeFormat(
+    if (this._updateHour24 || this._updateDateTimeFormat || forced) {
+      this._datetimeFormatTimeOptions = getTimeFormat(
         this.config,
         this.datetimeFormatFromCfgParsed,
         this._hass,
@@ -540,7 +551,7 @@ class MiniGraphCard extends LitElement {
       return html``;
     }
     if (this.config.entities.some(
-      (_, index) => this.entity[index] === undefined && !this.isStaticValue(index),
+      (_, index) => this.entity[index] === undefined && !this._isStaticValue[index],
     )) {
       return this.renderWarnings();
     }
@@ -576,7 +587,7 @@ class MiniGraphCard extends LitElement {
     return html`
       <hui-warning>
         <div>mini-graph-card</div>
-        ${this.config.entities.map((_, index) => (!this.entity[index] && !this.isStaticValue(index)
+        ${this.config.entities.map((_, index) => (!this.entity[index] && !this._isStaticValue[index]
           ? html`<div>Entity not available: ${this.config.entities[index].entity}</div>`
           : html``))}
       </hui-warning>
@@ -643,7 +654,7 @@ class MiniGraphCard extends LitElement {
 
     if (!icon
       || !this.entity
-      || (!this.entity[0] && !this.isStaticValue(0))) {
+      || (!this.entity[0] && !this._isStaticValue[0])) {
       return html``;
     }
 
@@ -744,26 +755,6 @@ class MiniGraphCard extends LitElement {
   }
 
   /**
-   * Check if an entity config contains a valid `static_value` option
-   * @param {number} index Index of an entry in config.entities
-   * @returns {boolean} True if a valid `static_value` option defined, false - otherwise
-   */
-  isStaticValue(index) {
-    const entity = this.config.entities[index];
-    return entity && typeof entity === 'object' && isNumeric(entity.static_value);
-  }
-
-  /**
-  * Check if an entry represents a static_value with `show_static_inactive: true`
-  * @param {number} index Index of an entry in config.entities
-  * @returns {boolean} True if an entry represents a static value with `show_static_inactive: true`,
-  * false - otherwise
-  */
-  isShowStaticInactive(index) {
-    return this.isStaticValue(index) && this.config.entities[index].show_static_inactive === true;
-  }
-
-  /**
   * Returns an object attribute value
   * @returns {any} Value of an attribute/subattribute
   * @param obj stateObj.attributes
@@ -799,7 +790,7 @@ class MiniGraphCard extends LitElement {
       // "show.points", so this no longer silently falls through to a current
       // state when the points are not drawn
       return this.points[index][this.points[index].length - 1][V];
-    } else if (this.isStaticValue(index)) {
+    } else if (this._isStaticValue[index]) {
       return this.config.entities[index].static_value;
     } else if (entityConfig.attribute) {
       // current attribute value
@@ -879,7 +870,7 @@ class MiniGraphCard extends LitElement {
   */
   renderGraph() {
     const hasInitialData = this.entity
-      && (this.entity[0] || this.isStaticValue(0));
+      && (this.entity[0] || this._isStaticValue[0]);
     const ready = (hasInitialData
       && !this.Graph.some(
         (element, index) => element._history === undefined
@@ -998,7 +989,7 @@ class MiniGraphCard extends LitElement {
         loc="${this.config.show.static_value_labels}"
       >
         ${this.config.entities.map((_, index) => {
-          if (!this.isStaticValue(index)
+          if (!this._isStaticValue[index]
             || this.config.entities[index].show_static_value_label === false) {
             return html``;
           }
@@ -1021,7 +1012,7 @@ class MiniGraphCard extends LitElement {
           return html`<span
             id="static-label-${index}"
             ?inactive=${this.tooltip.entity !== undefined && this.tooltip.entity !== index
-              && !this.isShowStaticInactive(index)}
+              && !this._isShowStaticInactive[index]}
             style="
               color: ${color};
               top: ${topPercent}%;
@@ -1292,13 +1283,13 @@ class MiniGraphCard extends LitElement {
     if (!this.config.show.points || this.config.entities[index].show_points === false) return;
     const state = this.entity[index] !== undefined
       ? this.entity[index].state
-      : this.isStaticValue(index)
+      : this._isStaticValue[index]
         ? this.config.entities[index].static_value
         : undefined;
     const color = this.computeColor(state, index);
     const inactive = this.tooltip.entity !== undefined
       && this.tooltip.entity !== index
-      && !this.isShowStaticInactive(index);
+      && !this._isShowStaticInactive[index];
     const radius = getFirstDefinedItem(
       this.config.entities[index].line_width,
       this.config.line_width,
@@ -1342,7 +1333,7 @@ class MiniGraphCard extends LitElement {
     if (!line) return;
     const state = this.entity[index] !== undefined
       ? this.entity[index].state
-      : this.isStaticValue(index)
+      : this._isStaticValue[index]
         ? this.config.entities[index].static_value
         : undefined;
     const fill = this.gradient[index]
@@ -1350,7 +1341,7 @@ class MiniGraphCard extends LitElement {
       : this.computeColor(state, index);
     const inactive = this.tooltip.entity !== undefined
       && this.tooltip.entity !== index
-      && !this.isShowStaticInactive(index);
+      && !this._isShowStaticInactive[index];
     return svg`
       <rect class='line--rect'
         ?inactive=${inactive}
@@ -1370,7 +1361,7 @@ class MiniGraphCard extends LitElement {
     if (!fill) return;
     const state = this.entity[index] !== undefined
       ? this.entity[index].state
-      : this.isStaticValue(index)
+      : this._isStaticValue[index]
         ? this.config.entities[index].static_value
         : undefined;
     const svgFill = this.gradient[index]
@@ -1378,7 +1369,7 @@ class MiniGraphCard extends LitElement {
       : this.computeColor(state, index);
     const inactive = this.tooltip.entity !== undefined
       && this.tooltip.entity !== index
-      && !this.isShowStaticInactive(index);
+      && !this._isShowStaticInactive[index];
     return svg`
       <rect class='fill--rect'
         ?inactive=${inactive}
@@ -1415,7 +1406,7 @@ class MiniGraphCard extends LitElement {
     });
     const inactive = this.tooltip.entity !== undefined
       && this.tooltip.entity !== index
-      && !this.isShowStaticInactive(index);
+      && !this._isShowStaticInactive[index];
     return svg`
       <g
         class='bars'
@@ -1554,8 +1545,8 @@ class MiniGraphCard extends LitElement {
       now,
       this.config,
       this.datetimeFormatFromCfgParsed,
-      this.datetimeFormatDateOptions,
-      this.datetimeFormatTimeOptions,
+      this._datetimeFormatDateOptions,
+      this._datetimeFormatTimeOptions,
       this._hass,
     );
     now.setMilliseconds(now.getMilliseconds() + oneMinute - interval);
@@ -1563,8 +1554,8 @@ class MiniGraphCard extends LitElement {
       now,
       this.config,
       this.datetimeFormatFromCfgParsed,
-      this.datetimeFormatDateOptions,
-      this.datetimeFormatTimeOptions,
+      this._datetimeFormatDateOptions,
+      this._datetimeFormatTimeOptions,
       this._hass,
     );
 
@@ -1726,8 +1717,8 @@ class MiniGraphCard extends LitElement {
                     new Date(entry.last_changed),
                     this.config,
                     this.datetimeFormatFromCfgParsed,
-                    this.datetimeFormatDateOptions,
-                    this.datetimeFormatTimeOptions,
+                    this._datetimeFormatDateOptions,
+                    this._datetimeFormatTimeOptions,
                     this._hass,
                   )
                 : ''}
@@ -1973,7 +1964,7 @@ class MiniGraphCard extends LitElement {
       return stateObj.attributes.friendly_name || stateObj.entity_id;
     }
     // use a fixed label for a static value
-    return this.isStaticValue(index) ? 'Static' : '';
+    return this._isStaticValue[index] ? 'Static' : '';
   }
 
   /**
@@ -2004,7 +1995,7 @@ class MiniGraphCard extends LitElement {
     const cardUnit = this.config.unit;
     let unit;
 
-    if (!this.entity[index] && this.isStaticValue(index)) {
+    if (!this.entity[index] && this._isStaticValue[index]) {
       // processing static_value
       if (entityUnit !== undefined) {
         unit = entityUnit;
@@ -2020,9 +2011,9 @@ class MiniGraphCard extends LitElement {
         // processing unavailable state
         if (inState !== undefined && !isUnavailableState(inState)) {
           // we need to get a unit for a historical non-unavailable entity
-          if (this.preserved_uom[index] !== undefined) {
+          if (this._preservedUom[index] !== undefined) {
             // use a preserved unit
-            unit = this.preserved_uom[index];
+            unit = this._preservedUom[index];
           } else {
             // try using a unit from config & attributes
             unit = this.config.entities[index].unit
@@ -2064,8 +2055,8 @@ class MiniGraphCard extends LitElement {
           }
         }
         // preserve a computed unit
-        if (this.preserved_uom[index] === undefined) {
-          this.preserved_uom[index] = unit || '';
+        if (this._preservedUom[index] === undefined) {
+          this._preservedUom[index] = unit || '';
         }
         return (unit || '');
       }
@@ -2105,7 +2096,7 @@ class MiniGraphCard extends LitElement {
       if (unitIndex === -1) return 1;
     }
     // computeUom() reads this.entity[], which is not populated yet on a first render
-    if (!this.entity[unitIndex] && !this.isStaticValue(unitIndex)) return 1;
+    if (!this.entity[unitIndex] && !this._isStaticValue[unitIndex]) return 1;
     return DURATION_UNITS[this.computeUom(unitIndex, inState)] || 1;
   }
 
@@ -2146,10 +2137,10 @@ class MiniGraphCard extends LitElement {
       state = Number(inState);
     }
     const factor = index === undefined
-      ? this.axisFactors.primary
+      ? this._axisFactors.primary
       : index === -1
-        ? this.axisFactors.secondary
-        : this.entityFactors[index];
+        ? this._axisFactors.secondary
+        : this._entityFactors[index];
     // safely process with a factor
     state = Number.isNaN(Number(state)) ? state : state * factor;
 
@@ -2188,7 +2179,7 @@ class MiniGraphCard extends LitElement {
 
     if (dec === undefined || Number.isNaN(Number(dec)) || Number.isNaN(Number(state))) {
       // no valid "decimals" settings defined, use a default accuracy
-      if (index >= 0 && !this.isStaticValue(index)) {
+      if (index >= 0 && !this._isStaticValue[index]) {
         // formatting a state or attribute of an entity
         const entityId = this.config.entities[index].entity;
         const { attribute } = this.config.entities[index];
@@ -2260,7 +2251,7 @@ class MiniGraphCard extends LitElement {
   computeStateOrder(index, inState = undefined) {
     const entityId = this.config.entities[index].entity;
     const { attribute } = this.config.entities[index];
-    if (!entityId && this.isStaticValue(index)) {
+    if (!entityId && this._isStaticValue[index]) {
       // processing static_value
       return { directOrder: true, delimiter: '' };
     } else if (!attribute || !this.isObjectAttr(attribute)) {
@@ -2270,9 +2261,9 @@ class MiniGraphCard extends LitElement {
         // processing unavailable state
         if (inState !== undefined && !isUnavailableState(inState)) {
           // we need to get an order for a historical non-unavailable entity
-          if (this.preserved_order[index] !== undefined) {
+          if (this._preservedOrder[index] !== undefined) {
             // use a preserved order
-            return this.preserved_order[index];
+            return this._preservedOrder[index];
           } else {
             // presuming an order from config & attributes
             const unit = this.config.entities[index].unit
@@ -2307,8 +2298,8 @@ class MiniGraphCard extends LitElement {
         const delimiterPart = parts.find(part => part.type === 'literal');
         const delimiter = delimiterPart && delimiterPart.value || '';
         // preserve a computed order
-        if (this.preserved_order[index] === undefined) {
-          this.preserved_order[index] = { directOrder, delimiter };
+        if (this._preservedOrder[index] === undefined) {
+          this._preservedOrder[index] = { directOrder, delimiter };
         }
         return { directOrder, delimiter };
       }
@@ -2383,7 +2374,7 @@ class MiniGraphCard extends LitElement {
     if (config.show.graph) {
       this.entity.forEach((entity, i) => {
         if (entity
-          || (!entity && this.isStaticValue(i))
+          || (!entity && this._isStaticValue[i])
         ) {
           this.Graph[i].update();
         }
@@ -2406,7 +2397,7 @@ class MiniGraphCard extends LitElement {
       // index of a bar (only used for bars & only increments if a particular graph to be shown)
       let graphPos = 0;
       this.entity.forEach((entity, i) => {
-        if ((!entity && !this.isStaticValue(i))
+        if ((!entity && !this._isStaticValue[i])
           || this.Graph[i].coords.length === 0)
           return;
         const bound = config.entities[i].y_axis === 'secondary' ? this.boundSecondary : this.bound;
@@ -2515,13 +2506,13 @@ class MiniGraphCard extends LitElement {
   }
 
   async updateEntity(entity, index, initStart, end) {
-    if ((!entity && !this.isStaticValue(index))
-      || (!entity && this.isStaticValue(index) && !this.updateQueue.includes(`static_value-${index}`))
+    if ((!entity && !this._isStaticValue[index])
+      || (!entity && this._isStaticValue[index] && !this.updateQueue.includes(`static_value-${index}`))
       || (entity && !this.updateQueue.includes(`${entity.entity_id}-${index}`))
       || this.config.entities[index].show_graph === false
     ) return;
 
-    if (this.isStaticValue(index)) {
+    if (this._isStaticValue[index]) {
       // process a fake static_value history
       const staticValue = this.config.entities[index].static_value;
       this.Graph[index].history = [{ state: staticValue }, { state: staticValue }];
