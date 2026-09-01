@@ -135,11 +135,20 @@ export default class Graph {
     const interval = (age / ONE_HOUR * this._points_per_hour)
       - this._hours_to_show * this._points_per_hour;
     if (interval < 0) {
-      const key = Math.floor(Math.abs(interval));
+      // A reading taken right now lands one bucket past the last, and the
+      // length trim below then discarded it - so the newest value never
+      // reached the graph. Hold it in the final bucket instead.
+      const maxKey = Math.ceil(this._hours_to_show * this._points_per_hour) - 1;
+      const key = Math.min(Math.floor(Math.abs(interval)), maxKey);
       if (!res[key]) res[key] = [];
       res[key].push(item);
     } else {
-      res[0] = [item];
+      // Older than the window. These belong at the left edge: they are what
+      // the sensor already read when the window opened. Collect them all -
+      // assigning kept only whichever happened to be reduced last, and wiped
+      // any in-window readings that had already landed in this bucket.
+      if (!res[0]) res[0] = [];
+      res[0].push(item);
     }
     return res;
   }
