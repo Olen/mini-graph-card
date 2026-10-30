@@ -351,7 +351,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | entity ***(required)*** | string |         | Entity id of the sensor. Either `entity` or `static_value` must be defined.
 | attribute | string |         | Retrieves an attribute or [sub-attribute (attr1.attr2...)](#accessing-attributes-in-complex-structures) instead of the state
 | static_value | number |         | Set a value for a [static line](#static-lines). Either `entity` or `static_value` must be defined.
-| name ◆ | string |         | Set a custom display name, defaults to entity's friendly_name or a `Static` label for a [static value](#static-lines). Can be a [template](#templated-names).
+| name ◆ | string |         | Set a custom display name, defaults to the name Home Assistant's own cards show for the entity (its friendly_name before HA 2025.10) or a `Static` label for a [static value](#static-lines). Can be a [template](#templated-names).
 | animate | boolean |         | Override for a reveal animation to the graph.
 | line_width | number |         | Override for a thickness of the line.
 | line_style | string |   | Override the style of the line (see [Line styles](#line-styles)).
@@ -993,7 +993,7 @@ A `name` - the card's own or an entity's - may be a Jinja template. Home Assista
 
 ```yaml
 type: custom:mini-graph-card
-name: "{{ state_attr('climate.living_room', 'friendly_name') }}"
+name: "{{ area_name('climate.living_room') }} {{ state_attr('climate.living_room', 'hvac_action') }}"
 entities:
   - sensor.living_room_temperature
 ```

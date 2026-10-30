@@ -49,7 +49,7 @@ import {
   STATISTICS_PERIOD_FALLBACK,
 } from './const';
 import {
-  isNumeric, isEntryAnimated, getStatisticsType, getCardSizeUnits, getGridOptions,
+  isNumeric, isEntryAnimated, formatEntityName, getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
   getLabelStride, getChromeHeight,
@@ -1969,10 +1969,10 @@ class MiniGraphCard extends LitElement {
       && entityConfig.name !== undefined && entityConfig.name !== null) {
       return this.computeTemplatedName(`entity.${index}.name`, String(entityConfig.name));
     }
-    // use a possibly present friendly_name for an entity
+    // use the name HA's own cards show for the entity
     const stateObj = this.entity && this.entity[index];
     if (stateObj) {
-      return stateObj.attributes.friendly_name || stateObj.entity_id;
+      return formatEntityName(this._hass, stateObj);
     }
     // use a fixed label for a static value
     return this._isStaticValue[index] ? 'Static' : '';

@@ -694,6 +694,20 @@ const isEntryAnimated = (config, index) => {
   return config.animate === true;
 };
 
+/**
+ * The name HA's own cards show for an entity: hass.formatEntityName (HA 2025.10+),
+ * else the friendly_name, else the entity id
+ * @param {object} hass Home Assistant object
+ * @param {object} stateObj State object of the entity
+ * @returns {string} Name to display
+ */
+const formatEntityName = (hass, stateObj) => {
+  if (hass && typeof hass.formatEntityName === 'function') {
+    return hass.formatEntityName(stateObj);
+  }
+  return stateObj.attributes.friendly_name || stateObj.entity_id;
+};
+
 export {
   isNumeric,
   findNearestPoint,
@@ -719,4 +733,5 @@ export {
   getFactor,
   getBound,
   isEntryAnimated,
+  formatEntityName,
 };
