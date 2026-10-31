@@ -1000,7 +1000,7 @@ entities:
     name: [{type: area}, {type: device}]
 ```
 
-Needs Home Assistant 2025.10 or later; older versions show the friendly name. Set it in YAML: the visual editor shows it read-only.
+Needs Home Assistant 2025.11 or later; older versions show the friendly name, and 2025.10 does not understand name items. Set it in YAML: the visual editor shows it read-only.
 
 ### Templated names
 
