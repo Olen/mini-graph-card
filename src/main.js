@@ -49,7 +49,8 @@ import {
   STATISTICS_PERIOD_FALLBACK,
 } from './const';
 import {
-  isNumeric, isEntryAnimated, formatEntityName, getStatisticsType, getCardSizeUnits, getGridOptions,
+  isNumeric, isEntryAnimated, formatEntityName, isNameItems,
+  getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
   getLabelStride, getChromeHeight,
@@ -688,7 +689,7 @@ class MiniGraphCard extends LitElement {
 
     const name = this.tooltip.entity !== undefined
       ? this.computeName(this.tooltip.entity)
-      : this.computeTemplatedName('name', this.config.name) || this.computeName(0);
+      : this.computeCardName() || this.computeName(0);
     const color = this.config.show.name_adaptive_color
       ? `opacity: 1; color: ${this.color};`
       : '';
@@ -1962,15 +1963,29 @@ class MiniGraphCard extends LitElement {
     return rendered === undefined ? '' : String(rendered);
   }
 
+  /**
+  * The card's own name: name items resolve against the first entity
+  * @returns {string} Name to display, empty when none is configured
+  */
+  computeCardName() {
+    if (!isNameItems(this.config.name)) return this.computeTemplatedName('name', this.config.name);
+    const stateObj = this.entity && this.entity[0];
+    return stateObj ? formatEntityName(this._hass, stateObj, this.config.name) : '';
+  }
+
   computeName(index) {
-    // use a possibly defined "name" option
     const entityConfig = this.config.entities[index];
+    const stateObj = this.entity && this.entity[index];
+    // name items, e.g. [{type: 'area'}, {type: 'device'}], are composed by HA
+    if (entityConfig && isNameItems(entityConfig.name)) {
+      return stateObj ? formatEntityName(this._hass, stateObj, entityConfig.name) : '';
+    }
+    // use a possibly defined "name" option
     if (entityConfig
       && entityConfig.name !== undefined && entityConfig.name !== null) {
       return this.computeTemplatedName(`entity.${index}.name`, String(entityConfig.name));
     }
     // use the name HA's own cards show for the entity
-    const stateObj = this.entity && this.entity[index];
     if (stateObj) {
       return formatEntityName(this._hass, stateObj);
     }

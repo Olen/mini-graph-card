@@ -1,6 +1,7 @@
 import { fireEvent } from 'custom-card-helpers';
 import { LitElement, html } from 'lit-element';
 import { ENTITYSCHEMA } from '../editorConst';
+import { withNameField } from '../nameField';
 import { localize } from '../../localize/localize';
 import './colorSelector';
 import './subPageHeader';
@@ -55,7 +56,7 @@ class EntityEditor extends LitElement {
       <ha-form
         .hass=${this.hass}
         .data=${isObject ? this.config : DATA}
-        .schema=${ENTITYSCHEMA}
+        .schema=${withNameField(ENTITYSCHEMA, isObject ? this.config.name : undefined)}
         .computeLabel=${this.computeLabel}
         .computeHelper=${schema => this.computeHelper(schema, isObject ? this.config : DATA)}
         .localizeValue=${this.localizeValue}

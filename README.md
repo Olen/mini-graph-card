@@ -293,7 +293,7 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | icon | string |  | v0.0.1 | Set a custom icon from any of the available mdi icons.
 | icon_color | string |  | v0.14.0 | Set a custom icon color. Takes precedence over `icon_adaptive_color`.
 | icon_image | string |  | v0.12.0 | Override icon with an image url.
-| name ◆ | string |  | v0.0.1 | Set a custom name which is displayed beside the icon. Can be a [template](#templated-names).
+| name ◆ | string / list |  | v0.0.1 | Set a custom name which is displayed beside the icon. Can be a [template](#templated-names) or [name items](#names-with-area) (resolved against the first entity).
 | unit | string |  | v0.0.1 | Set a custom unit of measurement (`''` value for an empty unit).
 | tap_action ◆ | [action object](#action-object-options) |  | v0.7.0 | Action on click/tap, see [Tapping & holding](#tapping--holding).
 | hold_action ★ | [action object](#action-object-options) | `more-info` | | Action on a press held for half a second, see [Tapping & holding](#tapping--holding).
@@ -351,7 +351,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | entity ***(required)*** | string |         | Entity id of the sensor. Either `entity` or `static_value` must be defined.
 | attribute | string |         | Retrieves an attribute or [sub-attribute (attr1.attr2...)](#accessing-attributes-in-complex-structures) instead of the state
 | static_value | number |         | Set a value for a [static line](#static-lines). Either `entity` or `static_value` must be defined.
-| name ◆ | string |         | Set a custom display name, defaults to the name Home Assistant's own cards show for the entity (its friendly_name before HA 2025.10) or a `Static` label for a [static value](#static-lines). Can be a [template](#templated-names).
+| name ◆ | string / list |         | Set a custom display name, defaults to the name Home Assistant's own cards show for the entity (its friendly_name before HA 2025.10) or a `Static` label for a [static value](#static-lines). Can be a [template](#templated-names) or [name items](#names-with-area).
 | animate | boolean |         | Override for a reveal animation to the graph.
 | line_width | number |         | Override for a thickness of the line.
 | line_style | string |   | Override the style of the line (see [Line styles](#line-styles)).
@@ -986,6 +986,21 @@ A "default presentation" refers to a default look in HA:
 3. For Y-axis labels, [static values](#static-lines): "maximum 2 decimals" accuracy is used.
 And for all values, HA number format settings (like `xxxx.xx` or `x xxx.x` or `x,xxx.x`) are used.
 
+
+### Names with area
+
+A `name` - the card's own or an entity's - may also be a list of name items, the same ones Home Assistant's own cards use: `area`, `floor`, `device`, `entity` and `text`. Home Assistant composes the name, so it follows renames. Useful where a graph shows entities from several rooms whose devices share a name:
+
+```yaml
+type: custom:mini-graph-card
+entities:
+  - entity: sensor.taklampe_badet_power
+    name: [{type: area}, {type: device}]
+  - entity: sensor.taklampe_kjokken_power
+    name: [{type: area}, {type: device}]
+```
+
+Needs Home Assistant 2025.10 or later; older versions show the friendly name. Set it in YAML: the visual editor shows it read-only.
 
 ### Templated names
 

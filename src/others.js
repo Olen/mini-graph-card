@@ -695,15 +695,25 @@ const isEntryAnimated = (config, index) => {
 };
 
 /**
+ * True for a name given as name items, e.g. [{type: 'area'}, {type: 'device'}]
+ * @param {*} name Configured name
+ * @returns {boolean} True for a list of name items or a single one
+ */
+const isNameItems = name => Array.isArray(name)
+  || (name !== null && typeof name === 'object' && 'type' in name);
+
+/**
  * The name HA's own cards show for an entity: hass.formatEntityName (HA 2025.10+),
  * else the friendly_name, else the entity id
  * @param {object} hass Home Assistant object
  * @param {object} stateObj State object of the entity
+ * @param {string|object|object[]} [name] A plain name, or name items
  * @returns {string} Name to display
  */
-const formatEntityName = (hass, stateObj) => {
+const formatEntityName = (hass, stateObj, name) => {
+  if (typeof name === 'string') return name;
   if (hass && typeof hass.formatEntityName === 'function') {
-    return hass.formatEntityName(stateObj);
+    return hass.formatEntityName(stateObj, isNameItems(name) ? name : undefined);
   }
   return stateObj.attributes.friendly_name || stateObj.entity_id;
 };
@@ -734,4 +744,5 @@ export {
   getBound,
   isEntryAnimated,
   formatEntityName,
+  isNameItems,
 };

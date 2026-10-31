@@ -5,6 +5,7 @@ import './components/entityEditor';
 import './components/mgc_list';
 import { localize } from '../localize/localize';
 import { MAINSCHEMA, BOOLEANS, OBJECT_TOGGLES } from './editorConst';
+import { withNameField } from './nameField';
 import { booleanToString, stringToBoolean } from './editorUtils';
 
 class MiniGraphCardEditor extends LitElement {
@@ -155,7 +156,7 @@ class MiniGraphCardEditor extends LitElement {
       <ha-form
         .hass=${this.hass}
         .data=${DATA}
-        .schema=${MAINSCHEMA}
+        .schema=${withNameField(MAINSCHEMA, this._config.name)}
         .computeLabel=${this.computeLabel}
         .computeHelper=${this.computeHelper}
         .localizeValue=${this.localizeValue}
