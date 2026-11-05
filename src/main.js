@@ -1,6 +1,5 @@
 import { LitElement, html, svg } from 'lit-element';
 import localForage from 'localforage/src/localforage';
-import { stateIcon } from 'custom-card-helpers';
 import SparkMD5 from 'spark-md5';
 import { interpolateRGB } from './color';
 import Graph from './graph';
@@ -25,7 +24,6 @@ import {
 import './initialize';
 import { version } from '../package.json';
 import {
-  ICONS,
   UPDATE_PROPS,
   X, Y, V, BUCKET,
   ONE_HOUR,
@@ -52,7 +50,7 @@ import {
 } from './const';
 import {
   isNumeric, isEntryAnimated, formatEntityName, isNameItems, computeBoundary, lastPlottedValue,
-  getIntervalEndDate,
+  getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
@@ -675,7 +673,11 @@ class MiniGraphCard extends LitElement {
         loc="${iconLoc}"
         style="${iconColor !== undefined ? `color: ${iconColor};` : ''}"
       >
-        <ha-icon .icon=${this.computeIcon(this.entity[0])}></ha-icon>
+        <ha-state-icon
+          .icon=${iconFor(this.config.icon, this.entity[0])}
+          .stateObj=${this.entity[0]}
+          .hass=${this._hass}
+        ></ha-state-icon>
       </div>
     `;
   }
@@ -1996,22 +1998,6 @@ class MiniGraphCard extends LitElement {
     }
     // use a fixed label for a static value
     return this._isStaticValue[index] ? 'Static' : '';
-  }
-
-  /**
-  * Returns an icon for an entity
-  * accounting an `icon` option, entity's native `icon` attribute,
-  * fallback to a standard MDI "temperature" icon
-  * @returns {string} mdi:icon
-  * @param {object} entity stateObj for an entity
-  */
-  computeIcon(entity) {
-    return (
-      this.config.icon
-      || entity && entity.attributes.icon
-      || typeof stateIcon === 'function' && entity && stateIcon(entity)
-      || ICONS.temperature
-    );
   }
 
   /**

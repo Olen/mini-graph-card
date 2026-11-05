@@ -786,7 +786,25 @@ const getIntervalEndDate = (groupBy, now) => {
   return end;
 };
 
+// A static value has no entity for Home Assistant to take an icon from
+const STATIC_VALUE_ICON = 'mdi:thermometer';
+
+/**
+ * The icon to hand to <ha-state-icon>: the configured one, else none for an
+ * entity - Home Assistant resolves its own (device class, icon translations).
+ * @param {string|undefined} configIcon The icon option
+ * @param {object|undefined} stateObj The entity's state, undefined for a static value
+ * @returns {string|undefined} An icon, or undefined to let Home Assistant choose
+ */
+const iconFor = (configIcon, stateObj) => {
+  if (configIcon) return configIcon;
+  if (stateObj) return undefined;
+  return STATIC_VALUE_ICON;
+};
+
 export {
+  STATIC_VALUE_ICON,
+  iconFor,
   getIntervalEndDate,
   computeBoundary,
   lastPlottedValue,
