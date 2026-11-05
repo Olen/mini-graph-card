@@ -718,7 +718,34 @@ const formatEntityName = (hass, stateObj, name) => {
   return stateObj.attributes.friendly_name || stateObj.entity_id;
 };
 
+/**
+ * The min or max an axis is drawn to, from the series on it and the configured bound.
+ * @param {string} type 'min' or 'max'
+ * @param {Array} series Graphs on the axis, each with min & max
+ * @param {number|string|undefined} configVal A fixed bound, '~n' for a soft one, or undefined
+ * @param {number} fallback Used when the series give no number
+ * @returns {number} The boundary
+ */
+const computeBoundary = (type, series, configVal, fallback) => {
+  if (!(type in Math)) {
+    throw new Error(`The type "${type}" is not present on the Math object`);
+  }
+  if (configVal === undefined) {
+    // Math.min() of nothing is Infinity, so no series at all is handled first
+    if (series.length === 0) return fallback;
+    const computed = Math[type](...series.map(ele => ele[type]));
+    // 0 is a real boundary; only a result that is no number falls back
+    return isNumeric(computed) ? computed : fallback;
+  }
+  if (configVal[0] !== '~') {
+    return configVal;
+  }
+  // soft boundary: widened by values outside it
+  return Math[type](Number(configVal.substr(1)), ...series.map(ele => ele[type]));
+};
+
 export {
+  computeBoundary,
   isNumeric,
   findNearestPoint,
   findNearestBar,

@@ -49,7 +49,7 @@ import {
   STATISTICS_PERIOD_FALLBACK,
 } from './const';
 import {
-  isNumeric, isEntryAnimated, formatEntityName, isNameItems,
+  isNumeric, isEntryAnimated, formatEntityName, isNameItems, computeBoundary,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
@@ -2454,23 +2454,7 @@ class MiniGraphCard extends LitElement {
   }
 
   getBoundary(type, series, configVal, fallback) {
-    if (!(type in Math)) {
-      throw new Error(`The type "${type}" is not present on the Math object`);
-    }
-
-    if (configVal === undefined) {
-      // dynamic boundary depending on values
-      // Math.min() of nothing is Infinity, which is truthy & would sail past
-      // the fallback below - so no series at all has to be handled first.
-      if (series.length === 0) return fallback;
-      return Math[type](...series.map(ele => ele[type])) || fallback;
-    }
-    if (configVal[0] !== '~') {
-      // fixed boundary
-      return configVal;
-    }
-    // soft boundary (respecting out of range values)
-    return Math[type](Number(configVal.substr(1)), ...series.map(ele => ele[type]));
+    return computeBoundary(type, series, configVal, fallback);
   }
 
   getBoundaries(series, min, max, fallback, minRange) {
