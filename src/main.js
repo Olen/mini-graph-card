@@ -2138,7 +2138,7 @@ class MiniGraphCard extends LitElement {
     if (this.config.state_map.length > 0) {
       const stateMap = Number.isInteger(inState)
         ? this.config.state_map[inState]
-        : this.config.state_map.find(state => state.value === inState);
+        : this.config.state_map.find(state => state.value === String(inState));
 
       if (stateMap) {
         return stateMap.label;
@@ -2759,7 +2759,7 @@ class MiniGraphCard extends LitElement {
   }
 
   _convertState(res) {
-    const resultIndex = this.config.state_map.findIndex(s => s.value === res.state);
+    const resultIndex = this.config.state_map.findIndex(s => s.value === String(res.state));
     if (resultIndex === -1) {
       return;
     }

@@ -309,7 +309,48 @@ const checkLineStyle = (config) => {
   });
 };
 
+const isScalar = value => typeof value === 'string'
+  || (typeof value === 'number' && Number.isFinite(value));
+
+/* eslint-disable no-param-reassign */
+/**
+ * Normalizes config.state_map to a list of { value, label } with string values:
+ * states are strings, so a numeric value would never match one.
+ * @param {object} config Config object holding state_map; changed in place
+ */
+const checkStateMap = (config) => {
+  const stateMap = config.state_map;
+  if (!Array.isArray(stateMap)) {
+    log('Invalid option state_map: expected a list; unsetting to []');
+    config.state_map = [];
+    return;
+  }
+
+  const entries = [];
+  stateMap.forEach((entry, index) => {
+    if (isScalar(entry)) {
+      entries.push({ value: String(entry), label: String(entry) });
+      return;
+    }
+    if (!entry || !isScalar(entry.value)) {
+      log(`Invalid option state_map[${index}]: "value" is missing; ignoring the entry`);
+      return;
+    }
+    const value = String(entry.value);
+    let label = value;
+    if (isScalar(entry.label) && entry.label !== '') {
+      label = String(entry.label);
+    } else if (entry.label !== undefined) {
+      log(`Invalid option state_map[${index}]: "label" is not a string; using the value`);
+    }
+    entries.push({ value, label });
+  });
+  config.state_map = entries;
+};
+/* eslint-enable no-param-reassign */
+
 export {
+  checkStateMap,
   checkStatistics,
   checkStringOption,
   checkNumericOption,

@@ -27,6 +27,7 @@ import {
   checkIntegerOption,
   checkBounds,
   checkColorThresholds,
+  checkStateMap,
   checkStatistics,
   checkStringOption,
   checkLineStyle,
@@ -299,12 +300,7 @@ export default (config) => {
     secondary: getFactor(conf, -1),
   };
 
-  conf.state_map.forEach((state, i) => {
-    // convert string values to objects
-    if (typeof state === 'string') conf.state_map[i] = { value: state, label: state };
-    // make sure label is set
-    conf.state_map[i].label = conf.state_map[i].label || conf.state_map[i].value;
-  });
+  checkStateMap(conf);
 
   if (typeof config.line_color === 'string')
     conf.line_color = [config.line_color, ...DEFAULT_COLORS];
