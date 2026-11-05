@@ -3,9 +3,8 @@
  *
  * Two defects lived here. A reading taken right now computed a bucket one past
  * the last, so the length trim discarded it and the newest value never reached
- * the graph. And readings from before the window were assigned rather than
- * collected, so only whichever was reduced last survived - and it wiped any
- * in-window readings that had already landed in the same bucket.
+ * the graph. And the left edge must show what the sensor read when the window
+ * opened: the newest reading from before it, not an aggregate of all of them.
  *
  * The graph still starts where its data does when nothing precedes the window;
  * older readings are what make a left-edge start truthful.
@@ -62,13 +61,26 @@ describe('Graph bucketing', () => {
     });
   });
 
-  it('aggregates every reading from before the window, not just one', () => {
-    // 10, 20, 30, 40 all predate the window; their average is 25
+  it('opens the window with the newest reading from before it', () => {
+    // 10, 20, 30, 40 all predate the window; the sensor read 40 when it opened
     const coords = plot([
       reading(30, 10), reading(29, 20), reading(28, 30), reading(27, 40),
       reading(1, 99),
     ]);
-    assert.equal(coords[0][V], 25);
+    assert.equal(coords[0][V], 40);
+  });
+
+  it('opens the window with the newest earlier reading whatever the history order', () => {
+    const coords = plot([
+      reading(27, 40), reading(30, 10), reading(1, 99), reading(29, 20),
+    ]);
+    assert.equal(coords[0][V], 40);
+  });
+
+  it('keeps in-window readings in the first bucket beside the opening reading', () => {
+    // 40 opens the window; 60 arrives inside the first bucket: avg 50
+    const coords = plot([reading(27, 40), reading(23.5, 60), reading(1, 99)]);
+    assert.equal(coords[0][V], 50);
   });
 
   it('starts at the left edge when older readings exist', () => {

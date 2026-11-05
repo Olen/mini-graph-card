@@ -119,7 +119,8 @@ export default class Graph {
     }
     this._updateEndTime();
 
-    const histGroups = this._history.reduce((res, item) => this._reducer(res, item), []);
+    const histGroups = this._windowHistory(this._history)
+      .reduce((res, item) => this._reducer(res, item), []);
 
     // extend length to fill missing history
     const requiredNumOfPoints = Math.ceil(this._hours_to_show * this._points_per_hour);
@@ -128,6 +129,28 @@ export default class Graph {
     this.coords = this._calcPoints(histGroups);
     this.min = Math.min(...this.coords.map(item => Number(item[V])));
     this.max = Math.max(...this.coords.map(item => Number(item[V])));
+  }
+
+  /**
+   * The readings inside the window, preceded by the newest one from before it:
+   * that is what the sensor read when the window opened. Older ones are left
+   * out, so a quiet sensor's left edge does not average its whole past.
+   * @param {Array} history State history, in any order
+   * @returns {Array} The readings to sort into buckets
+   */
+  _windowHistory(history) {
+    const windowStart = this._endTime - this._hours_to_show * ONE_HOUR;
+    const inside = [];
+    let opening;
+    history.forEach((item) => {
+      const time = new Date(item.last_changed).getTime();
+      if (time > windowStart) {
+        inside.push(item);
+      } else if (!opening || time >= new Date(opening.last_changed).getTime()) {
+        opening = item;
+      }
+    });
+    return opening ? [opening, ...inside] : inside;
   }
 
   _reducer(res, item) {
@@ -143,10 +166,8 @@ export default class Graph {
       if (!res[key]) res[key] = [];
       res[key].push(item);
     } else {
-      // Older than the window. These belong at the left edge: they are what
-      // the sensor already read when the window opened. Collect them all -
-      // assigning kept only whichever happened to be reduced last, and wiped
-      // any in-window readings that had already landed in this bucket.
+      // The reading that opened the window (see _windowHistory). Pushed, not
+      // assigned, so in-window readings already in this bucket are kept.
       if (!res[0]) res[0] = [];
       res[0].push(item);
     }
