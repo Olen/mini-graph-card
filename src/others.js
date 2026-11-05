@@ -36,6 +36,8 @@ import {
   GRID_LABEL_MODES,
   DEFAULT_GRID_LABEL_MODE,
   GRID_TARGET_LINES,
+  GRID_FLAT_RELATIVE_RANGE,
+  GRID_MAX_LINES,
   GRID_AXES,
 } from './const';
 
@@ -514,6 +516,11 @@ const getGridValues = (min, max, {
   step, minor = 0, logarithmic = false, height,
 } = {}) => {
   if (!isNumeric(min) || !isNumeric(max) || max <= min) return [];
+  // A value that never changed can differ from itself by rounding noise
+  // (2.8 vs 2.8000000000000003); a step that small cannot be added to the
+  // values at all, so the loop below would never advance
+  const magnitude = Math.max(Math.abs(min), Math.abs(max));
+  if (max - min <= magnitude * GRID_FLAT_RELATIVE_RANGE) return [];
   const lines = [];
 
   if (logarithmic && step === undefined) {
@@ -526,6 +533,10 @@ const getGridValues = (min, max, {
   }
 
   const size = step !== undefined ? step : getNiceStep(max - min, height);
+  if (!(size > 0) || (max - min) / size > GRID_MAX_LINES) {
+    log(`grid_y: a step of ${size} would draw more than ${GRID_MAX_LINES} lines between ${min} and ${max}; drawing none`);
+    return [];
+  }
   const first = Math.ceil(min / size) * size;
   for (let value = first; value <= max + size / 1e6; value += size) {
     // floating point: 0.1+0.2 must not become a line at 0.30000000000000004

@@ -138,6 +138,10 @@ const GRID_LABEL_MODES = ['hover', 'always'];
 const DEFAULT_GRID_LABEL_MODE = 'hover';
 // A value grid aims for about this many lines between the bounds
 const GRID_TARGET_LINES = 5;
+// A range smaller than this fraction of its values is rounding noise, not data
+const GRID_FLAT_RELATIVE_RANGE = 1e-9;
+// More lines than this cannot be told apart; asking for them is a config mistake
+const GRID_MAX_LINES = 500;
 const GRID_AXES = ['primary', 'secondary'];
 
 // How tall a graph is drawn inside its card, as parsed by parseGraphHeight():
@@ -222,6 +226,8 @@ export {
   GRID_LABEL_MODES,
   DEFAULT_GRID_LABEL_MODE,
   GRID_TARGET_LINES,
+  GRID_FLAT_RELATIVE_RANGE,
+  GRID_MAX_LINES,
   GRID_AXES,
   STATISTICS_PERIODS,
   STATISTICS_TYPES,

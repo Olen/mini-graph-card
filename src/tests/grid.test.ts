@@ -218,6 +218,22 @@ describe('getGridValues', () => {
     expect(getGridValues(5, 5)).toEqual([]);
     expect(getGridValues(NaN, 10)).toEqual([]);
   });
+
+  it('treats a range that is only rounding noise as flat', () => {
+    // daily means of a value that never changed: 2.8 vs 2.8000000000000003.
+    // The step would be below what a double can add to 2.8, so the loop never
+    // advanced and the browser hung.
+    expect(getGridValues(2.8, 2.8000000000000003, { height: 150 })).toEqual([]);
+    expect(getGridValues(26.969999999999995, 26.97, { height: 150 })).toEqual([]);
+  });
+
+  it('still draws a small range that is real', () => {
+    expect(getGridValues(0.001, 0.003).map(g => g.value)).toEqual([0.001, 0.0015, 0.002, 0.0025, 0.003]);
+  });
+
+  it('draws nothing rather than freeze on a step far too small for the range', () => {
+    expect(getGridValues(0, 3600, { step: 0.0001 })).toEqual([]);
+  });
 });
 
 describe('getLabelStride', () => {
