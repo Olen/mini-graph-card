@@ -316,16 +316,10 @@ export default class Graph {
         const factor = (arr[index - 1].value - this._min) / (arr[index - 1].value - stop.value);
         color = interpolateRGB(arr[index - 1].color, stop.color, factor);
       }
-      let offset;
-      if (scale <= 0) {
-        offset = 0;
-      } else if (this._logarithmic) {
-        offset = (Math.log10(Math.max(1, this._max))
-          - Math.log10(Math.max(1, stop.value)))
-          * (100 / scale);
-      } else {
-        offset = (this._max - stop.value) * (100 / scale);
-      }
+      // The gradient paints a rect over the whole graph, margins included, so
+      // a stop sits where its value is drawn in that frame
+      const totalHeight = this._height + this._margin[Y] * 4;
+      const offset = scale > 0 ? (this.getY(stop.value) / totalHeight) * 100 : 0;
       return {
         color: color || stop.color,
         offset,
