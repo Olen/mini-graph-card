@@ -119,12 +119,12 @@ describe('findNearestPoint', () => {
 // A bar is {x, y, height, width, value}, x being its LEFT edge - see Graph.getBars().
 // Two entities drawn side by side within each group, as with a positive bar_spacing.
 const BARS_A = [
-  { x: 0, y: 80, height: 20, width: 10, value: 1.0 },
-  { x: 40, y: 60, height: 40, width: 10, value: 2.0 },
+  { x: 0, y: 80, height: 20, width: 10, value: 1.0, index: 0 },
+  { x: 40, y: 60, height: 40, width: 10, value: 2.0, index: 1 },
 ];
 const BARS_B = [
-  { x: 10, y: 90, height: 10, width: 10, value: 11.0 },
-  { x: 50, y: 70, height: 30, width: 10, value: 12.0 },
+  { x: 10, y: 90, height: 10, width: 10, value: 11.0, index: 0 },
+  { x: 50, y: 70, height: 30, width: 10, value: 12.0, index: 1 },
 ];
 
 describe('findNearestBar', () => {
@@ -150,6 +150,12 @@ describe('findNearestBar', () => {
     const OVER_B = [{ x: 0, y: 70, height: 30, width: 20, value: 2.0 }];
     expect(findNearestBar([OVER_A, OVER_B], 10, 30).entity).toBe(0);
     expect(findNearestBar([OVER_A, OVER_B], 10, 90).entity).toBe(1);
+  });
+
+  it('reports the bar\'s bucket, not its position in the array', () => {
+    // an entity whose data starts late: its first bar is bucket 21
+    const LATE = [{ x: 210, y: 50, height: 50, width: 10, value: 5.0, index: 21 }];
+    expect(findNearestBar([LATE], 215, 50)).toMatchObject({ entity: 0, index: 21 });
   });
 
   it('skips entities with no bars & returns undefined when there are none', () => {

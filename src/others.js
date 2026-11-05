@@ -662,11 +662,11 @@ const findNearestBar = (barsPerEntity, x, y) => {
   const candidates = [];
   barsPerEntity.forEach((bars, entity) => {
     if (!bars) return;
-    bars.forEach((bar, index) => {
+    bars.forEach((bar) => {
       // 0 while the cursor is within the bar's width
       const dx = Math.max(bar.x - x, x - (bar.x + bar.width), 0);
       candidates.push({
-        entity, index, bar, dx,
+        entity, index: bar.index, bar, dx,
       });
     });
   });

@@ -1,6 +1,6 @@
 import { interpolateRGB } from './color';
 import {
-  X, Y, V,
+  X, Y, V, BUCKET,
   ONE_HOUR,
   DEFAULT_BAR_SPACING,
 } from './const';
@@ -177,9 +177,9 @@ export default class Graph {
       x = xRatio * i + this._margin[X];
       if (history[i]) {
         last = history[i];
-        coords.push([x, 0, this._calcPoint(last)]);
+        coords.push([x, 0, this._calcPoint(last), i]);
       } else {
-        coords.push([x, 0, this._lastValue(last)]);
+        coords.push([x, 0, this._lastValue(last), i]);
       }
     }
     return coords;
@@ -199,7 +199,7 @@ export default class Graph {
     const coords2 = coords.map((coord) => {
       const val = this._logarithmic ? Math.log10(Math.max(1, coord[V])) : coord[V];
       const coordY = this._height - ((val - min) / yRatio) + this._margin[Y] * 2;
-      return [coord[X], coordY, coord[V]];
+      return [coord[X], coordY, coord[V], coord[BUCKET]];
     });
 
     return coords2;
@@ -208,17 +208,17 @@ export default class Graph {
   getPoints() {
     let { coords } = this;
     if (coords.length === 1) {
-      coords[1] = [this._width + this._margin[X], 0, coords[0][V]];
+      coords[1] = [this._width + this._margin[X], 0, coords[0][V], coords[0][BUCKET]];
     }
     coords = this._calcY(this.coords);
-    return coords.map((point, i) => [point[X], point[Y], point[V], i]);
+    return coords.map(point => [point[X], point[Y], point[V], point[BUCKET]]);
   }
 
 
   getPath() {
     let { coords } = this;
     if (coords.length === 1) {
-      coords[1] = [this._width + this._margin[X], 0, coords[0][V]];
+      coords[1] = [this._width + this._margin[X], 0, coords[0][V], coords[0][BUCKET]];
     }
     coords = this._calcY(this.coords);
     if (this._smoothing && coords.length > 2) {
@@ -362,14 +362,15 @@ export default class Graph {
       }
     }
 
-    return coords.map((coord, i) => ({
+    return coords.map(coord => ({
       x: this._margin[X]
-        + (group_width + spacing_group) * i
+        + (group_width + spacing_group) * coord[BUCKET]
         + (spacing === -1 ? 0 : (bar_width + spacing) * position),
       y: coord[Y],
       height: this._height - coord[Y] + this._margin[Y] * 4,
       width: bar_width,
       value: coord[V],
+      index: coord[BUCKET],
     }));
   }
 

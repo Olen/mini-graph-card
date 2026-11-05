@@ -25,7 +25,7 @@ import { version } from '../package.json';
 import {
   ICONS,
   UPDATE_PROPS,
-  X, Y, V,
+  X, Y, V, BUCKET,
   ONE_HOUR,
   DEFAULT_GRAPH_HEIGHT,
   DEFAULT_GRAPH_WIDTH,
@@ -1121,12 +1121,12 @@ class MiniGraphCard extends LitElement {
     return svg`
       <circle
         class='line--point'
-        ?inactive=${this.tooltip.index !== point[3]}
+        ?inactive=${this.tooltip.index !== point[BUCKET]}
         style=${`--mcg-hover: ${color};`}
         stroke=${color}
         fill=${color}
         cx=${point[X]} cy=${point[Y]} r=${radius}
-        @mouseover=${hoverable ? () => this.setTooltip(index, point[3], point[V]) : undefined}
+        @mouseover=${hoverable ? () => this.setTooltip(index, point[BUCKET], point[V]) : undefined}
         @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}
       />
     `;
@@ -1152,7 +1152,7 @@ class MiniGraphCard extends LitElement {
       // and the bar appears to grow when it is hovered. Nothing else says which
       // bar is being read: the overlay which reads it sits above them, so their
       // own :hover never fires.
-      const bar = (this.bar[entity] || [])[index];
+      const bar = (this.bar[entity] || []).find(item => item.index === index);
       if (!bar) return;
       // no wider than the bar, or a marker spans the ones beside it
       const size = Math.max(2, Math.min(radius, bar.width / 2));
@@ -1165,7 +1165,7 @@ class MiniGraphCard extends LitElement {
     }
 
     const points = this.points[entity];
-    const point = points && points.find(item => item[3] === index);
+    const point = points && points.find(item => item[BUCKET] === index);
     if (!point) return;
     return this.renderHoverMarker(point[X], point[Y], radius, this.computeColor(point[V], entity));
   }
@@ -1278,8 +1278,10 @@ class MiniGraphCard extends LitElement {
       return;
     }
     const hit = findNearestPoint(this.points, x, y);
-    if (!hit || (this.tooltip.entity === hit.entity && this.tooltip.index === hit.point[3])) return;
-    this.setTooltip(hit.entity, hit.point[3], hit.point[V]);
+    const sameAsShown = hit
+      && this.tooltip.entity === hit.entity && this.tooltip.index === hit.point[BUCKET];
+    if (!hit || sameAsShown) return;
+    this.setTooltip(hit.entity, hit.point[BUCKET], hit.point[V]);
   }
 
   /**
@@ -1403,7 +1405,7 @@ class MiniGraphCard extends LitElement {
     const isAnimated = isEntryAnimated(this.config, index);
     const graphHeight = this.graphHeight !== undefined
       ? this.graphHeight : DEFAULT_GRAPH_HEIGHT;
-    const items = bars.map((bar, i) => {
+    const items = bars.map((bar) => {
       const barsStyle = isAnimated
         ? `transform-origin: ${bar.x}px ${graphHeight}px;`
         : '';
@@ -1412,7 +1414,7 @@ class MiniGraphCard extends LitElement {
         <rect class='bar' x=${bar.x} y=${bar.y}
           height=${bar.height} width=${bar.width} fill=${color}
           style=${barsStyle}
-          @mouseover=${hoverable ? () => this.setTooltip(index, i, bar.value) : undefined}
+          @mouseover=${hoverable ? () => this.setTooltip(index, bar.index, bar.value) : undefined}
           @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}>
         </rect>`;
     });

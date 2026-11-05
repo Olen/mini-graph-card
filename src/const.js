@@ -71,6 +71,8 @@ const DEFAULT_SHOW = {
 const X = 0;
 const Y = 1;
 const V = 2;
+// A graph can start part-way into its window, so a point's position is not its bucket
+const BUCKET = 3;
 const ONE_HOUR = 1000 * 3600;
 
 // Sections grid: a cell is 56px high with an 8px gap, so N rows take 64*N-8 px.
@@ -213,6 +215,7 @@ export {
   X,
   Y,
   V,
+  BUCKET,
   ONE_HOUR,
   HOVER_NEAREST,
   HOVER_POINT,
