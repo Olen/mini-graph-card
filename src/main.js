@@ -49,7 +49,7 @@ import {
   STATISTICS_PERIOD_FALLBACK,
 } from './const';
 import {
-  isNumeric, isEntryAnimated, formatEntityName, isNameItems, computeBoundary,
+  isNumeric, isEntryAnimated, formatEntityName, isNameItems, computeBoundary, lastPlottedValue,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
@@ -787,15 +787,13 @@ class MiniGraphCard extends LitElement {
   */
   getEntityState(index) {
     const entityConfig = this.config.entities[index];
-    if (this.config.show.state === 'last' && this.config.show.graph === 'bar') {
-      // last "bar" value
-      return this.bar[index][this.bar[index].length - 1].value;
-    } else if (this.config.show.state === 'last' && this.points[index] && this.points[index].length) {
-      // last "point" value; the coordinates now exist regardless of
-      // "show.points", so this no longer silently falls through to a current
-      // state when the points are not drawn
-      return this.points[index][this.points[index].length - 1][V];
-    } else if (this._isStaticValue[index]) {
+    if (this.config.show.state === 'last') {
+      const isBarGraph = this.config.show.graph === 'bar';
+      const last = lastPlottedValue(isBarGraph, this.bar[index], this.points[index]);
+      // nothing plotted yet (hidden graph, no data): show the current state
+      if (last !== undefined) return last;
+    }
+    if (this._isStaticValue[index]) {
       return this.config.entities[index].static_value;
     } else if (entityConfig.attribute) {
       // current attribute value

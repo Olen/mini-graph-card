@@ -9,6 +9,7 @@ import { log } from './utils';
 import {
   X,
   Y,
+  V,
   ONE_HOUR,
   STATISTICS_TYPES,
   DEFAULT_STATISTICS_TYPES,
@@ -744,8 +745,23 @@ const computeBoundary = (type, series, configVal, fallback) => {
   return Math[type](Number(configVal.substr(1)), ...series.map(ele => ele[type]));
 };
 
+/**
+ * The value of the newest plotted bar or point, for "show: state: last".
+ * @param {boolean} isBarGraph Whether the graph draws bars
+ * @param {Array|undefined} bars The entity's bars
+ * @param {Array|undefined} points The entity's points
+ * @returns {number|undefined} The value, or undefined while nothing is plotted
+ */
+const lastPlottedValue = (isBarGraph, bars, points) => {
+  if (isBarGraph) {
+    return bars && bars.length ? bars[bars.length - 1].value : undefined;
+  }
+  return points && points.length ? points[points.length - 1][V] : undefined;
+};
+
 export {
   computeBoundary,
+  lastPlottedValue,
   isNumeric,
   findNearestPoint,
   findNearestBar,
