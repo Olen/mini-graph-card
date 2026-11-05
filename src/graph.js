@@ -333,12 +333,25 @@ export default class Graph {
    * @param path SVG path for a line
    * @returns SVG path for a fill
    */
+  /**
+   * Y where a fill under the line ends: the bottom edge, or fill_baseline. A
+   * baseline in the margin band (at or beyond min/max) snaps to that edge, or a
+   * strip along it would stay unfilled.
+   * @returns {number} Y-coord of the fill's baseline
+   */
+  get fillBaselineY() {
+    const absoluteTop = 0;
+    const absoluteBottom = this._height + this._margin[Y] * 4;
+    if (this._fill_baseline === undefined) return absoluteBottom;
+
+    const baselineY = this.getY(this._fill_baseline);
+    if (baselineY <= this._margin[Y] * 2) return absoluteTop;
+    if (baselineY >= this._height + this._margin[Y] * 2) return absoluteBottom;
+    return baselineY;
+  }
+
   getFill(path) {
-    let height = this._height + this._margin[Y] * 4;
-    if (this._fill_baseline !== undefined) {
-      const [baselineCoord] = this._calcY([[0, 0, this._fill_baseline]]);
-      [, height] = baselineCoord;
-    }
+    const height = this.fillBaselineY;
     let fill = path;
     // note that currently this._margin[X] = 0 when fill is defined
     fill += ` L ${this._width + this._margin[X]}, ${height}`;
