@@ -5,6 +5,7 @@ import {
   DEFAULT_BAR_SPACING,
 } from './const';
 import { log } from './utils';
+import { getIntervalEndDate } from './others';
 
 export default class Graph {
   constructor({
@@ -438,22 +439,6 @@ export default class Graph {
   }
 
   _updateEndTime() {
-    this._endTime = new Date();
-    switch (this._groupBy) {
-      case 'month':
-        this._endTime.setMonth(this._endTime.getMonth() + 1);
-        this._endTime.setDate(1);
-        break;
-      case 'date':
-        this._endTime.setDate(this._endTime.getDate() + 1);
-        this._endTime.setHours(0, 0, 0, 0);
-        break;
-      case 'hour':
-        this._endTime.setHours(this._endTime.getHours() + 1);
-        this._endTime.setMinutes(0, 0, 0);
-        break;
-      default:
-        break;
-    }
+    this._endTime = getIntervalEndDate(this._groupBy, new Date());
   }
 }

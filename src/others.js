@@ -759,7 +759,35 @@ const lastPlottedValue = (isBarGraph, bars, points) => {
   return points && points.length ? points[points.length - 1][V] : undefined;
 };
 
+/**
+ * The end of a graph's newest bucket: now, or the next full hour/day/month.
+ * The graph and the tooltip both use it, so their times agree.
+ * @param {string} groupBy The group_by option
+ * @param {Date} now The current time; not changed
+ * @returns {Date} The end of the newest bucket
+ */
+const getIntervalEndDate = (groupBy, now) => {
+  const end = new Date(now);
+  switch (groupBy) {
+    case 'month':
+      end.setMonth(end.getMonth() + 1, 1);
+      end.setHours(0, 0, 0, 0);
+      break;
+    case 'date':
+      end.setDate(end.getDate() + 1);
+      end.setHours(0, 0, 0, 0);
+      break;
+    case 'hour':
+      end.setHours(end.getHours() + 1, 0, 0, 0);
+      break;
+    default:
+      break;
+  }
+  return end;
+};
+
 export {
+  getIntervalEndDate,
   computeBoundary,
   lastPlottedValue,
   isNumeric,

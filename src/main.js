@@ -52,6 +52,7 @@ import {
 } from './const';
 import {
   isNumeric, isEntryAnimated, formatEntityName, isNameItems, computeBoundary, lastPlottedValue,
+  getIntervalEndDate,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
@@ -1552,7 +1553,9 @@ class MiniGraphCard extends LitElement {
     // offset end by a minute, if grouped by, e.g., date or hour
     const oneMinute = group_by !== 'interval' ? 60000 : 0;
 
-    const now = this.getEndDate();
+    // the end the graph's buckets were cut at, not one recomputed now
+    const graph = this.Graph[entity];
+    const now = new Date(graph && graph._endTime ? graph._endTime : this.getEndDate());
 
     now.setMilliseconds(now.getMilliseconds() - oneMinute - interval * count);
     const end = formatDateTime(
@@ -2757,20 +2760,7 @@ class MiniGraphCard extends LitElement {
   }
 
   getEndDate() {
-    const date = new Date();
-    switch (this.config.group_by) {
-      case 'date':
-        date.setDate(date.getDate() + 1);
-        date.setHours(0, 0, 0);
-        break;
-      case 'hour':
-        date.setHours(date.getHours() + 1);
-        date.setMinutes(0, 0);
-        break;
-      default:
-        break;
-    }
-    return date;
+    return getIntervalEndDate(this.config.group_by, new Date());
   }
 
   setNextUpdate() {
