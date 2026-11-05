@@ -29,8 +29,14 @@ const migrateYaxisConfig = (config) => {
   migrations.forEach(([oldKey, axis, newKey]) => {
     const oldValue = conf[oldKey];
 
+    // a legacy option set to null holds nothing to migrate, so it is just dropped
+    if (oldValue === null) {
+      delete conf[oldKey];
+      return;
+    }
+
     // check if the legacy option is present in config
-    if (oldValue !== undefined && oldValue !== null) {
+    if (oldValue !== undefined) {
       // check if the option is already defined in the new y_axis object
       const hasNewValue = conf.y_axis
         && conf.y_axis[axis]

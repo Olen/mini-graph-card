@@ -56,4 +56,11 @@ describe('migrateYaxisConfig', () => {
     const result: any = migrateYaxisConfig({ lower_bound: 0 });
     assert.equal(result.y_axis.primary.lower_bound, 0);
   });
+
+  it('removes a legacy option set to null, without migrating it', () => {
+    const result: any = migrateYaxisConfig({ lower_bound: null, upper_bound_secondary: null });
+    assert.notProperty(result, 'lower_bound');
+    assert.notProperty(result, 'upper_bound_secondary');
+    assert.notProperty(result, 'y_axis');
+  });
 });
