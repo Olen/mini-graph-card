@@ -7,7 +7,9 @@ import Graph from './graph';
 import style from './style';
 import handleClick from './handleClick';
 import buildConfig from './buildConfig';
-import { packEntry, unpackEntry, isUsable } from './cache';
+import {
+  packEntry, unpackEntry, isUsable, cachedWindow,
+} from './cache';
 import { isTemplate, TemplateSubscriber } from './templates';
 import './editor/editor';
 import {
@@ -2593,28 +2595,15 @@ class MiniGraphCard extends LitElement {
     let firstFetched = new Date();
     if (usable) {
       firstFetched = new Date(history.first_fetched || history.last_fetched);
-      stateHistory = history.data;
-
-      let currDataIndex = stateHistory.findIndex(item => new Date(item.last_changed) > initStart);
-      if (currDataIndex !== -1) {
-        if (currDataIndex > 0) {
-          // include previous item
-          currDataIndex -= 1;
-          // but change it's last changed time
-          stateHistory[currDataIndex].last_changed = initStart;
-        }
-
-        stateHistory = stateHistory.slice(currDataIndex, stateHistory.length);
-        // skip initial state when fetching recent/not-cached data
+      stateHistory = cachedWindow(history.data, initStart);
+      // Only fetch what is newer than the cache while the cache holds the start
+      // of the window - otherwise the part before its last fetch would be lost
+      if (stateHistory.length > 0) {
         skipInitialState = true;
-      } else {
-        // there were no states which could be used in current graph so clearing
-        stateHistory = [];
-      }
-
-      const lastFetched = new Date(history.last_fetched);
-      if (lastFetched > start) {
-        start = new Date(lastFetched - 1);
+        const lastFetched = new Date(history.last_fetched);
+        if (lastFetched > start) {
+          start = new Date(lastFetched - 1);
+        }
       }
     }
 

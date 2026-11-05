@@ -111,6 +111,26 @@ const isUsable = (entry, hoursToShow, entityLastUpdated, now = new Date()) => {
   return true;
 };
 
+/**
+ * The part of a cached history that belongs to a window starting at windowStart.
+ * The cache holds every state up to its last fetch, so the newest state from
+ * before the window is what the entity read when it opened; it is kept, moved
+ * to the window start, even when no cached state lies inside the window.
+ * @param {Array} rows Cached states, oldest first
+ * @param {Date} windowStart Start of the shown window
+ * @returns {Array} The states to keep; the cached rows are not changed
+ */
+const cachedWindow = (rows, windowStart) => {
+  const firstInside = rows.findIndex(row => new Date(row.last_changed) > windowStart);
+  if (firstInside === 0) return rows.slice();
+
+  // -1: every cached state predates the window, so the newest of them opens it
+  const lastBefore = firstInside === -1 ? rows.length - 1 : firstInside - 1;
+  if (lastBefore < 0) return [];
+  const opening = { ...rows[lastBefore], last_changed: windowStart };
+  return [opening, ...rows.slice(lastBefore + 1)];
+};
+
 export {
-  packEntry, unpackEntry, isStale, isUsable, MAX_CACHE_AGE_HOURS,
+  packEntry, unpackEntry, isStale, isUsable, cachedWindow, MAX_CACHE_AGE_HOURS,
 };
