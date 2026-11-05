@@ -139,4 +139,21 @@ describe("isNumeric", () => {
     checkColorThresholds(config, 'config');
     expect(config.color_thresholds).toEqual(expected);
   });
+  it('checkColorThresholds: an array entry is not a threshold and is dropped', () => {
+    const config = { color_thresholds: ['red', ['blue', 50]] };
+    checkColorThresholds(config, 'config');
+    expect(config.color_thresholds).toEqual([{ color: 'red' }]);
+  });
+
+  it('checkColorThresholds: other invalid entries are dropped, not turned into a default colour', () => {
+    const config = { color_thresholds: [42, { color: 'red', value: 10 }, true, null] };
+    checkColorThresholds(config, 'config');
+    expect(config.color_thresholds).toEqual([{ color: 'red', value: 10 }]);
+  });
+
+  it('checkColorThresholds: an unset value is left out', () => {
+    const config = { color_thresholds: [{ color: 'red', value: null }] };
+    checkColorThresholds(config, 'config');
+    expect(Object.keys(config.color_thresholds[0])).toEqual(['color']);
+  });
 });

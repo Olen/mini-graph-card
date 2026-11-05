@@ -217,7 +217,7 @@ const checkColorThresholds = (config, configName) => {
         return { color: threshold };
       }
 
-      if (threshold && typeof threshold === 'object') {
+      if (threshold && typeof threshold === 'object' && !Array.isArray(threshold)) {
         let { color, value } = threshold;
 
         if (color === undefined || typeof color !== 'string') {
@@ -239,13 +239,18 @@ const checkColorThresholds = (config, configName) => {
           value = undefined;
         }
 
-        return { color, value };
+        const result = { color };
+        if (value !== undefined) {
+          result.value = value;
+        }
+        return result;
       }
 
-      // other invalid content
-      log(`Invalid option ${configName}.color_thresholds[${idx}]: expected an object or color string; replacing with a default entry`);
-      return { color: 'var(--primary-text-color)' };
-    });
+      // other invalid content: a made-up colour band would be worse than none
+      log(`Invalid option ${configName}.color_thresholds[${idx}]: expected an object or color string; ignoring the entry`);
+      return null;
+    })
+    .filter(threshold => threshold !== null);
 };
 /* eslint-enable no-param-reassign */
 
