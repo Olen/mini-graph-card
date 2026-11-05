@@ -314,6 +314,29 @@ const checkLineStyle = (config) => {
   });
 };
 
+const isNonEmptyString = value => typeof value === 'string' && value.trim() !== '';
+
+/**
+ * Checks that config.entities is a list whose every entry names an entity or a
+ * numeric static_value; throws an error naming the first entry that does not.
+ * @param {*} configEntities The entities option
+ */
+const checkEntities = (configEntities) => {
+  if (!Array.isArray(configEntities)) {
+    throw new Error(`Please provide the "entities" option as a list.\n See ${URL_DOCS}`);
+  }
+  configEntities.forEach((entityConfig, index) => {
+    const isEntityId = isNonEmptyString(entityConfig);
+    const hasEntity = entityConfig && isNonEmptyString(entityConfig.entity);
+    // a number, not a numeric string: the card only draws a static_value that is one
+    const hasStaticValue = entityConfig && isNumeric(entityConfig.static_value);
+    if (!isEntityId && !hasEntity && !hasStaticValue) {
+      throw new Error(`Invalid entities entry at index ${index}: `
+        + `either "entity" or a numeric "static_value" must be specified.\n See ${URL_DOCS}`);
+    }
+  });
+};
+
 const isScalar = value => typeof value === 'string'
   || (typeof value === 'number' && Number.isFinite(value));
 
@@ -355,6 +378,7 @@ const checkStateMap = (config) => {
 /* eslint-enable no-param-reassign */
 
 export {
+  checkEntities,
   checkStateMap,
   checkStatistics,
   checkStringOption,

@@ -28,6 +28,7 @@ import {
   checkBounds,
   checkColorThresholds,
   checkStateMap,
+  checkEntities,
   checkStatistics,
   checkStringOption,
   checkLineStyle,
@@ -142,8 +143,7 @@ const computeThresholds = (stops, type) => {
 };
 
 export default (config) => {
-  if (!Array.isArray(config.entities))
-    throw new Error(`Please provide the "entities" option as a list.\n See ${URL_DOCS}`);
+  checkEntities(config.entities);
   if (config.line_color_above || config.line_color_below)
     throw new Error(
       `"line_color_above/line_color_below" was removed, please use "color_thresholds".\n See ${URL_DOCS}`,
