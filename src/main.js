@@ -1405,14 +1405,22 @@ class MiniGraphCard extends LitElement {
     const isAnimated = isEntryAnimated(this.config, index);
     const graphHeight = this.graphHeight !== undefined
       ? this.graphHeight : DEFAULT_GRAPH_HEIGHT;
+    // With no spacing, browsers draw some bar edges and blend others together;
+    // a faint seam in the card's background colour separates every bar alike.
+    const seam = this.config.bar_spacing === 0
+      ? 'paint-order: fill stroke; stroke: var(--card-background-color, white);'
+        + ' stroke-width: var(--mcg-bar-seam-width, 0.5px);'
+        + ' stroke-opacity: var(--mcg-bar-seam-opacity, 0.3);'
+      : '';
     const items = bars.map((bar) => {
-      const barsStyle = isAnimated
+      const barsStyle = (isAnimated
         ? `transform-origin: ${bar.x}px ${graphHeight}px;`
-        : '';
+        : '') + seam;
       const color = this.computeColor(bar.value, index);
       return svg`
         <rect class='bar' x=${bar.x} y=${bar.y}
           height=${bar.height} width=${bar.width} fill=${color}
+          vector-effect="non-scaling-stroke"
           style=${barsStyle}
           @mouseover=${hoverable ? () => this.setTooltip(index, bar.index, bar.value) : undefined}
           @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}>

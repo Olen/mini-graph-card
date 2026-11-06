@@ -1124,6 +1124,8 @@ The following theme variables can be set in your HA theme to customize the appea
 | mcg-label-static-opacity | 0.75 | Opacity of the static values' labels.
 | mcg-label-axis-border-radius | 1em | Border radius of the Y-axis labels.
 | mcg-label-static-border-radius | 1em | Border radius of the static values' labels.
+| mcg-bar-seam-width | 0.5px | Width of the seam drawn between bars when `bar_spacing: 0`.
+| mcg-bar-seam-opacity | 0.3 | Opacity of that seam, which is drawn in the card's background colour.
 
 
 
