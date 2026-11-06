@@ -1501,6 +1501,8 @@ class MiniGraphCard extends LitElement {
         { ...gridX, width: this.graphWidth })
         .forEach(({ time, major }) => {
           const x = graph.getX(time);
+          // nothing is drawn past the newest point
+          if (x > graph.rightEdgeX) return;
           lines.push(this.renderGridLine(gridX, major, x, 0, x, this.graphHeight));
         });
     }
@@ -1683,6 +1685,7 @@ class MiniGraphCard extends LitElement {
     const stride = getLabelStride(times.length, this.graphWidth, widest * fontSize * 0.6 + 6);
 
     const labels = times
+      .filter(({ time }) => graph.getX(time) <= graph.rightEdgeX)
       .filter((item, index) => index % stride === 0)
       .map(({ time, text }) => html`
         <span style="left: ${graph.getX(time)}px">${text}</span>`);

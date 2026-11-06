@@ -98,9 +98,28 @@ export default class Graph {
    * @param {number} time A timestamp in ms
    * @returns {number} An X coordinate
    */
+  /**
+   * X of a moment, on the scale the points are drawn on: the start of a bucket
+   * lands on that bucket's point, so a grid line marks the value it belongs to.
+   * The last bucket's point is on the right edge, so "now" lies past it.
+   * @param {number} time Epoch ms
+   * @returns {number} X coordinate
+   */
   getX(time) {
-    const span = this._hours_to_show * ONE_HOUR;
-    return this._margin[X] + (this._width * (time - (this._endTime - span))) / span;
+    const bucket = ONE_HOUR / this._points_per_hour;
+    const windowStart = this._endTime - this._hours_to_show * ONE_HOUR;
+    return this._margin[X] + this._xRatio() * ((time - windowStart) / bucket);
+  }
+
+  /** X of the right edge, where the newest point is drawn. */
+  get rightEdgeX() {
+    return this._margin[X] + this._width;
+  }
+
+  /** Distance between two neighbouring points: the first and last sit on the edges. */
+  _xRatio() {
+    const ratio = this._width / (this._hours_to_show * this._points_per_hour - 1);
+    return Number.isFinite(ratio) ? ratio : this._width;
   }
 
   update(history = undefined) {
@@ -176,8 +195,7 @@ export default class Graph {
   }
 
   _calcPoints(history) {
-    let xRatio = this._width / (this._hours_to_show * this._points_per_hour - 1);
-    xRatio = Number.isFinite(xRatio) ? xRatio : this._width;
+    const xRatio = this._xRatio();
 
     const coords = [];
 
