@@ -823,7 +823,9 @@ the part that is painted.
 While one entity is being read the others fade back, but stay faintly visible -
 the selection changes wherever two curves cross, and blanking the others would
 make the graph jump about. `--mcg-inactive-opacity` sets how faint, `0` hides
-them as before.
+them as before. Reading a single bar fades nothing: the bars of all entities
+stand side by side, and fading them would flicker as the cursor moves along.
+The labels of the other Y-axis are hidden while an entity is being read.
 
 The selected point is marked, whether or not `show.points` draws the points.
 Set `hover_mode: point` for the old behaviour, where only the point itself
