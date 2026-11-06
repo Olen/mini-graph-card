@@ -437,6 +437,12 @@ const style = css`
   .graph__static_value_labels > span[inactive] {
     opacity: 0;
   }
+  /* !important: hovering the card shows the labels, and that must not win */
+  .graph__labels[inactive] {
+    opacity: 0 !important;
+    transition: opacity .25s;
+    animation: none;
+  }
   /* Grid lines sit behind the data & must not take the pointer from it. */
   .grid {
     pointer-events: none;

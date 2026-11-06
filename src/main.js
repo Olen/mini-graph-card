@@ -1023,8 +1023,7 @@ class MiniGraphCard extends LitElement {
 
           return html`<span
             id="static-label-${index}"
-            ?inactive=${this.tooltip.entity !== undefined && this.tooltip.entity !== index
-              && !this._isShowStaticInactive[index]}
+            ?inactive=${this.isInactive(index)}
             style="
               color: ${color};
               top: ${topPercent}%;
@@ -1307,9 +1306,7 @@ class MiniGraphCard extends LitElement {
         ? this.config.entities[index].static_value
         : undefined;
     const color = this.computeColor(state, index);
-    const inactive = this.tooltip.entity !== undefined
-      && this.tooltip.entity !== index
-      && !this._isShowStaticInactive[index];
+    const inactive = this.isInactive(index);
     const radius = getFirstDefinedItem(
       this.config.entities[index].line_width,
       this.config.line_width,
@@ -1360,9 +1357,7 @@ class MiniGraphCard extends LitElement {
     const fill = this.gradient[index]
       ? `url(#grad-${this.id}-${index})`
       : this.computeColor(state, index);
-    const inactive = this.tooltip.entity !== undefined
-      && this.tooltip.entity !== index
-      && !this._isShowStaticInactive[index];
+    const inactive = this.isInactive(index);
     return svg`
       <rect class='line--rect'
         ?inactive=${inactive}
@@ -1388,9 +1383,7 @@ class MiniGraphCard extends LitElement {
     const svgFill = this.gradient[index]
       ? `url(#grad-${this.id}-${index})`
       : this.computeColor(state, index);
-    const inactive = this.tooltip.entity !== undefined
-      && this.tooltip.entity !== index
-      && !this._isShowStaticInactive[index];
+    const inactive = this.isInactive(index);
     return svg`
       <rect class='fill--rect'
         ?inactive=${inactive}
@@ -1425,15 +1418,41 @@ class MiniGraphCard extends LitElement {
           @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}>
         </rect>`;
     });
-    const inactive = this.tooltip.entity !== undefined
-      && this.tooltip.entity !== index
-      && !this._isShowStaticInactive[index];
+    const inactive = this.isInactive(index);
     return svg`
       <g
         class='bars'
         ?anim=${isAnimated}
         ?inactive=${inactive}
       >${items}</g>`;
+  }
+
+  /**
+   * Whether an entity is dimmed because another one is hovered. Hovering a single
+   * bar dims nothing: bars of all entities sit side by side and would flicker.
+   * @param {number} index The entity's index
+   * @returns {boolean} true when dimmed
+   */
+  isInactive(index) {
+    const { entity: hovered, index: bucket } = this.tooltip;
+    if (hovered === undefined || hovered === index) return false;
+    if (this._isShowStaticInactive[index]) return false;
+    const isSingleBar = this.config.show.graph === 'bar' && bucket !== -1;
+    return !isSingleBar;
+  }
+
+  /**
+   * Whether an axis's labels are hidden: they say nothing about a hovered
+   * entity on the other axis.
+   * @param {string} axis 'primary' or 'secondary'
+   * @returns {boolean} true when hidden
+   */
+  isAxisInactive(axis) {
+    const { entity: hovered, index: bucket } = this.tooltip;
+    if (hovered === undefined) return false;
+    if (this.config.show.graph === 'bar' && bucket !== -1) return false;
+    const hoveredAxis = this.config.entities[hovered].y_axis === 'secondary' ? 'secondary' : 'primary';
+    return hoveredAxis !== axis;
   }
 
   /** Returns a rendered SVG part (fill, line, bars, points)
@@ -1610,7 +1629,7 @@ class MiniGraphCard extends LitElement {
     if (grid) return grid;
     // index is not passed into computeState() for a primary axis
     return html`
-      <div class="graph__labels --primary flex">
+      <div class="graph__labels --primary flex" ?inactive=${this.isAxisInactive('primary')}>
         <span class="label--max">${this.computeState(this.bound[1])}</span>
         <span class="label--min">${this.computeState(this.bound[0])}</span>
       </div>
@@ -1652,7 +1671,8 @@ class MiniGraphCard extends LitElement {
     }, []);
     if (labels.length === 0) return undefined;
     return html`
-      <div class="graph__labels --${axis} --grid" ?always=${grid.labels === 'always'}>
+      <div class="graph__labels --${axis} --grid" ?always=${grid.labels === 'always'}
+        ?inactive=${this.isAxisInactive(axis)}>
         ${labels}
       </div>`;
   }
@@ -1711,7 +1731,7 @@ class MiniGraphCard extends LitElement {
     if (grid) return grid;
     // index "-1" is passed into computeState() for a secondary axis
     return html`
-      <div class="graph__labels --secondary flex">
+      <div class="graph__labels --secondary flex" ?inactive=${this.isAxisInactive('secondary')}>
         <span class="label--max">${this.computeState(this.boundSecondary[1], -1)}</span>
         <span class="label--min">${this.computeState(this.boundSecondary[0], -1)}</span>
       </div>
