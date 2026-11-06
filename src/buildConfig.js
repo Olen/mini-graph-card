@@ -32,6 +32,8 @@ import {
   checkStatistics,
   checkStringOption,
   checkLineStyle,
+  checkGroupBy,
+  checkPointsPerHour,
 } from './checkOption';
 import { getFactor, parseGraphHeight, parseGrid } from './others';
 
@@ -325,17 +327,8 @@ export default (config) => {
   // warn if line_style is defined along with animate=true
   checkLineStyle(conf);
 
-  // override points per hour to mach group_by function
-  switch (conf.group_by) {
-    case 'date':
-      conf.points_per_hour = 1 / 24;
-      break;
-    case 'hour':
-      conf.points_per_hour = 1;
-      break;
-    default:
-      break;
-  }
+  conf.group_by = checkGroupBy(conf);
+  conf.points_per_hour = checkPointsPerHour(conf);
 
   if (conf.show.graph === 'bar') {
     const entities = conf.entities.length;

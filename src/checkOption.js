@@ -1,5 +1,6 @@
 import {
   URL_DOCS,
+  GROUP_BY_HOURS,
   STATISTICS_PERIODS,
   STATISTICS_TYPES,
 } from './const';
@@ -377,8 +378,46 @@ const checkStateMap = (config) => {
 };
 /* eslint-enable no-param-reassign */
 
+/**
+ * A group_by that fits hours_to_show: a fixed grouping needs a whole number of
+ * its buckets in the window, or the graph falls back to "interval".
+ * @param {object} config Config object
+ * @returns {string} The group_by to use
+ */
+const checkGroupBy = (config) => {
+  const { group_by: groupBy, hours_to_show: hoursToShow } = config;
+  if (groupBy === undefined || groupBy === null || groupBy === 'interval') {
+    return 'interval';
+  }
+  const bucketHours = GROUP_BY_HOURS[groupBy];
+  if (bucketHours === undefined) {
+    log(`Invalid group_by "${groupBy}", using "interval"; see ${URL_DOCS}`);
+    return 'interval';
+  }
+  if (hoursToShow < bucketHours || hoursToShow % bucketHours !== 0) {
+    log(`group_by "${groupBy}" needs hours_to_show to be a multiple of ${bucketHours}`
+      + ` (it is ${hoursToShow}), using "interval"`);
+    return 'interval';
+  }
+  return groupBy;
+};
+
+/**
+ * The points_per_hour a group_by implies: one point per bucket. "interval"
+ * keeps the configured value.
+ * @param {object} config Config object, with group_by already checked
+ * @returns {number} The points_per_hour to use
+ */
+const checkPointsPerHour = (config) => {
+  const bucketHours = GROUP_BY_HOURS[config.group_by];
+  if (bucketHours === undefined) return config.points_per_hour;
+  return 1 / bucketHours;
+};
+
 export {
   checkEntities,
+  checkGroupBy,
+  checkPointsPerHour,
   checkStateMap,
   checkStatistics,
   checkStringOption,

@@ -301,7 +301,7 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | hours_to_show | integer | `24` | v0.0.2 | Specify how many hours of history the graph should present.
 | points_per_hour | number | `0.5` | v0.2.0 | Specify amount of data points the graph should display for each hour, *(basically the detail/accuracy/smoothing of the graph)*.
 | aggregate_func | string | `avg` | v0.8.0 | Specify [aggregate function](#aggregate-functions) used to calculate point/bar in the graph.
-| group_by | string | `interval` | v0.8.0 | Specify type of grouping of data, dynamic `interval`, `date` or `hour`.
+| group_by | string | `interval` | v0.8.0 | Specify type of grouping of data, dynamic `interval`, `week`, `date`, `12h`, `hour`, `30min` or `15min`. A fixed grouping needs `hours_to_show` to be a whole number of its buckets (a multiple of 168 for `week`), and sets `points_per_hour` to one point per bucket.
 | update_interval | number |  | v0.4.0 | Specify a custom update interval of the history data (in seconds), instead of on every state change.
 | cache ◆ | boolean | `true` | v0.9.0 | Enable/disable local caching of history data, see [Caching](#caching).
 | statistics ★ | boolean *or* object |  |  | Read the series from statistics instead of raw history, see [Statistics](#statistics).

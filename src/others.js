@@ -771,7 +771,7 @@ const lastPlottedValue = (isBarGraph, bars, points) => {
 };
 
 /**
- * The end of a graph's newest bucket: now, or the next full hour/day/month.
+ * The end of a graph's newest bucket: now, or the end of the bucket holding now.
  * The graph and the tooltip both use it, so their times agree.
  * @param {string} groupBy The group_by option
  * @param {Date} now The current time; not changed
@@ -784,12 +784,31 @@ const getIntervalEndDate = (groupBy, now) => {
       end.setMonth(end.getMonth() + 1, 1);
       end.setHours(0, 0, 0, 0);
       break;
+    case 'week':
+      // weeks start on Monday; getDay() is 0 on Sunday
+      end.setDate(end.getDate() + (end.getDay() === 0 ? 1 : 8 - end.getDay()));
+      end.setHours(0, 0, 0, 0);
+      break;
     case 'date':
       end.setDate(end.getDate() + 1);
       end.setHours(0, 0, 0, 0);
       break;
+    case '12h':
+      if (end.getHours() < 12) {
+        end.setHours(12, 0, 0, 0);
+      } else {
+        end.setDate(end.getDate() + 1);
+        end.setHours(0, 0, 0, 0);
+      }
+      break;
     case 'hour':
       end.setHours(end.getHours() + 1, 0, 0, 0);
+      break;
+    case '30min':
+      end.setMinutes(Math.floor(end.getMinutes() / 30) * 30 + 30, 0, 0);
+      break;
+    case '15min':
+      end.setMinutes(Math.floor(end.getMinutes() / 15) * 15 + 15, 0, 0);
       break;
     default:
       break;

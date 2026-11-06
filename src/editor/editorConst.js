@@ -82,8 +82,12 @@ const MAINSCHEMA = [
               select: {
                 options: [
                   { label: 'Interval', value: 'interval' },
+                  { label: 'Week', value: 'week' },
                   { label: 'Date', value: 'date' },
+                  { label: '12 hours', value: '12h' },
                   { label: 'Hour', value: 'hour' },
+                  { label: '30 minutes', value: '30min' },
+                  { label: '15 minutes', value: '15min' },
                 ],
                 mode: 'dropdown',
                 translation_key: 'group_by',

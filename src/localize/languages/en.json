@@ -74,8 +74,12 @@
     "group_by": {
       "options": {
         "interval": "Interval",
+        "week": "Week",
         "date": "Date",
-        "hour": "Hour"
+        "12h": "12 hours",
+        "hour": "Hour",
+        "30min": "30 minutes",
+        "15min": "15 minutes"
       }
     },
     "transition": {

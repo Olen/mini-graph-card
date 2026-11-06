@@ -23,6 +23,16 @@ const DEFAULT_GRAPH_WIDTH = 500;
 const DEFAULT_MARGIN = 5;
 const DEFAULT_HOURS_TO_SHOW = 24;
 const DEFAULT_POINTS_PER_HOUR = 0.5;
+// The length of a bucket, in hours, for each fixed group_by; "interval" uses
+// points_per_hour instead.
+const GROUP_BY_HOURS = {
+  week: 168,
+  date: 24,
+  '12h': 12,
+  hour: 1,
+  '30min': 0.5,
+  '15min': 0.25,
+};
 const DEFAULT_STATIC_VALUE_LABEL_OFFSET = 20; // in %
 const NBSP = '\u00A0';
 const DEFAULT_COLORS = [
@@ -196,6 +206,7 @@ export {
   DEFAULT_MARGIN,
   DEFAULT_HOURS_TO_SHOW,
   DEFAULT_POINTS_PER_HOUR,
+  GROUP_BY_HOURS,
   DEFAULT_STATIC_VALUE_LABEL_OFFSET,
   NBSP,
   DEFAULT_COLORS,
