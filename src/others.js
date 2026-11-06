@@ -730,6 +730,21 @@ const formatEntityName = (hass, stateObj, name) => {
   return stateObj.attributes.friendly_name || stateObj.entity_id;
 };
 
+// The parts of hass that formatEntityName composes a name from; a rename
+// replaces one of them without touching any state.
+const NAME_SOURCES = ['formatEntityName', 'entities', 'devices', 'areas', 'floors'];
+
+/**
+ * Whether a rename happened between two hass objects, so names need redrawing.
+ * @param {object|undefined} oldHass The previous hass, undefined on the first set
+ * @param {object} newHass The current hass
+ * @returns {boolean} true when names may have changed
+ */
+const entityNamesChanged = (oldHass, newHass) => {
+  if (!oldHass || !newHass) return false;
+  return NAME_SOURCES.some(key => oldHass[key] !== newHass[key]);
+};
+
 /**
  * The min or max an axis is drawn to, from the series on it and the configured bound.
  * @param {string} type 'min' or 'max'
@@ -863,5 +878,6 @@ export {
   getBound,
   isEntryAnimated,
   formatEntityName,
+  entityNamesChanged,
   isNameItems,
 };

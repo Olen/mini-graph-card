@@ -49,7 +49,8 @@ import {
   STATISTICS_PERIOD_FALLBACK,
 } from './const';
 import {
-  isNumeric, isEntryAnimated, formatEntityName, isNameItems, computeBoundary, lastPlottedValue,
+  isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
+  computeBoundary, lastPlottedValue,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
@@ -524,6 +525,8 @@ class MiniGraphCard extends LitElement {
       );
       return true;
     }
+    return changedProps.has('_hass')
+      && entityNamesChanged(changedProps.get('_hass'), this._hass);
   }
 
   firstUpdated() {
