@@ -285,13 +285,18 @@ to try something: open a card, change it, and read the result off the yaml tab.
 
 **★** is new in this fork, **◆** exists upstream but behaves differently here — see [What this fork changes](#what-this-fork-changes) for why. Everything unmarked is upstream's and works as it does there.
 
+> [!NOTE]
+> Keep the clocks of the Home Assistant server and the device showing the card in sync (NTP). The graph's window ends at the device's own time, so a device that runs behind keeps a fresh change pinned to the right edge until its clock catches up.
+
+An option with a wrong type or value is replaced by its default, with a warning in the browser console (F12 → Console); a broken basic config, such as `entities` that is not a list, shows an error instead of the card. If a card looks wrong, check the console first.
+
 #### Card options
 | Name | Type | Default | Since | Description |
 |------|:----:|:-------:|:-----:|-------------|
 | type ***(required)*** | string |  | v0.0.1 | `custom:mini-graph-card`.
 | entities ***(required)*** | list |  | v0.2.0 | One or more sensor entities (along with [static values](#static-lines)) in a list, see [entities object](#entities-object) for additional entity/static value options.
 | icon | string |  | v0.0.1 | Set a custom icon from any of the available mdi icons.
-| icon_color | string |  | v0.14.0 | Set a custom icon color. Takes precedence over `icon_adaptive_color`.
+| icon_color | string |  | v0.14.0 | Set a custom icon color. Takes precedence over `icon_adaptive_color`. See [Supported color formats](#supported-color-formats).
 | icon_image | string |  | v0.12.0 | Override icon with an image url.
 | name ◆ | string / list |  | v0.0.1 | Set a custom name which is displayed beside the icon. Can be a [template](#templated-names) or [name items](#names-with-area) (resolved against the first entity).
 | unit | string |  | v0.0.1 | Set a custom unit of measurement (`''` value for an empty unit).
@@ -313,7 +318,7 @@ to try something: open a card, change it, and read the result off the yaml tab.
 | bar_spacing_group | number |   | 0.14.0 | Set an additional spacing between bar groups (multiple entities) in bar graph. Fallback to `bar_spacing` if undefined; if `bar_spacing: -1` - then a default `4` value is used. See [examples](#bar-spacing-examples).
 | line_width | number | `5` | v0.0.1 | Set the thickness of the line.
 | line_style | string |  | v0.14.0 | Set the style of the line (see [Line styles](#line-styles)).
-| line_color | string/list | `var(--accent-color)` | v0.0.1 | Set a custom color for the graph line, provide a list of colors for multiple graph entries.
+| line_color | string/list | `var(--accent-color)` | v0.0.1 | Set a custom color for the graph line, provide a list of colors for multiple graph entries. See [Supported color formats](#supported-color-formats).
 | color_thresholds | list |  | v0.2.3 | Set thresholds for dynamic graph colors, see [Line color object](#line-color-object).
 | color_thresholds_transition | string | `smooth` | v0.4.3 | Color threshold transition, `smooth` or `hard`.
 | decimals | integer |  | v0.0.9 | Specify the exact number of decimals to show for number values, see [Number format](#number-format).
@@ -355,7 +360,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | animate | boolean |         | Override for a reveal animation to the graph.
 | line_width | number |         | Override for a thickness of the line.
 | line_style | string |   | Override the style of the line (see [Line styles](#line-styles)).
-| color | string |         | Set a custom color, overrides all other color options including thresholds.
+| color | string |         | Set a custom color, overrides all other color options including thresholds. See [Supported color formats](#supported-color-formats).
 | color_thresholds | list |  | v0.14.0 | Override the thresholds for dynamic graph colors.
 | color_thresholds_transition | string |  | v0.14.0 | Override the color threshold transition.
 | unit | string |         | Set a custom unit of measurement, overrides `unit` set in base config (`''` value for an empty unit).
@@ -410,7 +415,7 @@ All properties are optional.
 | name_adaptive_color | `false` | `true` / `false` | Make the name color adapt with the primary entity/static value color.
 | icon_adaptive_color | `false` | `true` / `false` | Make the icon color adapt with the primary entity/static value color.
 | loading_indicator | `true` | `true` / `false` | Show loading indicator while attempting to retrieve a history.
-| graphs_order | `direct` | `direct` / `reversed` | Define an order of displaying graphs (see [Graphs order](#graphs-order)).
+| graph_order | `direct` | `direct` / `reversed` | Define an order of displaying graphs (see [Graphs order](#graphs-order)).
 
 
 #### Line color object
@@ -419,7 +424,7 @@ See [dynamic line color](#dynamic-line-color) for example usage.
 | Name | Type | Default | Description |
 |------|:----:|:-------:|-------------|
 | value ***(required [except in interpolation (see below)](#line-color-interpolation-of-stop-values))*** | number |  | The threshold for the color stop.
-| color ***(required)*** | string |  | Color in 6 digit hex format (e.g. `#008080`).
+| color ***(required)*** | string |  | Color, e.g. `'#008080'`. See [Supported color formats](#supported-color-formats).
 
 ##### Line color interpolation of stop values
 As long as the first and last threshold stops have `value` properties, intermediate stops can exclude `value`; they will be interpolated linearly. For example, given stops like:
@@ -1109,6 +1114,13 @@ Similarly for stacked bars graphs (when `bar_spacing: -1`): by default (or with 
 2. Last, a bar for the last entity/static value in the `entities` list is processed.
 
 With `graph_order: reversed`, bars for the 1st entity/static value become topmost.
+
+### Supported color formats
+A color can be given as:
+- a name: `red`
+- hex, in quotes: `'#ff0000'`, or with opacity `'#ff000055'`
+- `rgb(255, 0, 0)`, or with opacity `rgba(255, 0, 0, 0.2)`
+- a theme variable: `var(--primary-text-color)`, `var(--red-color)`
 
 ### Theme variables
 The following theme variables can be set in your HA theme to customize the appearance of the card.
