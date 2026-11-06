@@ -1573,6 +1573,7 @@ class MiniGraphCard extends LitElement {
       this._datetimeFormatDateOptions,
       this._datetimeFormatTimeOptions,
       this._hass,
+      new Date(),
     );
     now.setMilliseconds(now.getMilliseconds() + oneMinute - interval);
     const start = formatDateTime(
@@ -1582,6 +1583,7 @@ class MiniGraphCard extends LitElement {
       this._datetimeFormatDateOptions,
       this._datetimeFormatTimeOptions,
       this._hass,
+      new Date(),
     );
 
     this.tooltip = {
@@ -1746,6 +1748,7 @@ class MiniGraphCard extends LitElement {
                     this._datetimeFormatDateOptions,
                     this._datetimeFormatTimeOptions,
                     this._hass,
+                    new Date(),
                   )
                 : ''}
             </span>

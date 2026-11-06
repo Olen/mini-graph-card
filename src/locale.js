@@ -507,6 +507,20 @@ const formatTime = (
 };
 
 /**
+ * Whether a time needs its date: always in a window longer than a day, and in
+ * a shorter one when it is not on the same day as now ("yesterday, 23:00").
+ * @param {Date} dateObj The time to show
+ * @param {number} hoursToShow The hours_to_show option
+ * @param {Date} [now] The current time; without it only the window decides
+ * @returns {boolean} true when the date belongs in front of the time
+ */
+const needsDate = (dateObj, hoursToShow, now) => {
+  if (hoursToShow > 24) return true;
+  if (now === undefined) return false;
+  return dateObj.toDateString() !== now.toDateString();
+};
+
+/**
  * Returns a formatted string for a date & time value dependently on a locale,
  * time zone & formatting options
  * @param {Date} dateObj "Date" object representing a date & time value
@@ -515,6 +529,7 @@ const formatTime = (
  * @param {Intl.DateTimeFormatOptions} datetimeFormatDateOptions Date format options
  * @param {Intl.DateTimeFormatOptions} datetimeFormatTimeOptions Time format options
  * @param {HomeAssistant} hass HomeAssistant object
+ * @param {Date} [now] The current time; given, a time on another day gets its date
  * @returns {string} Formatted string
  */
 const formatDateTime = (
@@ -524,6 +539,7 @@ const formatDateTime = (
   datetimeFormatDateOptions,
   datetimeFormatTimeOptions,
   hass,
+  now = undefined,
 ) => {
   let timeString = formatTime(
     dateObj,
@@ -532,8 +548,7 @@ const formatDateTime = (
     datetimeFormatTimeOptions,
     hass,
   );
-  const { hours_to_show } = config;
-  if (hours_to_show > 24) {
+  if (needsDate(dateObj, config.hours_to_show, now)) {
     const dateString = formatDate(
       dateObj,
       config,
@@ -756,6 +771,7 @@ export {
   parseDateTimeFormatFromCfg,
   getDateFormat, getTimeFormat,
   formatDateTime,
+  needsDate,
   TimeZone, TimeFormat, DateFormat, // used in tests
   blankBeforePercent,
 };
