@@ -50,7 +50,8 @@ import {
 } from './const';
 import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
-  computeBoundary, lastPlottedValue,
+  computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
+  isNumericEntity,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
@@ -192,31 +193,6 @@ class MiniGraphCard extends LitElement {
     };
   }
 
-  /**
-  * Returns min & max "line_width" values defined globally for a card
-  * & for all entities individually
-  * @returns {object} min & max "line_width" values
-  */
-  getMinMaxLineWidth() {
-    const arr = this.config.entities
-      .filter(entityConfig => entityConfig.show_graph !== false)
-      .map((entityConfig) => {
-        const value = entityConfig.line_width;
-        return isNumeric(value)
-          ? value : this.config.line_width;
-      });
-    if (arr.length === 0) {
-      return ({
-        min: this.config.line_width,
-        max: this.config.line_width,
-      });
-    }
-    return ({
-      min: Math.min(...arr),
-      max: Math.max(...arr),
-    });
-  }
-
   setConfig(config) {
     ({
       config: this.config,
@@ -250,7 +226,7 @@ class MiniGraphCard extends LitElement {
       const {
         min: min_line_width,
         max: max_line_width,
-      } = this.getMinMaxLineWidth();
+      } = getLineWidthRange(this.config);
       const margin = this.config.show.graph === 'bar'
         ? [DEFAULT_MARGIN, DEFAULT_MARGIN]
         : this.config.show.fill
@@ -768,28 +744,6 @@ class MiniGraphCard extends LitElement {
     return css;
   }
 
-  /**
-  * Returns an object attribute value
-  * @returns {any} Value of an attribute/subattribute
-  * @param obj stateObj.attributes
-  * @param path Attribute defined as either a singular attribute or a tree-like path
-  */
-  getObjectAttr(obj, path) {
-    if (!obj) {
-      return;
-    }
-    return path.split('.').reduce((res, key) => res && res[key], obj);
-  }
-
-  /**
-  * Check if an attribute path represents a nested object path (contains a dot separator)
-  * @returns {boolean} True if a path contains a dot separator, false - otherwise
-  * @param {string} path Attribute defined as either a singular attribute or a tree-like path
-  */
-  isObjectAttr(path) {
-    return path.includes('.');
-  }
-
   /** Returns a state/attribute value or a static_value
   * @returns {any} value of a state/attribute or a static_value
   * @param {number} index Index of an entry in config.entities
@@ -806,7 +760,7 @@ class MiniGraphCard extends LitElement {
       return this.config.entities[index].static_value;
     } else if (entityConfig.attribute) {
       // current attribute value
-      return this.getObjectAttr(this.entity[index].attributes, entityConfig.attribute);
+      return getObjectAttr(this.entity[index].attributes, entityConfig.attribute);
     } else {
       // current state value
       return this.entity[index].state;
@@ -2089,7 +2043,7 @@ class MiniGraphCard extends LitElement {
         } else {
           // retrieving a native unit
           const { attribute } = this.config.entities[index];
-          if (!attribute || !this.isObjectAttr(attribute)) {
+          if (!attribute || !isObjectAttr(attribute)) {
             // any cases except an object attribute
             let parts;
             if (attribute) {
@@ -2248,7 +2202,7 @@ class MiniGraphCard extends LitElement {
           );
         }
 
-        if (attribute && !this.isObjectAttr(attribute)) {
+        if (attribute && !isObjectAttr(attribute)) {
           // formatting not-object attribute
           const attrParts = this._hass.formatEntityAttributeValueToParts(
             stateObj,
@@ -2258,7 +2212,7 @@ class MiniGraphCard extends LitElement {
           const partValue = attrParts.find(part => part.type === 'value');
           value = partValue && partValue.value;
           return value;
-        } else if (attribute && this.isObjectAttr(attribute)) {
+        } else if (attribute && isObjectAttr(attribute)) {
           // formatting object attribute - similar to Y-axis labels
           return formatNumber(
             state,
@@ -2309,7 +2263,7 @@ class MiniGraphCard extends LitElement {
     if (!entityId && this._isStaticValue[index]) {
       // processing static_value
       return { directOrder: true, delimiter: '' };
-    } else if (!attribute || !this.isObjectAttr(attribute)) {
+    } else if (!attribute || !isObjectAttr(attribute)) {
       // processing entity, any cases except an object attribute
       const stateObj = this._hass.states[entityId];
       if (!stateObj || isUnavailableState(stateObj.state)) {
@@ -2654,7 +2608,7 @@ class MiniGraphCard extends LitElement {
         newStateHistory[0].forEach((item) => {
           if (this.config.entities[index].attribute) {
             // eslint-disable-next-line no-param-reassign
-            item.state = this.getObjectAttr(item.attributes, this.config.entities[index].attribute);
+            item.state = getObjectAttr(item.attributes, this.config.entities[index].attribute);
             // eslint-disable-next-line no-param-reassign
             delete item.attributes;
           }
@@ -2819,18 +2773,6 @@ class MiniGraphCard extends LitElement {
 }
 
 customElements.define('mini-graph-card', MiniGraphCard);
-
-const NUMERIC_DOMAINS = ['counter', 'input_number', 'number'];
-
-const isNumericEntity = (hass, entityId) => {
-  const domain = entityId.split('.')[0];
-  if (NUMERIC_DOMAINS.includes(domain)) return true;
-  if (domain !== 'sensor') return false;
-
-  const stateObj = hass.states[entityId];
-  if (!stateObj) return false;
-  return !!stateObj.attributes.unit_of_measurement || !!stateObj.attributes.state_class;
-};
 
 // Configure the preview in the Lovelace card picker
 window.customCards = window.customCards || [];

@@ -847,7 +847,73 @@ const iconFor = (configIcon, stateObj) => {
   return STATIC_VALUE_ICON;
 };
 
+
+/**
+ * A value on a logarithmic scale; values below 1 sit at the bottom, as 0.
+ * @param {number} value A value
+ * @returns {number} Its base-10 logarithm, at least 0
+ */
+const getLog10 = value => Math.log10(Math.max(1, value));
+
+/**
+ * Whether an attribute option is a path into a nested object ("a.b.0").
+ * @param {string} path An attribute name or a dotted path
+ * @returns {boolean} true for a path
+ */
+const isObjectAttr = path => path.includes('.');
+
+/**
+ * A value from an object by a dotted path; array indexes are path parts too.
+ * @param {object|undefined|null} obj An entity's attributes
+ * @param {string} path An attribute name or a dotted path
+ * @returns {any} The value, or undefined when any part of the path is missing
+ */
+const getObjectAttr = (obj, path) => path.split('.').reduce(
+  (value, key) => (value === undefined || value === null ? undefined : value[key]),
+  obj,
+);
+
+const NUMERIC_DOMAINS = ['counter', 'input_number', 'number'];
+
+/**
+ * Whether the card picker should suggest this card for an entity: a numeric
+ * domain, or a sensor with a unit or a state class.
+ * @param {object} hass Home Assistant object
+ * @param {string} entityId An entity id
+ * @returns {boolean} true when the entity has numbers to graph
+ */
+const isNumericEntity = (hass, entityId) => {
+  const domain = entityId.split('.')[0];
+  if (NUMERIC_DOMAINS.includes(domain)) return true;
+  if (domain !== 'sensor') return false;
+  const stateObj = hass.states[entityId];
+  if (!stateObj) return false;
+  return !!stateObj.attributes.unit_of_measurement || !!stateObj.attributes.state_class;
+};
+
+/**
+ * The thinnest and thickest line drawn: each shown entity's line_width, else
+ * the card's.
+ * @param {object} config Card config
+ * @returns {{min: number, max: number}} The range of line widths
+ */
+const getLineWidthRange = (config) => {
+  const widths = config.entities
+    .filter(entityConfig => entityConfig.show_graph !== false)
+    .map(entityConfig => (isNumeric(entityConfig.line_width)
+      ? entityConfig.line_width : config.line_width));
+  if (widths.length === 0) {
+    return { min: config.line_width, max: config.line_width };
+  }
+  return { min: Math.min(...widths), max: Math.max(...widths) };
+};
+
 export {
+  getLog10,
+  isObjectAttr,
+  getObjectAttr,
+  isNumericEntity,
+  getLineWidthRange,
   STATIC_VALUE_ICON,
   iconFor,
   getIntervalEndDate,

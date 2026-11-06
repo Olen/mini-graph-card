@@ -5,7 +5,7 @@ import {
   DEFAULT_BAR_SPACING,
 } from './const';
 import { log } from './utils';
-import { getIntervalEndDate } from './others';
+import { getIntervalEndDate, getLog10 } from './others';
 
 export default class Graph {
   constructor({
@@ -84,9 +84,9 @@ export default class Graph {
    * @returns {number} A Y coordinate
    */
   getY(value) {
-    const max = this._logarithmic ? Math.log10(Math.max(1, this.max)) : this.max;
-    const min = this._logarithmic ? Math.log10(Math.max(1, this.min)) : this.min;
-    const val = this._logarithmic ? Math.log10(Math.max(1, value)) : value;
+    const max = this._logarithmic ? getLog10(this.max) : this.max;
+    const min = this._logarithmic ? getLog10(this.min) : this.min;
+    const val = this._logarithmic ? getLog10(value) : value;
     const yRatio = ((max - min) / this._height) || 1;
     return this._height - ((val - min) / yRatio) + this._margin[Y] * 2;
   }
@@ -232,12 +232,12 @@ export default class Graph {
    */
   _calcY(coords) {
     // account for logarithmic graph
-    const max = this._logarithmic ? Math.log10(Math.max(1, this.max)) : this.max;
-    const min = this._logarithmic ? Math.log10(Math.max(1, this.min)) : this.min;
+    const max = this._logarithmic ? getLog10(this.max) : this.max;
+    const min = this._logarithmic ? getLog10(this.min) : this.min;
 
     const yRatio = ((max - min) / this._height) || 1;
     const coords2 = coords.map((coord) => {
-      const val = this._logarithmic ? Math.log10(Math.max(1, coord[V])) : coord[V];
+      const val = this._logarithmic ? getLog10(coord[V]) : coord[V];
       const coordY = this._height - ((val - min) / yRatio) + this._margin[Y] * 2;
       return [coord[X], coordY, coord[V], coord[BUCKET]];
     });
@@ -323,7 +323,7 @@ export default class Graph {
 
   computeGradient(thresholds) {
     const scale = this._logarithmic
-      ? Math.log10(Math.max(1, this._max)) - Math.log10(Math.max(1, this._min))
+      ? getLog10(this._max) - getLog10(this._min)
       : this._max - this._min;
 
     return thresholds.map((stop, index, arr) => {
