@@ -5,7 +5,7 @@
  * and do not belong to other modules like "locale.js"
  */
 
-import { log } from './utils';
+import { log, getFirstDefinedItem } from './utils';
 import {
   X,
   Y,
@@ -892,6 +892,20 @@ const isNumericEntity = (hass, entityId) => {
 };
 
 /**
+ * Whether an entity's line is smoothed: its own setting, else the card's, else
+ * on for everything but binary sensors and static values.
+ * @param {object} entityConfig The entity's entry in config.entities
+ * @param {object} config Card config
+ * @returns {boolean} True if the line is smoothed
+ */
+const smoothingFor = (entityConfig, config) => {
+  const { entity } = entityConfig;
+  // A binary sensor's line is a staircase; curving its edges says nothing true.
+  const byDomain = !!entity && !entity.startsWith('binary_sensor.');
+  return getFirstDefinedItem(entityConfig.smoothing, config.smoothing, byDomain);
+};
+
+/**
  * The thinnest and thickest line drawn: each shown entity's line_width, else
  * the card's.
  * @param {object} config Card config
@@ -913,6 +927,7 @@ export {
   isObjectAttr,
   getObjectAttr,
   isNumericEntity,
+  smoothingFor,
   getLineWidthRange,
   STATIC_VALUE_ICON,
   iconFor,

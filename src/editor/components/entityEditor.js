@@ -2,6 +2,7 @@ import { fireEvent } from 'custom-card-helpers';
 import { LitElement, html } from 'lit-element';
 import { ENTITYSCHEMA } from '../editorConst';
 import { withNameField } from '../nameField';
+import { withSmoothingDefault } from '../smoothingField';
 import { localize } from '../../localize/localize';
 import './colorSelector';
 import './subPageHeader';
@@ -47,6 +48,10 @@ class EntityEditor extends LitElement {
     const DATA = {
       entity: this.config,
     };
+    const entitySchema = withNameField(
+      withSmoothingDefault(ENTITYSCHEMA, isObject ? this.config.entity : this.config),
+      isObject ? this.config.name : undefined,
+    );
 
     return html`
       <mini-graph-card-subpage-header
@@ -56,7 +61,7 @@ class EntityEditor extends LitElement {
       <ha-form
         .hass=${this.hass}
         .data=${isObject ? this.config : DATA}
-        .schema=${withNameField(ENTITYSCHEMA, isObject ? this.config.name : undefined)}
+        .schema=${entitySchema}
         .computeLabel=${this.computeLabel}
         .computeHelper=${schema => this.computeHelper(schema, isObject ? this.config : DATA)}
         .localizeValue=${this.localizeValue}

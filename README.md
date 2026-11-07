@@ -82,6 +82,8 @@ fixes below. See [Visual editor](#visual-editor).
   invisible; at a point per day every number on the card is wrong. The line is
   now a spline **through** the measurements, damped so a curve cannot bulge
   past a value that was never measured.
+- Binary sensors were smoothed although the default said they should not be:
+  the card-wide `smoothing: true` default always won over the per-entity one.
 - The history cache was appended to for ever and never re-read, so a recorder
   that was purged, restored or corrected showed through until the card's config
   changed. A window is now refetched whole once it is older than `hours_to_show`
@@ -172,12 +174,27 @@ and CI runs lint, tests and a build on every push.
 > This fork registers the same card name, `custom:mini-graph-card`. **Remove or
 > uninstall the official card first** - two copies both define
 > `<mini-graph-card>`, and whichever loads second is ignored, so you may be
-> testing the one you did not mean to. In HACS: uninstall *mini-graph-card*,
-> and delete any leftover `www/community/mini-graph-card/` files, including
+> testing the one you did not mean to. In the Marketplace (or HACS): uninstall
+> *mini-graph-card*, and delete any leftover `www/community/mini-graph-card/` files, including
 > `mini-graph-card-bundle.js.gz` (Home Assistant serves the `.gz` in preference
 > to the `.js`, so a stale one keeps being used).
 
-### HACS custom repository (recommended)
+### Marketplace (recommended)
+
+Home Assistant 2026.11 and later.
+
+1. Settings → Marketplace → **Add from link**. Adding from a link needs the
+   Marketplace connected to GitHub; it asks when you select Add.
+2. GitHub link: `https://github.com/Olen/mini-graph-card`, type: **Dashboard**.
+3. Install **mini-graph-card**, and reload your browser.
+
+The Marketplace installs the bundle to
+`/local/community/mini-graph-card/mini-graph-card-bundle.js` and adds the
+resource for you.
+
+### HACS custom repository
+
+Home Assistant before 2026.11.
 
 1. HACS → three-dot menu → **Custom repositories**.
 2. Repository: `https://github.com/Olen/mini-graph-card`, type: **Dashboard**
@@ -208,7 +225,7 @@ and adds the resource for you.
 
 ### Add resource reference
 
-Not needed for a HACS install - HACS registers the resource itself.
+Not needed for a Marketplace or HACS install - they register the resource themselves.
 
 If you configure Lovelace via YAML, add a reference inside your
 `configuration.yaml`:
@@ -229,9 +246,9 @@ Else, if you prefer the graphical editor, use the menu to add the resource:
 
 ### Going back to the official card
 
-Uninstall this one in HACS, remove the custom repository, then install
-*mini-graph-card* from HACS as usual. The card config itself needs no changes -
-unless you used an option this fork added, which the official card does not
+Uninstall this one in the Marketplace (or HACS), remove it from Custom
+repositories, then install *mini-graph-card* from there as usual. The card
+config itself needs no changes - unless you used an option this fork added, which the official card does not
 know about.
 
 ## Updating
@@ -340,7 +357,7 @@ An option with a wrong type or value is replaced by its default, with a warning 
 | hover_mode ★ | string | `nearest` | | How a value is picked when hovering the graph: `nearest` selects the point closest to the cursor from anywhere in the graph, `point` only when the cursor is over the point itself. See [Hovering](#hovering).
 | align_state ◆ | string | `left` | v0.2.0 | Set the alignment of the current state: `left`, `right`, `center`, or `top-left`, `top-right`, `bottom-left`, `bottom-right` to pin it to a corner of the card, see [Card size](#card-size) - a `top-*` state wants `align_icon: state` or `left` to stay clear of the icon.
 | y_axis | [Y-axis object](#y-axis-object) |  | v0.14.0 | Per-axis bounds, decimals and value factor, see [Y-axis object](#y-axis-object).
-| smoothing ◆ | boolean | `true` | v0.8.0 | Whether to make graph line smooth. The line is curved through the measured values, never past them - points, hover labels and `state: last` always read real data.
+| smoothing ◆ | boolean | `true`, `false` for binary sensors | v0.8.0 | Whether to make graph line smooth. The line is curved through the measured values, never past them - points, hover labels and `state: last` always read real data.
 | state_map | [state map object](#state-map-object) |  | v0.8.0 | List of entity states to convert (order matters as position becomes a value on the graph).
 | logarithmic | boolean | `false` | v0.10.0 | Use a logarithmic scale for the graph (see [Logarithmic options](#logarithmic-options)).
 | fill_baseline | number |  | v0.14.0 | Set a custom baseline for the graph (see [Baseline](#baseline)).

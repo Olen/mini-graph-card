@@ -51,7 +51,7 @@ import {
 import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
-  isNumericEntity,
+  isNumericEntity, smoothingFor,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
@@ -233,7 +233,7 @@ class MiniGraphCard extends LitElement {
           ? [0, max_line_width]
           : [min_line_width, max_line_width];
       this.Graph = this.config.entities.map(
-        (entity, index) => new Graph({
+        entity => new Graph({
           // The measured size, when there is one: the viewBox is drawn from it,
           // and a Graph built for another size would plot outside that box.
           width: this.graphWidth,
@@ -243,11 +243,7 @@ class MiniGraphCard extends LitElement {
           points_per_hour: this.config.points_per_hour,
           aggregateFuncName: entity.aggregate_func || this.config.aggregate_func,
           groupBy: this.config.group_by,
-          smoothing: getFirstDefinedItem(
-            entity.smoothing,
-            this.config.smoothing,
-            this.getDefaultSmoothing(index),
-          ),
+          smoothing: smoothingFor(entity, this.config),
           logarithmic: getFirstDefinedItem(
             entity.logarithmic,
             this.config.logarithmic,
@@ -265,24 +261,6 @@ class MiniGraphCard extends LitElement {
     }
     // A name may have been edited into or out of a template
     if (this._hass) this.syncTemplates();
-  }
-
-  /**
-   * Check if smoothing can be defaulted to `true` for an entity
-   * @param {number} index Index of an entry in config.entities
-   * @returns {boolean} True if smoothing is applicable for an entity, false - otherwise
-   */
-  getDefaultSmoothing(index) {
-    const { entity } = this.config.entities[index];
-    if (entity) {
-      // Turn off default smoothing for binary_sensor entities.
-      // Can be also refactored for other non-numerical domains if needed.
-      // Smoothing should be manually turned on in config
-      // in case of addressing a numerical attribute.
-      return !entity.startsWith('binary_sensor.');
-    }
-    // processing a possible `static_value` entry
-    return false;
   }
 
   get datetimeFormatFromCfgParsed() {
