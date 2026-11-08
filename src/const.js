@@ -23,6 +23,9 @@ const DEFAULT_GRAPH_WIDTH = 500;
 const DEFAULT_MARGIN = 5;
 const DEFAULT_HOURS_TO_SHOW = 24;
 const DEFAULT_POINTS_PER_HOUR = 0.5;
+// show.state: "overall_<aggregate func>"
+const OVERALL_PREFIX = 'overall_';
+const AGGREGATE_FUNCS = ['avg', 'median', 'max', 'min', 'first', 'last', 'sum', 'delta', 'diff'];
 // The length of a bucket, in hours, for each fixed group_by; "interval" uses
 // points_per_hour instead.
 const GROUP_BY_HOURS = {
@@ -207,6 +210,8 @@ export {
   DEFAULT_HOURS_TO_SHOW,
   DEFAULT_POINTS_PER_HOUR,
   GROUP_BY_HOURS,
+  AGGREGATE_FUNCS,
+  OVERALL_PREFIX,
   DEFAULT_STATIC_VALUE_LABEL_OFFSET,
   NBSP,
   DEFAULT_COLORS,

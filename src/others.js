@@ -11,6 +11,7 @@ import {
   Y,
   V,
   ONE_HOUR,
+  OVERALL_PREFIX,
   STATISTICS_TYPES,
   DEFAULT_STATISTICS_TYPES,
   GRID_ROW_HEIGHT,
@@ -772,6 +773,53 @@ const computeBoundary = (type, series, configVal, fallback) => {
 };
 
 /**
+ * Whether show.state asks for one value for the whole period.
+ * @param {*} showState The show.state option
+ * @returns {boolean} True for "overall" and "overall_<func>"
+ */
+const isOverallState = showState => showState === 'overall'
+  || (typeof showState === 'string' && showState.startsWith(OVERALL_PREFIX));
+
+/**
+ * The aggregate function an "overall" state uses: "overall" takes the graph's
+ * own, "overall_<func>" names one.
+ * @param {*} showState The show.state option, already checked
+ * @param {string} aggregateFuncName The entity's aggregate_func
+ * @returns {string|undefined} The function, or undefined when no overall value is shown
+ */
+const overallFuncName = (showState, aggregateFuncName) => {
+  if (!isOverallState(showState)) return undefined;
+  if (showState === 'overall') return aggregateFuncName;
+  return showState.slice(OVERALL_PREFIX.length);
+};
+
+/**
+ * The mean of a series over a time span, each reading weighted by how long it
+ * held: until the next reading, or the span's end. A reading from before the
+ * span counts from its start. A non-numeric reading (unavailable) holds no
+ * value, so its time is left out.
+ * @param {Array} readings [{last_changed, state}], in any order
+ * @param {number} start Span start, in ms
+ * @param {number} end Span end, in ms
+ * @returns {number|undefined} The mean, or undefined when no value held for any time
+ */
+const timeWeightedAverage = (readings, start, end) => {
+  const sorted = readings
+    .map(item => ({ time: new Date(item.last_changed).getTime(), value: parseFloat(item.state) }))
+    .sort((a, b) => a.time - b.time);
+  let weighted = 0;
+  let held = 0;
+  sorted.forEach((reading, i) => {
+    const from = Math.max(reading.time, start);
+    const to = i + 1 < sorted.length ? Math.min(sorted[i + 1].time, end) : end;
+    if (Number.isNaN(reading.value) || !(to > from)) return;
+    weighted += reading.value * (to - from);
+    held += to - from;
+  });
+  return held > 0 ? weighted / held : undefined;
+};
+
+/**
  * The value of the newest plotted bar or point, for "show: state: last".
  * @param {boolean} isBarGraph Whether the graph draws bars
  * @param {Array|undefined} bars The entity's bars
@@ -923,6 +971,9 @@ const getLineWidthRange = (config) => {
 };
 
 export {
+  isOverallState,
+  overallFuncName,
+  timeWeightedAverage,
   getLog10,
   isObjectAttr,
   getObjectAttr,

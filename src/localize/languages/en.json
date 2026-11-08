@@ -105,7 +105,8 @@
       "options": {
         "show": "Show",
         "hide": "Hide",
-        "last": "Last"
+        "last": "Last",
+        "overall": "Overall"
       }
     },
     "graph": {

@@ -37,6 +37,7 @@ has not been released - the last stable upstream release is v0.13.0.
 | `font_size_secondary` / `_legend` / `_extrema` / `_labels` | Size each part of the card on its own, instead of everything but the header and the state scaling off one number. |
 | [`grid_x` / `grid_y`](#grid-lines) | Grid lines, with labels. Vertical ones land on real midnights and whole hours, horizontal ones on round values, and both thin out on a small card. ([upstream #837](https://github.com/kalkih/mini-graph-card/issues/837), [#739](https://github.com/kalkih/mini-graph-card/issues/739), and where [#1179](https://github.com/kalkih/mini-graph-card/pull/1179) was heading) |
 | [`hover_mode`](#hovering) | Hover anywhere in the graph to read the nearest value, instead of having to hit a point a few pixels wide. Works with several entities & on a touch screen. ([upstream #1357](https://github.com/kalkih/mini-graph-card/issues/1357)) |
+| [`show.state: overall`](#overall-value) | One value for the whole period instead of the current state, like upstream's - except that `avg` is weighted by time, so a burst of reports does not outweigh a quiet day. |
 | [`format`](#duration-format) | Write a value as `[h:]mm:ss` rather than as a number, converted from whatever unit the entity reports it in - 9.11 minutes is a time, and `9:07` is how a time reads. |
 
 ### The card sizes itself
@@ -419,7 +420,7 @@ All properties are optional.
 |------|:-------:|:-------:|-------------|
 | name | `true` | `true` / `false` | Display name.
 | icon | `true` | `true` / `false` | Display icon.
-| state | `true` | `true` / `false` / `last` | Display current state. `last` will show the last graph point's or bar's value (fallback to `true` if points are not shown for a line graph).
+| state | `true` | `true` / `false` / `last` / `overall` / `overall_<func>` | Display current state. `last` will show the last graph point's or bar's value (fallback to `true` if points are not shown for a line graph). `overall` shows one value for the whole period, see [Overall value](#overall-value).
 | graph | `line` | `line` / `bar` / `false` | Display option for the graph. If set to `bar` a maximum of `96` bars will be displayed.
 | fill | `true` | `true` / `false` / `fade` | Display the line graph fill.
 | points | `hover` | `true` / `false` / `hover` | Display graph data points (for a line graph only).
@@ -597,6 +598,25 @@ These buckets are converted later to single point/bar on the graph. Aggregate fu
 | `sum` | v0.9.2 |
 | `delta` | v0.9.4 | Calculates difference between max and min value
 | `diff` | v0.11.0 | Calculates difference between first and last value
+
+### Overall value
+`show: {state: overall}` shows one value for the whole period instead of the
+current state: the card's (or the entity's) `aggregate_func` over everything in
+the graph. `overall_<func>` picks another function, so a line of hourly
+averages can show `overall_max`, the highest reading of the day, and an energy
+meter can show `overall_diff`, what was used over the period.
+
+It applies to the main state and to entities with `show_state: true`, and works
+for an entity with `show_graph: false` too. Hovering the graph still shows the
+hovered value.
+
+- The reading that was current when the period started counts as its first, so
+  `diff` and `delta` cover the whole period.
+- `avg` weighs each reading by how long it held, from the start of the period
+  until now: a sensor that sat at 20 °C for 23 hours and then reported 25 °C five
+  times in the last hour averages about 20.2, not 24. Time spent unavailable is
+  left out. The other functions use the readings as they are.
+- A static value is shown as it is.
 
 ### Caching
 

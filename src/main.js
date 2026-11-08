@@ -51,7 +51,7 @@ import {
 import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
-  isNumericEntity, smoothingFor,
+  isNumericEntity, smoothingFor, overallFuncName, isOverallState,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
@@ -233,7 +233,7 @@ class MiniGraphCard extends LitElement {
           ? [0, max_line_width]
           : [min_line_width, max_line_width];
       this.Graph = this.config.entities.map(
-        entity => new Graph({
+        (entity, index) => new Graph({
           // The measured size, when there is one: the viewBox is drawn from it,
           // and a Graph built for another size would plot outside that box.
           width: this.graphWidth,
@@ -256,6 +256,12 @@ class MiniGraphCard extends LitElement {
             entity.fill_baseline,
             this.config.fill_baseline,
           ),
+          overallFuncName: this.showsOverall(index)
+            ? overallFuncName(
+              this.config.show.state,
+              entity.aggregate_func || this.config.aggregate_func || 'avg',
+            )
+            : undefined,
         }),
       );
     }
@@ -728,6 +734,11 @@ class MiniGraphCard extends LitElement {
   */
   getEntityState(index) {
     const entityConfig = this.config.entities[index];
+    if (this.showsOverall(index)) {
+      const { overall } = this.Graph[index];
+      // no history yet, or nothing numeric in it: show the current state
+      if (overall !== undefined) return overall;
+    }
     if (this.config.show.state === 'last') {
       const isBarGraph = this.config.show.graph === 'bar';
       const last = lastPlottedValue(isBarGraph, this.bar[index], this.points[index]);
@@ -743,6 +754,19 @@ class MiniGraphCard extends LitElement {
       // current state value
       return this.entity[index].state;
     }
+  }
+
+  /**
+   * Whether an entity's state shows one value for the whole period: the main
+   * entity, or one with show_state, of a card with an "overall" show.state.
+   * A static value is the same over any period, so it is shown as it is.
+   * @param {number} index Index of an entry in config.entities
+   * @returns {boolean} True for an overall value
+   */
+  showsOverall(index) {
+    return isOverallState(this.config.show.state)
+      && !this._isStaticValue[index]
+      && (index === 0 || !!this.config.entities[index].show_state);
   }
 
   /**
@@ -2358,15 +2382,12 @@ class MiniGraphCard extends LitElement {
     }
 
 
-    if (config.show.graph) {
-      this.entity.forEach((entity, i) => {
-        if (entity
-          || (!entity && this._isStaticValue[i])
-        ) {
-          this.Graph[i].update();
-        }
-      });
-    }
+    this.entity.forEach((entity, i) => {
+      if ((entity || this._isStaticValue[i])
+        && (config.show.graph || this.Graph[i].calculatesOverall)) {
+        this.Graph[i].update();
+      }
+    });
 
     this.updateBounds();
 
@@ -2385,7 +2406,9 @@ class MiniGraphCard extends LitElement {
       let graphPos = 0;
       this.entity.forEach((entity, i) => {
         if ((!entity && !this._isStaticValue[i])
-          || this.Graph[i].coords.length === 0)
+          || this.Graph[i].coords.length === 0
+          // its history may be fetched for an overall value only
+          || config.entities[i].show_graph === false)
           return;
         const bound = config.entities[i].y_axis === 'secondary' ? this.boundSecondary : this.bound;
         [this.Graph[i].min, this.Graph[i].max] = [bound[0], bound[1]];
@@ -2493,7 +2516,7 @@ class MiniGraphCard extends LitElement {
     if ((!entity && !this._isStaticValue[index])
       || (!entity && this._isStaticValue[index] && !this.updateQueue.includes(`static_value-${index}`))
       || (entity && !this.updateQueue.includes(`${entity.entity_id}-${index}`))
-      || this.config.entities[index].show_graph === false
+      || (this.config.entities[index].show_graph === false && !this.showsOverall(index))
     ) return;
 
     if (this._isStaticValue[index]) {

@@ -317,6 +317,7 @@ const MAINSCHEMA = [
                       { label: 'Show', value: 'show' },
                       { label: 'Hide', value: 'hide' },
                       { label: 'Last', value: 'last' },
+                      { label: 'Overall', value: 'overall' },
                     ],
                     mode: 'dropdown',
                     translation_key: 'state',

@@ -5,7 +5,7 @@ import {
   DEFAULT_BAR_SPACING,
 } from './const';
 import { log } from './utils';
-import { getIntervalEndDate, getLog10 } from './others';
+import { getIntervalEndDate, getLog10, timeWeightedAverage } from './others';
 
 export default class Graph {
   constructor({
@@ -22,6 +22,7 @@ export default class Graph {
     bar_spacing_group = DEFAULT_BAR_SPACING, // spacing between groups of bars
     total_bars_in_group = 1, // number of bars (i.e. number of entities with a shown bar graph)
     fill_baseline,
+    overallFuncName, // undefined: no overall value
   }) {
     const aggregateFuncMap = {
       avg: this._average,
@@ -44,6 +45,7 @@ export default class Graph {
     this._points_per_hour = points_per_hour;
     this._hours_to_show = hours_to_show;
     this._aggregateFuncName = aggregateFuncName;
+    this._aggregateFuncMap = aggregateFuncMap;
     this._calcPoint = aggregateFuncMap[aggregateFuncName] || this._average;
     this._smoothing = smoothing;
     this._logarithmic = logarithmic;
@@ -53,6 +55,8 @@ export default class Graph {
     this._groupBy = groupBy;
     this._endTime = 0;
     this._fill_baseline = fill_baseline;
+    this._overallFuncName = overallFuncName;
+    this.overall = undefined;
   }
 
   get max() { return this._max; }
@@ -64,6 +68,8 @@ export default class Graph {
   set min(min) { this._min = min; }
 
   set history(data) { this._history = data; }
+
+  get calculatesOverall() { return this._overallFuncName !== undefined; }
 
 
   /**
@@ -135,12 +141,14 @@ export default class Graph {
     // from one which has not loaded yet.
     if (this._history.length === 0) {
       this.coords = [];
+      this.overall = undefined;
       return;
     }
     this._updateEndTime();
 
-    const histGroups = this._windowHistory(this._history)
-      .reduce((res, item) => this._reducer(res, item), []);
+    const readings = this._windowHistory(this._history);
+    this.overall = this.calculatesOverall ? this._calcOverall(readings) : undefined;
+    const histGroups = readings.reduce((res, item) => this._reducer(res, item), []);
 
     // extend length to fill missing history
     const requiredNumOfPoints = Math.ceil(this._hours_to_show * this._points_per_hour);
@@ -171,6 +179,23 @@ export default class Graph {
       }
     });
     return opening ? [opening, ...inside] : inside;
+  }
+
+  /**
+   * One value for the whole window, from the same readings as the graph. The
+   * average weighs each reading by how long it held, so a burst of reports
+   * does not outweigh a quiet day.
+   * @param {Array} readings The window's readings (see _windowHistory)
+   * @returns {number|undefined} The value, or undefined with no numeric reading
+   */
+  _calcOverall(readings) {
+    if (this._overallFuncName === 'avg') {
+      const windowStart = this._endTime - this._hours_to_show * ONE_HOUR;
+      return timeWeightedAverage(readings, windowStart, Date.now());
+    }
+    const numeric = readings.filter(item => !Number.isNaN(parseFloat(item.state)));
+    if (numeric.length === 0) return undefined;
+    return this._aggregateFuncMap[this._overallFuncName].call(this, numeric);
   }
 
   _reducer(res, item) {

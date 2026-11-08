@@ -1,6 +1,8 @@
 import {
   URL_DOCS,
   GROUP_BY_HOURS,
+  AGGREGATE_FUNCS,
+  OVERALL_PREFIX,
   STATISTICS_PERIODS,
   STATISTICS_TYPES,
 } from './const';
@@ -403,6 +405,22 @@ const checkGroupBy = (config) => {
 };
 
 /**
+ * show.state: true, false, "last", "overall" or "overall_<aggregate func>".
+ * Anything else shows the current state, with a warning.
+ * @param {*} state The show.state option
+ * @returns {boolean|string} The value to use
+ */
+const checkShowState = (state) => {
+  if ([true, false, 'last', 'overall'].includes(state)) return state;
+  if (typeof state === 'string' && state.startsWith(OVERALL_PREFIX)
+    && AGGREGATE_FUNCS.includes(state.slice(OVERALL_PREFIX.length))) {
+    return state;
+  }
+  log(`Invalid show.state "${state}", showing the current state; see ${URL_DOCS}`);
+  return true;
+};
+
+/**
  * The points_per_hour a group_by implies: one point per bucket. "interval"
  * keeps the configured value.
  * @param {object} config Config object, with group_by already checked
@@ -415,6 +433,7 @@ const checkPointsPerHour = (config) => {
 };
 
 export {
+  checkShowState,
   checkEntities,
   checkGroupBy,
   checkPointsPerHour,

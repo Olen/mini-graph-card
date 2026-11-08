@@ -33,6 +33,7 @@ import {
   checkStringOption,
   checkLineStyle,
   checkGroupBy,
+  checkShowState,
   checkPointsPerHour,
 } from './checkOption';
 import { getFactor, parseGraphHeight, parseGrid } from './others';
@@ -326,6 +327,7 @@ export default (config) => {
   // warn if line_style is defined along with animate=true
   checkLineStyle(conf);
 
+  conf.show.state = checkShowState(conf.show.state);
   conf.group_by = checkGroupBy(conf);
   conf.points_per_hour = checkPointsPerHour(conf);
 
