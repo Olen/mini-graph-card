@@ -256,9 +256,9 @@ class MiniGraphCard extends LitElement {
           bar_spacing: this.config.bar_spacing,
           bar_spacing_group: this.config.bar_spacing_group,
           total_bars_in_group: this.visibleEntities.length,
-          fill_baseline: getFirstDefinedItem(
-            entity.fill_baseline,
-            this.config.fill_baseline,
+          baseline: getFirstDefinedItem(
+            entity.baseline,
+            this.config.baseline,
           ),
           overallFuncName: this.showsOverall(index)
             ? overallFuncName(
@@ -1363,8 +1363,6 @@ class MiniGraphCard extends LitElement {
     if (!bars) return;
     const hoverable = this.config.hover_mode === HOVER_POINT;
     const isAnimated = isEntryAnimated(this.config, index);
-    const graphHeight = this.graphHeight !== undefined
-      ? this.graphHeight : DEFAULT_GRAPH_HEIGHT;
     // With no spacing, browsers draw some bar edges and blend others together;
     // a faint seam in the card's background colour separates every bar alike.
     const seam = this.config.bar_spacing === 0
@@ -1374,7 +1372,7 @@ class MiniGraphCard extends LitElement {
       : '';
     const items = bars.map((bar) => {
       const barsStyle = (isAnimated
-        ? `transform-origin: ${bar.x}px ${graphHeight}px;`
+        ? `transform-origin: ${bar.x}px ${bar.base}px;`
         : '') + seam;
       const color = this.computeColor(bar.value, index);
       return svg`

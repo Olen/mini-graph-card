@@ -21,7 +21,7 @@ export default class Graph {
     bar_spacing = DEFAULT_BAR_SPACING, // spacing between bars
     bar_spacing_group = DEFAULT_BAR_SPACING, // spacing between groups of bars
     total_bars_in_group = 1, // number of bars (i.e. number of entities with a shown bar graph)
-    fill_baseline,
+    baseline,
     overallFuncName, // undefined: no overall value
   }) {
     const aggregateFuncMap = {
@@ -54,7 +54,7 @@ export default class Graph {
     this._total_bars_in_group = total_bars_in_group;
     this._groupBy = groupBy;
     this._endTime = 0;
-    this._fill_baseline = fill_baseline;
+    this._baseline = baseline;
     this._overallFuncName = overallFuncName;
     this.overall = undefined;
   }
@@ -377,24 +377,24 @@ export default class Graph {
    * @returns SVG path for a fill
    */
   /**
-   * Y where a fill under the line ends: the bottom edge, or fill_baseline. A
-   * baseline in the margin band (at or beyond min/max) snaps to that edge, or a
-   * strip along it would stay unfilled.
-   * @returns {number} Y-coord of the fill's baseline
+   * Y where a fill under the line ends and bars grow from: the bottom edge, or
+   * the baseline. A baseline in the margin band (at or beyond min/max) snaps
+   * to that edge, or a strip along it would stay unfilled.
+   * @returns {number} Y-coord of the baseline
    */
-  get fillBaselineY() {
+  get baselineY() {
     const absoluteTop = 0;
     const absoluteBottom = this._height + this._margin[Y] * 4;
-    if (this._fill_baseline === undefined) return absoluteBottom;
+    if (this._baseline === undefined) return absoluteBottom;
 
-    const baselineY = this.getY(this._fill_baseline);
+    const baselineY = this.getY(this._baseline);
     if (baselineY <= this._margin[Y] * 2) return absoluteTop;
     if (baselineY >= this._height + this._margin[Y] * 2) return absoluteBottom;
     return baselineY;
   }
 
   getFill(path) {
-    const height = this.fillBaselineY;
+    const height = this.baselineY;
     let fill = path;
     // note that currently this._margin[X] = 0 when fill is defined
     fill += ` L ${this._width + this._margin[X]}, ${height}`;
@@ -434,15 +434,20 @@ export default class Graph {
       }
     }
 
+    // A bar spans from the baseline to its value: up for a value above it,
+    // down for one below - so a negative value reads as negative.
+    const base = this.baselineY;
     return coords.map(coord => ({
       x: this._margin[X]
         + (group_width + spacing_group) * coord[BUCKET]
         + (spacing === -1 ? 0 : (bar_width + spacing) * position),
-      y: coord[Y],
-      height: this._height - coord[Y] + this._margin[Y] * 4,
+      y: Math.min(coord[Y], base),
+      height: Math.abs(base - coord[Y]),
       width: bar_width,
       value: coord[V],
       index: coord[BUCKET],
+      base,
+      tip: coord[Y],
     }));
   }
 

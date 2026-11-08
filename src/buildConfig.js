@@ -1,4 +1,4 @@
-import { migrateYaxisConfig } from './migrate';
+import { migrateYaxisConfig, migrateBaselineConfig } from './migrate';
 import {
   URL_DOCS,
   MAX_BARS,
@@ -153,8 +153,8 @@ export default (config) => {
       `"line_color_above/line_color_below" was removed, please use "color_thresholds".\n See ${URL_DOCS}`,
     );
 
-  // legacy flat axis options still work; they are copied into y_axis here
-  const migratedConfig = migrateYaxisConfig(config);
+  // legacy options still work: flat axis options move into y_axis, fill_baseline becomes baseline
+  const migratedConfig = migrateBaselineConfig(migrateYaxisConfig(config));
 
   const conf = {
     animate: false,
@@ -266,7 +266,7 @@ export default (config) => {
     conf.static_value_label_offset = DEFAULT_STATIC_VALUE_LABEL_OFFSET;
   }
 
-  conf.fill_baseline = checkNumericOption(conf, 'fill_baseline', undefined, { allowString: true });
+  conf.baseline = checkNumericOption(conf, 'baseline', undefined, { allowString: true });
 
   conf.state_map = checkStateMap(conf.state_map, 'state_map');
   ['primary', 'secondary'].forEach((axis) => {
@@ -288,7 +288,7 @@ export default (config) => {
       entity.line_width = checkNumericOption(entity, 'line_width', conf.line_width, { minBound: 0, allowString: true });
       entity.decimals = checkIntegerOption(entity, 'decimals', conf.decimals, { minBound: 0, allowString: true });
       entity.format = checkStringOption(entity, 'format', VALUE_FORMATS, conf.format);
-      entity.fill_baseline = checkNumericOption(entity, 'fill_baseline', undefined, { allowString: true });
+      entity.baseline = checkNumericOption(entity, 'baseline', undefined, { allowString: true });
       entity.state_map = checkStateMap(entity.state_map, `entities[${i}].state_map`);
 
       if (entity.color_thresholds) {

@@ -83,6 +83,9 @@ fixes below. See [Visual editor](#visual-editor).
   invisible; at a point per day every number on the card is wrong. The line is
   now a spline **through** the measurements, damped so a curve cannot bulge
   past a value that was never measured.
+- A bar for a value below the baseline grew up from the bottom edge, so with
+  an axis from -10 to 10 a -5 read like a small positive bar. Bars now grow
+  down from the `baseline` for values below it.
 - Binary sensors were smoothed although the default said they should not be:
   the card-wide `smoothing: true` default always won over the per-entity one.
 - The history cache was appended to for ever and never re-read, so a recorder
@@ -361,7 +364,7 @@ An option with a wrong type or value is replaced by its default, with a warning 
 | smoothing ◆ | boolean | `true`, `false` for binary sensors | v0.8.0 | Whether to make graph line smooth. The line is curved through the measured values, never past them - points, hover labels and `state: last` always read real data.
 | state_map | [state map object](#state-map-object) |  | v0.8.0 | Labels for states, for all entities: text states drawn as numbers, or words for numeric ranges. An entity's own `state_map` replaces it.
 | logarithmic | boolean | `false` | v0.10.0 | Use a logarithmic scale for the graph (see [Logarithmic options](#logarithmic-options)).
-| fill_baseline | number |  | v0.14.0 | Set a custom baseline for the graph (see [Baseline](#baseline)).
+| baseline | number |  | v0.14.0 | Where a fill ends and bars grow from (see [Baseline](#baseline)). Formerly `fill_baseline`.
 
 
 
@@ -401,7 +404,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | fixed_value | boolean |         | Set to true to graph the entity's current state as a fixed value instead of graphing its state history.
 | smoothing | boolean |         | Override for a flag indicating whether to make graph line smooth.
 | logarithmic | boolean |         | Override logarithmic scaling for this entity only (see [Logarithmic options](#logarithmic-options)).
-| fill_baseline | number |   | Set a custom baseline for the graph or override a global `fill_baseline` option (see [Baseline](#baseline)).
+| baseline | number |   | This entity's own `baseline`, see [Baseline](#baseline).
 
 Note: the "points" term is only applicable to a "line" graph, not to a "bar" graph.
 
@@ -1176,13 +1179,21 @@ Warning: the `line_style` option is not accounted if `animation: true` option is
 
 ### Baseline
 
-The `fill_baseline` option is only meaningful for linear graphs with a fill.
+The `baseline` option sets where a line graph's fill ends and where bars grow
+from. By default both use the bottom edge of the graph.
 
-By default, a fill is applied to an area between a curve and a bottom edge.
-With the `fill_baseline` option set, areas between a curve & a baseline are filled.
-This can be useful to show a deviation of a value near some basis (like for entities which can be both positive & nagitive).
+- **Line graph with a fill:** the area between the line and the baseline is
+  filled, so a value near some level, or one that can be both positive and
+  negative, shows its deviation from it.
+- **Bar graph:** bars grow up from the baseline for values above it and down
+  for values below it. With `baseline: 0` a negative value reads as negative,
+  instead of as a short bar rising from the bottom of the axis.
 
-Additionally, the `fill_baseline` option can be set individually for entities.
+`baseline` can also be set on an entity, for that entity's line or bars.
+
+It used to be called `fill_baseline`, when it only applied to the fill. The old
+name still works: it is migrated with a warning in the browser console, and
+when both are set, `baseline` wins.
 
 See examples [below](#custom-baseline).
 
@@ -1554,7 +1565,7 @@ Baseline is set to 0:
 type: custom:mini-graph-card
 entities:
   - entity: sensor.xxx
-fill_baseline: 0
+baseline: 0
 show:
   labels: true
 ```
@@ -1567,7 +1578,7 @@ Individual baselines for entities (along with displaying static lines):
 type: custom:mini-graph-card
 entities:
   - entity: sensor.xiaomi_cg_1_co2
-    fill_baseline: 660
+    baseline: 660
     color: orange
     name: Room 1
   - static_value: 660
@@ -1576,7 +1587,7 @@ entities:
     color: orange
     show_legend: false
   - entity: sensor.xiaomi_cg_2_co2
-    fill_baseline: 740
+    baseline: 740
     color: green
     name: Room 2
   - static_value: 740

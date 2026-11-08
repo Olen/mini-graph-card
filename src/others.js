@@ -665,7 +665,8 @@ const findNearestPoint = (pointsPerEntity, x, y) => {
  *
  * Bars own a width, so X alone identifies one whenever they are drawn side by
  * side. Y only matters when they overlap ("bar_spacing: -1"), where the bar
- * whose top edge - its value - is nearest the cursor wins.
+ * whose value end (its tip: the top of a bar going up, the bottom of one
+ * going down) is nearest the cursor wins.
  * @param {Array<Array>} barsPerEntity "bar" of the card, indexed by entity
  * @param {number} x A cursor coordinate in the graph's coordinates
  * @param {number} y A cursor coordinate in the graph's coordinates
@@ -688,7 +689,7 @@ const findNearestBar = (barsPerEntity, x, y) => {
   const nearest = Math.min(...candidates.map(candidate => candidate.dx));
   return candidates
     .filter(candidate => candidate.dx === nearest)
-    .reduce((best, candidate) => (Math.abs(candidate.bar.y - y) < Math.abs(best.bar.y - y)
+    .reduce((best, candidate) => (Math.abs(candidate.bar.tip - y) < Math.abs(best.bar.tip - y)
       ? candidate
       : best));
 };

@@ -73,7 +73,39 @@ const migrateYaxisConfig = (config) => {
   return conf;
 };
 
+/**
+ * Rename fill_baseline to baseline, on the card and on each entity: it now
+ * sets where bars grow from too, not just where a fill ends. When both are
+ * set, baseline wins.
+ * @param {object} config Config object
+ * @returns {object} A copy with baseline instead of fill_baseline
+ */
+/* eslint-disable no-param-reassign */
+const migrateBaselineConfig = (config) => {
+  const conf = JSON.parse(JSON.stringify(config));
+
+  const migrate = (holder, where) => {
+    if (holder.fill_baseline === undefined) return;
+    if (holder.baseline === undefined || holder.baseline === null) {
+      holder.baseline = holder.fill_baseline;
+      log(`option "${where}fill_baseline" is deprecated and has been automatically migrated. `
+        + `Please update your YAML configuration to "${where}baseline"`);
+    } else {
+      log(`option "${where}fill_baseline" is ignored `
+        + `because you have already configured "${where}baseline". Please remove "${where}fill_baseline" from your YAML`);
+    }
+    delete holder.fill_baseline;
+  };
+
+  migrate(conf, '');
+  (conf.entities || []).forEach((entity, index) => {
+    if (entity && typeof entity === 'object') migrate(entity, `entities[${index}].`);
+  });
+  return conf;
+};
+/* eslint-enable no-param-reassign */
 
 export {
   migrateYaxisConfig,
+  migrateBaselineConfig,
 };
