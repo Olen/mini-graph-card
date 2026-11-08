@@ -10,6 +10,9 @@ import {
   packEntry, unpackEntry, isUsable, cachedWindow,
 } from './cache';
 import { isTemplate, TemplateSubscriber } from './templates';
+import {
+  stateMapFor, axisStateMap, drawnState, findMapping, renderLabel,
+} from './stateMap';
 import './editor/editor';
 import {
   blankBeforePercent,
@@ -2002,6 +2005,10 @@ class MiniGraphCard extends LitElement {
   * only used to process a preserved unit for a currently unavailable entity
   */
   computeUom(index, inState = undefined) {
+    if (inState !== undefined) {
+      const entry = this.stateMapEntry(inState, index);
+      if (entry && entry.hideUnit) return '';
+    }
     const entityUnit = this.config.entities[index].unit;
     const cardUnit = this.config.unit;
     let unit;
@@ -2112,6 +2119,51 @@ class MiniGraphCard extends LitElement {
   }
 
   /**
+   * The state_map a value shown at `index` goes through: an entity's, or for
+   * an axis label (index undefined: primary, -1: secondary) the axis's.
+   * @param {number} [index] Index of an entry in config.entities
+   * @returns {object|undefined} A checked map, or undefined for none
+   */
+  stateMapAt(index) {
+    if (index === undefined) return axisStateMap(this.config.state_map, this.primaryYaxisEntities);
+    if (index === -1) return axisStateMap(this.config.state_map, this.secondaryYaxisEntities);
+    return stateMapFor(this.config.entities[index], this.config);
+  }
+
+  /**
+   * The state_map entry a value shown at `index` matches.
+   * @param {*} inState A state, or a value drawn on the graph
+   * @param {number} [index] Index of an entry in config.entities, see stateMapAt()
+   * @returns {object|undefined} The entry, or undefined for none
+   */
+  stateMapEntry(inState, index) {
+    const stateMap = this.stateMapAt(index);
+    if (!stateMap) return undefined;
+    const entry = findMapping(stateMap, inState);
+    // a strict map should list every state; a drawn number that is no
+    // position (an average of two) has no label to miss
+    if (!entry && stateMap.strict && typeof inState !== 'number' && !isUnavailableState(inState)) {
+      this.logOnce(`value [${inState}] not found in state_map`);
+    }
+    return entry;
+  }
+
+  /**
+  * Returns a string value for a state/attribute or a static_value: its
+  * state_map label when it has one, otherwise the formatted number.
+  * @returns {string} value of a state/attribute
+  * @param {number|string} inState Value of a state/attribute ("unformatted") or a static_value
+  * @param {number} index Index of an entry in config.entities
+  */
+  computeState(inState, index) {
+    const entry = this.stateMapEntry(inState, index);
+    if (!entry) return this.formatState(inState, index);
+    // ${raw} is the value as it would have been shown; a strict map has none
+    const raw = this.stateMapAt(index).strict ? undefined : this.formatState(inState, index);
+    return renderLabel(entry, raw);
+  }
+
+  /**
   * Returns a string value for a state/attribute or a static_value:
   * localized, following locale settings,
   * (for entities:) accounting possible individual accuracy settings & possible "decimals" options
@@ -2119,19 +2171,7 @@ class MiniGraphCard extends LitElement {
   * @param {number|string} inState Value of a state/attribute ("unformatted") or a static_value
   * @param {number} index Index of an entry in config.entities
   */
-  computeState(inState, index) {
-    if (this.config.state_map.length > 0) {
-      const stateMap = Number.isInteger(inState)
-        ? this.config.state_map[inState]
-        : this.config.state_map.find(state => state.value === String(inState));
-
-      if (stateMap) {
-        return stateMap.label;
-      } else {
-        log(`value [${inState}] not found in state_map`);
-      }
-    }
-
+  formatState(inState, index) {
     if (inState === undefined || inState === null || inState === '') {
       return formatNumber(NaN, this._hass.locale);
     }
@@ -2605,7 +2645,8 @@ class MiniGraphCard extends LitElement {
         newStateHistory[0].shift();
       }
       // check if we should convert states to numeric values
-      if (this.config.state_map.length > 0 || this.config.entities[index].attribute) {
+      const stateMap = stateMapFor(this.config.entities[index], this.config);
+      if ((stateMap && stateMap.strict) || this.config.entities[index].attribute) {
         newStateHistory[0].forEach((item) => {
           if (this.config.entities[index].attribute) {
             // eslint-disable-next-line no-param-reassign
@@ -2613,8 +2654,8 @@ class MiniGraphCard extends LitElement {
             // eslint-disable-next-line no-param-reassign
             delete item.attributes;
           }
-          if (this.config.state_map.length > 0)
-            this._convertState(item);
+          // eslint-disable-next-line no-param-reassign
+          item.state = drawnState(stateMap, item.state);
         });
       }
 
@@ -2727,15 +2768,6 @@ class MiniGraphCard extends LitElement {
         ...getMax(history, 'state'),
       }] : []),
     ];
-  }
-
-  _convertState(res) {
-    const resultIndex = this.config.state_map.findIndex(s => s.value === String(res.state));
-    if (resultIndex === -1) {
-      return;
-    }
-
-    res.state = resultIndex;
   }
 
   getEndDate() {

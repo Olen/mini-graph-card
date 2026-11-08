@@ -27,7 +27,6 @@ import {
   checkIntegerOption,
   checkBounds,
   checkColorThresholds,
-  checkStateMap,
   checkEntities,
   checkStatistics,
   checkStringOption,
@@ -37,6 +36,7 @@ import {
   checkPointsPerHour,
 } from './checkOption';
 import { getFactor, parseGraphHeight, parseGrid } from './others';
+import { checkStateMap } from './stateMap';
 
 /**
  * Starting from the given index, increment the index until an array element with a
@@ -167,7 +167,6 @@ export default (config) => {
     color_thresholds_transition: 'smooth',
     line_width: DEFAULT_MARGIN,
     bar_spacing: DEFAULT_BAR_SPACING,
-    state_map: [],
     cache: true,
     tap_action: {
       action: 'more-info',
@@ -267,6 +266,16 @@ export default (config) => {
 
   conf.fill_baseline = checkNumericOption(conf, 'fill_baseline', undefined, { allowString: true });
 
+  conf.state_map = checkStateMap(conf.state_map, 'state_map');
+  ['primary', 'secondary'].forEach((axis) => {
+    const axisConfig = conf.y_axis && conf.y_axis[axis];
+    if (axisConfig && axisConfig.state_map !== undefined) {
+      log(`Option y_axis.${axis}.state_map is not supported; ignoring it. `
+        + 'Set state_map on the entities instead');
+      delete axisConfig.state_map;
+    }
+  });
+
   // process per-entity configs
   /* eslint-disable no-param-reassign */
   conf.entities.forEach((entity, i) => {
@@ -278,6 +287,7 @@ export default (config) => {
       entity.decimals = checkIntegerOption(entity, 'decimals', conf.decimals, { minBound: 0, allowString: true });
       entity.format = checkStringOption(entity, 'format', VALUE_FORMATS, conf.format);
       entity.fill_baseline = checkNumericOption(entity, 'fill_baseline', undefined, { allowString: true });
+      entity.state_map = checkStateMap(entity.state_map, `entities[${i}].state_map`);
 
       if (entity.color_thresholds) {
         // check color_thresholds
@@ -302,7 +312,6 @@ export default (config) => {
     secondary: getFactor(conf, -1),
   };
 
-  checkStateMap(conf);
 
   if (typeof config.line_color === 'string')
     conf.line_color = [config.line_color, ...DEFAULT_COLORS];

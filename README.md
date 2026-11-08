@@ -359,7 +359,7 @@ An option with a wrong type or value is replaced by its default, with a warning 
 | align_state ◆ | string | `left` | v0.2.0 | Set the alignment of the current state: `left`, `right`, `center`, or `top-left`, `top-right`, `bottom-left`, `bottom-right` to pin it to a corner of the card, see [Card size](#card-size) - a `top-*` state wants `align_icon: state` or `left` to stay clear of the icon.
 | y_axis | [Y-axis object](#y-axis-object) |  | v0.14.0 | Per-axis bounds, decimals and value factor, see [Y-axis object](#y-axis-object).
 | smoothing ◆ | boolean | `true`, `false` for binary sensors | v0.8.0 | Whether to make graph line smooth. The line is curved through the measured values, never past them - points, hover labels and `state: last` always read real data.
-| state_map | [state map object](#state-map-object) |  | v0.8.0 | List of entity states to convert (order matters as position becomes a value on the graph).
+| state_map | [state map object](#state-map-object) |  | v0.8.0 | Labels for states, for all entities: text states drawn as numbers, or words for numeric ranges. An entity's own `state_map` replaces it.
 | logarithmic | boolean | `false` | v0.10.0 | Use a logarithmic scale for the graph (see [Logarithmic options](#logarithmic-options)).
 | fill_baseline | number |  | v0.14.0 | Set a custom baseline for the graph (see [Baseline](#baseline)).
 
@@ -389,6 +389,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | show_legend_state | boolean |  false  | Display the current state as part of the legend.
 | show_indicator | boolean |         | Display a color indicator next to the state.
 | show_graph | boolean |         | Set to false to completely hide the graph.
+| state_map | [state map object](#state-map-object) |         | This entity's own state map, instead of the card's.
 | show_line | boolean |         | Set to false to hide the line.
 | show_fill | boolean |         | Set to false to hide the fill.
 | show_points | boolean |         | Set to false to hide the points (see a note below).
@@ -505,10 +506,66 @@ By default, tapping on an element opens a `more-info` dialog:
 | url | string |  | Any URL | URL to open when `action` is defined as `url`.
 
 #### State map object
+A `state_map` puts labels on states, in one of two modes:
+
+- **strict** (the default): for text states, like `on`/`off`. Each state is
+  drawn at its position in the map (0, 1, ...), so the **order matters**, and
+  shown as its label. A state the map does not list is drawn as it is.
+- **relaxed** (`keep_values: true`): for numbers. The graph keeps the real
+  values; a value an entry matches is shown as that entry's label, like
+  `Danger` for anything from 750 up.
+
+A label is shown for the current state, the hovered value, the legend and the
+extrema. The min/max labels of an axis show the labels of a strict map: the
+only entity's own map, or the card's when no entity on the axis has its own.
+Otherwise, and for a relaxed map, they stay numbers.
+
+Set `state_map` on the card for all entities, or on an entity for that one.
+An entity's own map replaces the card's, so a binary sensor can carry its own
+next to numeric sensors. A `state_map` under `y_axis.primary`/`secondary`
+(upstream's per-axis map) is not supported: it logs a warning and is ignored.
+
+It is a list of entries (strict), or an object with these options:
+
 | Name | Type | Default | Description |
 |------|:----:|:-------:|-------------|
-| value ***(required)*** | string |  | Value to convert.
-| label | string | same as value | String to show as label (if the value is not precise).
+| map ***(required)*** | list |  | The entries.
+| keep_values | boolean | `false` | `true` for a relaxed map.
+| label | string |  | Label for every entry that sets none of its own.
+| hide_unit | boolean | `false` | Show a label without the unit, for every entry that does not say otherwise.
+
+An entry is a value, or an object:
+
+| Name | Type | Default | Description |
+|------|:----:|:-------:|-------------|
+| value | string |  | The state to match. Required in a strict map; in a relaxed one, a number, or use `min`/`max` instead.
+| label | string | the value | What to show instead. In a relaxed map an entry with only `min`/`max` defaults to `${min} .. ${max}`.
+| tolerance | number | `0` | Relaxed only: match values within `value ± tolerance`, both ends included.
+| min / max | number |  | Relaxed only: match values from `min` up to, but not including, `max`.
+| hide_unit | boolean |  | Show this entry's label without the unit.
+
+A label can include `${raw}` (the value as it would have been shown),
+`${value}`, `${tolerance}`, `${min}` and `${max}`; one the entry does not set
+is left empty. In a strict map only `${value}` has a value.
+
+```yaml
+state_map:
+  keep_values: true
+  hide_unit: true
+  map:
+    - min: 650
+      max: 750
+      label: Warning - ${raw}
+    - min: 750
+      max: 5000
+      label: Danger
+```
+
+A strict map is matched by the state's text, so a sensor whose states are `"1"`
+and `"0"` is labelled by what it reads, whatever order the map lists them in.
+
+Reordering a strict map changes where states are drawn; with `cache` on, clear
+the browser's cache afterwards, or cached history is drawn in the old order.
 
 #### Y-axis object
 Options that belong to one Y-axis live under `y_axis.primary` or
@@ -983,10 +1040,12 @@ Notes:
   point per period only produces empty buckets.
 - The whole window is refetched on update rather than appended to the cached
   tail, because a period's bucket is revised until that period completes.
-- `statistics` cannot be combined with `attribute` or `state_map`. Statistics
-  hold numeric aggregates of the state, so there is no attribute to read and
-  no non-numeric state to map. Either combination logs a warning and the
-  entity falls back to raw history, which honours both options.
+- `statistics` cannot be combined with `attribute` or a strict `state_map`.
+  Statistics hold numeric aggregates of the state, so there is no attribute to
+  read and no non-numeric state to map. Either combination logs a warning and
+  the entity falls back to raw history, which honours both options. A relaxed
+  `state_map` (`keep_values: true`) only relabels numbers, so it works with
+  statistics.
 - Values arrive in the entity's own unit. Home Assistant converts a statistic
   from the unit it was recorded in to the entity's current
   `unit_of_measurement` before returning it, which is the unit the card labels
@@ -1580,6 +1639,7 @@ group_by: date
 ![mini_binary_sensor](https://user-images.githubusercontent.com/8268674/66825779-e1ff5d80-ef42-11e9-89eb-673d2ada8d34.png)
 
 You can render non-numeric states by providing state_map config. For example this way you can show data coming from binary sensors.
+See [State map object](#state-map-object) for numeric labels, and for a map per entity.
 
 ```yaml
 type: custom:mini-graph-card

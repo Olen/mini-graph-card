@@ -4,6 +4,7 @@
 
 import { expect, describe, it, vi, afterEach } from 'vitest';
 import { checkStatistics } from '../checkOption';
+import { checkStateMap } from '../stateMap';
 import { STATISTICS_PERIODS, STATISTICS_TYPES } from '../const';
 
 interface ConfigType {
@@ -17,7 +18,8 @@ const ENTITY = 'sensor.test';
 const makeConfig = (entity: any, cardWide?: any, stateMap?: any): ConfigType => {
   const config: ConfigType = { entities: [entity] };
   if (cardWide !== undefined) config.statistics = cardWide;
-  if (stateMap !== undefined) config.state_map = stateMap;
+  // buildConfig() checks state maps before statistics
+  if (stateMap !== undefined) config.state_map = checkStateMap(stateMap, 'state_map');
   return config;
 };
 
@@ -148,7 +150,6 @@ describe('checkStatistics', () => {
     const config = makeConfig({ entity: ENTITY, statistics: true }, undefined, ['off', 'on']);
     checkStatistics(config, 0);
     expect(config.entities[0].statistics).toBeUndefined();
-    expect(config.state_map).toEqual(['off', 'on']);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0].join(' ')).toContain('state_map');
   });
@@ -159,6 +160,24 @@ describe('checkStatistics', () => {
     checkStatistics(config, 0);
     expect(config.entities[0].statistics).toBeUndefined();
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('checkStatistics: with an entity\'s own strict state_map -> falls back too', () => {
+    const warn = mockWarn();
+    const entity = { entity: ENTITY, statistics: true, state_map: checkStateMap(['off', 'on'], 'x') };
+    const config = makeConfig(entity);
+    checkStatistics(config, 0);
+    expect(config.entities[0].statistics).toBeUndefined();
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('checkStatistics: with a relaxed state_map -> keeps statistics', () => {
+    const warn = mockWarn();
+    const relaxed = { keep_values: true, map: [{ min: 650, max: 750, label: 'High' }] };
+    const config = makeConfig({ entity: ENTITY, statistics: true }, undefined, relaxed);
+    checkStatistics(config, 0);
+    expect(config.entities[0].statistics).toBeDefined();
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('checkStatistics: [attribute] without statistics -> no warning', () => {
@@ -186,11 +205,14 @@ describe('checkStatistics', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  // buildConfig() defaults state_map to []
+  // an empty or invalid state_map is no map at all
   [[], undefined, null, 'off', 123, { off: 0 }].forEach((state_map) => {
     it(`checkStatistics: state_map [${JSON.stringify(state_map)}] is not a configured map`, () => {
-      const warn = mockWarn();
+      mockWarn();
       const config = makeConfig({ entity: ENTITY, statistics: true }, undefined, state_map);
+      // only warnings from checkStatistics() count, not the state_map check's own
+      vi.restoreAllMocks();
+      const warn = mockWarn();
       checkStatistics(config, 0);
       expect(config.entities[0].statistics).toEqual({});
       expect(warn).not.toHaveBeenCalled();
