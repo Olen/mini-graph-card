@@ -54,7 +54,7 @@ import {
 import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
-  isNumericEntity, smoothingFor, overallFuncName, isOverallState, isTextState,
+  isNumericEntity, smoothingFor, baselineFor, overallFuncName, isOverallState, isTextState,
   axisLabelShown, showsZeroLabel, boundsForZeroPosition,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
@@ -256,10 +256,7 @@ class MiniGraphCard extends LitElement {
           bar_spacing: this.config.bar_spacing,
           bar_spacing_group: this.config.bar_spacing_group,
           total_bars_in_group: this.visibleEntities.length,
-          baseline: getFirstDefinedItem(
-            entity.baseline,
-            this.config.baseline,
-          ),
+          baseline: baselineFor(entity, this.config),
           invert: this.axisOption(entity.y_axis === 'secondary' ? 'secondary' : 'primary', 'invert') === true,
           overallFuncName: this.showsOverall(index)
             ? overallFuncName(

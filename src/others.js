@@ -1018,6 +1018,18 @@ const smoothingFor = (entityConfig, config) => {
 };
 
 /**
+ * Where an entity's bars & fill start: its own baseline, else the card's,
+ * else 0 when y_axis.zero_position fixes where the zero line is.
+ * @param {object} entityConfig The entity's entry in config.entities
+ * @param {object} config Card config
+ * @returns {number|undefined} The baseline, or undefined for the graph's edge
+ */
+const baselineFor = (entityConfig, config) => {
+  const zeroIsFixed = !!config.y_axis && config.y_axis.zero_position !== undefined;
+  return getFirstDefinedItem(entityConfig.baseline, config.baseline, zeroIsFixed ? 0 : undefined);
+};
+
+/**
  * The thinnest and thickest line drawn: each shown entity's line_width, else
  * the card's.
  * @param {object} config Card config
@@ -1047,6 +1059,7 @@ export {
   getObjectAttr,
   isNumericEntity,
   smoothingFor,
+  baselineFor,
   getLineWidthRange,
   STATIC_VALUE_ICON,
   iconFor,

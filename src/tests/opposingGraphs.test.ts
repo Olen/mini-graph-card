@@ -4,9 +4,11 @@
  * one up and one down from a shared zero.
  */
 
-import { assert, describe, it } from 'vitest';
+import {
+  assert, describe, it, expect,
+} from 'vitest';
 import Graph from '../graph';
-import { boundsForZeroPosition } from '../others';
+import { boundsForZeroPosition, baselineFor } from '../others';
 
 // a 100px graph from 0 to 100, no margins
 const makeGraph = (invert: boolean, baseline?: number) => {
@@ -95,5 +97,21 @@ describe('boundsForZeroPosition()', () => {
     assert.closeTo(zeroAt(top), 0.01, 1e-9);
     assert.closeTo(zeroAt(bottom), 0.99, 1e-9);
     assert.isTrue(Number.isFinite(top[0]) && Number.isFinite(bottom[1]));
+  });
+});
+
+describe('baselineFor()', () => {
+  it('starts bars & fill at 0 when the zero line is fixed', () => {
+    expect(baselineFor({}, { y_axis: { zero_position: 0.6 } })).toBe(0);
+  });
+
+  it('keeps a baseline that is set, on the entity or the card', () => {
+    expect(baselineFor({ baseline: 5 }, { y_axis: { zero_position: 0.6 } })).toBe(5);
+    expect(baselineFor({}, { baseline: 3, y_axis: { zero_position: 0.6 } })).toBe(3);
+  });
+
+  it('uses the graph\'s edge without either', () => {
+    expect(baselineFor({}, {})).toBeUndefined();
+    expect(baselineFor({}, { y_axis: { primary: {} } })).toBeUndefined();
   });
 });

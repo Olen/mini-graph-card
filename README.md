@@ -604,7 +604,8 @@ y_axis:
 
 `y_axis` itself also takes `zero_position`: where the zero line sits, from `0`
 (top) to `1` (bottom), on both axes. Each axis's range is widened - never
-narrowed - until 0 lands there. See [Opposing graphs](#opposing-graphs).
+narrowed - until 0 lands there, and bars and fill start from it unless a
+`baseline` says otherwise. See [Opposing graphs](#opposing-graphs).
 
 ##### Deprecated flat options
 The older flat spellings still work and are migrated automatically, with a
@@ -1228,8 +1229,9 @@ y_axis:
 ```
 
 The download fills the top 60% of the graph and the upload hangs below it,
-each on its own scale. Without `zero_position` each axis would put its own 0 at
-its own edge, so the two zero lines would not meet.
+each on its own scale, and bars or fill grow from the shared zero line in both
+directions. Without `zero_position` each axis would put its own 0 at its own
+edge, so the two zero lines would not meet.
 
 ### Graphs order
 
