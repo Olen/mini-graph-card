@@ -774,6 +774,24 @@ const computeBoundary = (type, series, configVal, fallback) => {
 };
 
 /**
+ * Whether a card draws opposing bars: bars on both axes, with one axis
+ * inverted and a fixed zero line, so one series goes up and the other down.
+ * Such bars belong in one column per period - side by side, half of each
+ * column would be empty.
+ * @param {object} config Card config, after buildConfig()'s checks
+ * @returns {boolean} True for opposing bars
+ */
+const isOpposingBars = (config) => {
+  const yAxis = config.y_axis || {};
+  if (config.show.graph !== 'bar' || yAxis.zero_position === undefined) return false;
+  const drawn = config.entities.filter(entity => entity.show_graph !== false);
+  const onSecondary = drawn.filter(entity => entity.y_axis === 'secondary').length;
+  if (onSecondary === 0 || onSecondary === drawn.length) return false;
+  const inverted = axis => !!yAxis[axis] && yAxis[axis].invert === true;
+  return inverted('primary') !== inverted('secondary');
+};
+
+/**
  * An axis range widened so that 0 sits at `zeroPosition` of the graph's
  * height from the top. It only ever grows - every value still fits - by
  * moving the bound on the side that has too little room.
@@ -1047,6 +1065,7 @@ const getLineWidthRange = (config) => {
 };
 
 export {
+  isOpposingBars,
   boundsForZeroPosition,
   axisLabelShown,
   showsZeroLabel,

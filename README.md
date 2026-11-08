@@ -1228,9 +1228,9 @@ y_axis:
     labels: [max]
 ```
 
-As bars, add `show: {graph: bar}` and `bar_spacing: -1`, so each period's two
-bars share one column - one above the zero line, one below - instead of
-standing side by side.
+As bars (`show: {graph: bar}`), each period's two bars share one column, one
+above the zero line and one below; a `bar_spacing` you set yourself still
+applies.
 
 The download fills the top 60% of the graph and the upload hangs below it,
 each on its own scale, and bars or fill grow from the shared zero line in both

@@ -8,7 +8,8 @@ import {
   assert, describe, it, expect,
 } from 'vitest';
 import Graph from '../graph';
-import { boundsForZeroPosition, baselineFor } from '../others';
+import { boundsForZeroPosition, baselineFor, isOpposingBars } from '../others';
+import buildConfig from '../buildConfig';
 
 // a 100px graph from 0 to 100, no margins
 const makeGraph = (invert: boolean, baseline?: number) => {
@@ -113,5 +114,45 @@ describe('baselineFor()', () => {
   it('uses the graph\'s edge without either', () => {
     expect(baselineFor({}, {})).toBeUndefined();
     expect(baselineFor({}, { y_axis: { primary: {} } })).toBeUndefined();
+  });
+});
+
+describe('opposing bars', () => {
+  const opposing = (over: any = {}) => ({
+    entities: [{ entity: 'sensor.download' }, { entity: 'sensor.upload', y_axis: 'secondary' }],
+    show: { graph: 'bar' },
+    y_axis: { zero_position: 0.6, secondary: { invert: true } },
+    ...over,
+  });
+
+  it('are bars on both axes, one inverted, around a fixed zero line', () => {
+    expect(isOpposingBars(opposing())).toBe(true);
+  });
+
+  it('are not lines', () => {
+    expect(isOpposingBars(opposing({ show: { graph: 'line' } }))).toBe(false);
+  });
+
+  it('need a fixed zero line', () => {
+    expect(isOpposingBars(opposing({ y_axis: { secondary: { invert: true } } }))).toBe(false);
+  });
+
+  it('need exactly one inverted axis', () => {
+    expect(isOpposingBars(opposing({ y_axis: { zero_position: 0.6 } }))).toBe(false);
+    const both = { zero_position: 0.6, primary: { invert: true }, secondary: { invert: true } };
+    expect(isOpposingBars(opposing({ y_axis: both }))).toBe(false);
+  });
+
+  it('need bars drawn on both axes', () => {
+    const entities = [{ entity: 'sensor.download' }, { entity: 'sensor.upload', y_axis: 'secondary', show_graph: false }];
+    expect(isOpposingBars(opposing({ entities }))).toBe(false);
+  });
+
+  it('share a column by default', () => {
+    expect(buildConfig(opposing()).config.bar_spacing).toBe(-1);
+  });
+
+  it('keep a bar_spacing that is set', () => {
+    expect(buildConfig(opposing({ bar_spacing: 4 })).config.bar_spacing).toBe(4);
   });
 });

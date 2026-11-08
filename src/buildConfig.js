@@ -36,7 +36,9 @@ import {
   checkAxisLabels,
   checkPointsPerHour,
 } from './checkOption';
-import { getFactor, parseGraphHeight, parseGrid } from './others';
+import {
+  getFactor, parseGraphHeight, parseGrid, isOpposingBars,
+} from './others';
 import { checkStateMap } from './stateMap';
 
 /**
@@ -338,6 +340,9 @@ export default (config) => {
     conf.color_thresholds,
     conf.color_thresholds_transition,
   );
+
+  // opposing bars share a column unless told otherwise
+  if (migratedConfig.bar_spacing === undefined && isOpposingBars(conf)) conf.bar_spacing = -1;
 
   // set valid values for bar_spacing options
   conf.bar_spacing = conf.bar_spacing < 0
