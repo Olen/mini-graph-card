@@ -774,10 +774,10 @@ const computeBoundary = (type, series, configVal, fallback) => {
 };
 
 /**
- * Whether a card draws opposing bars: bars on both axes, with one axis
- * inverted and a fixed zero line, so one series goes up and the other down.
- * Such bars belong in one column per period - side by side, half of each
- * column would be empty.
+ * Whether a card draws opposing bars: one series per axis, one axis inverted,
+ * and a fixed zero line, so one goes up and the other down. Such bars belong
+ * in one column per period - side by side, half of each column would be
+ * empty. With more series on an axis, they would cover each other there.
  * @param {object} config Card config, after buildConfig()'s checks
  * @returns {boolean} True for opposing bars
  */
@@ -786,7 +786,7 @@ const isOpposingBars = (config) => {
   if (config.show.graph !== 'bar' || yAxis.zero_position === undefined) return false;
   const drawn = config.entities.filter(entity => entity.show_graph !== false);
   const onSecondary = drawn.filter(entity => entity.y_axis === 'secondary').length;
-  if (onSecondary === 0 || onSecondary === drawn.length) return false;
+  if (drawn.length !== 2 || onSecondary !== 1) return false;
   const inverted = axis => !!yAxis[axis] && yAxis[axis].invert === true;
   return inverted('primary') !== inverted('secondary');
 };

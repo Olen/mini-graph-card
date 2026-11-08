@@ -148,6 +148,15 @@ describe('opposing bars', () => {
     expect(isOpposingBars(opposing({ entities }))).toBe(false);
   });
 
+  it('are one series per axis - more would cover each other in one column', () => {
+    const entities = [
+      { entity: 'sensor.download' },
+      { entity: 'sensor.download_2' },
+      { entity: 'sensor.upload', y_axis: 'secondary' },
+    ];
+    expect(isOpposingBars(opposing({ entities }))).toBe(false);
+  });
+
   it('share a column by default', () => {
     expect(buildConfig(opposing()).config.bar_spacing).toBe(-1);
   });
