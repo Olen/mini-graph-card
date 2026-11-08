@@ -773,6 +773,15 @@ const computeBoundary = (type, series, configVal, fallback) => {
 };
 
 /**
+ * Whether a value is text rather than a number, like a motion sensor's "on".
+ * A decimal comma still makes a number.
+ * @param {*} value A state or value
+ * @returns {boolean} True for a string that holds no number
+ */
+const isTextState = value => typeof value === 'string'
+  && Number.isNaN(parseFloat(value.replace(/,/g, '.')));
+
+/**
  * Whether show.state asks for one value for the whole period.
  * @param {*} showState The show.state option
  * @returns {boolean} True for "overall" and "overall_<func>"
@@ -971,6 +980,7 @@ const getLineWidthRange = (config) => {
 };
 
 export {
+  isTextState,
   isOverallState,
   overallFuncName,
   timeWeightedAverage,

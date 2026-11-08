@@ -54,7 +54,7 @@ import {
 import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
-  isNumericEntity, smoothingFor, overallFuncName, isOverallState,
+  isNumericEntity, smoothingFor, overallFuncName, isOverallState, isTextState,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
@@ -2164,6 +2164,24 @@ class MiniGraphCard extends LitElement {
   }
 
   /**
+   * A state that is no number, as Home Assistant shows it: "Detected" for a
+   * motion sensor's "on", in the user's language. An axis label, a static
+   * value or a value in an object attribute is shown as it is.
+   * @param {string} text The state
+   * @param {number} [index] Index of an entry in config.entities
+   * @returns {string} The state to show
+   */
+  formatTextState(text, index) {
+    if (index === undefined || index === -1 || this._isStaticValue[index]) return text;
+    const { entity, attribute } = this.config.entities[index];
+    const stateObj = this._hass.states[entity];
+    if (!stateObj) return text;
+    if (!attribute) return this._hass.formatEntityState(stateObj, text);
+    if (isObjectAttr(attribute)) return text;
+    return this._hass.formatEntityAttributeValue(stateObj, attribute, text);
+  }
+
+  /**
   * Returns a string value for a state/attribute or a static_value:
   * localized, following locale settings,
   * (for entities:) accounting possible individual accuracy settings & possible "decimals" options
@@ -2180,6 +2198,8 @@ class MiniGraphCard extends LitElement {
     if (isUnavailableState(inState)) {
       // as is
       state = inState;
+    } else if (isTextState(inState)) {
+      return this.formatTextState(inState, index);
     } else if (typeof inState === 'string') {
       // attempt to fix an unexpected number format
       state = parseFloat(inState.replace(/,/g, '.'));
