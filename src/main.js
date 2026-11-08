@@ -55,6 +55,7 @@ import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
   isNumericEntity, smoothingFor, overallFuncName, isOverallState, isTextState,
+  axisLabelShown, showsZeroLabel,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
@@ -1594,13 +1595,53 @@ class MiniGraphCard extends LitElement {
     // A value grid names every line it draws, which says more than the bounds
     const grid = this.renderGridLabelsY('primary');
     if (grid) return grid;
-    // index is not passed into computeState() for a primary axis
+    return this.renderBoundLabels('primary');
+  }
+
+  /**
+   * The bound labels of an axis without grid labels, as y_axis.<axis>.labels
+   * asks: a bound left out keeps its place but is hidden, so the other one
+   * stays where it was; "zero" adds a 0 at the zero line.
+   * @param {string} axis "primary" or "secondary"
+   * @returns {TemplateResult} Lit template result
+   */
+  renderBoundLabels(axis) {
+    const secondary = axis === 'secondary';
+    const bound = secondary ? this.boundSecondary : this.bound;
+    // computeState() takes no index for the primary axis, -1 for the secondary
+    const index = secondary ? -1 : undefined;
+    const labels = this.axisOption(axis, 'labels');
+    const hidden = label => (axisLabelShown(labels, label) ? '' : 'visibility: hidden');
     return html`
-      <div class="graph__labels --primary flex" ?inactive=${this.isAxisInactive('primary')}>
-        <span class="label--max">${this.computeState(this.bound[1])}</span>
-        <span class="label--min">${this.computeState(this.bound[0])}</span>
+      <div class="graph__labels --${axis} flex" ?inactive=${this.isAxisInactive(axis)}>
+        <span class="label--max" style=${hidden('max')}>${this.computeState(bound[1], index)}</span>
+        <span class="label--min" style=${hidden('min')}>${this.computeState(bound[0], index)}</span>
+        ${this.renderZeroLabel(axis, labels, bound, index)}
       </div>
     `;
+  }
+
+  /**
+   * A "0" at the zero line, when y_axis.<axis>.labels has "zero" (see showsZeroLabel()).
+   * @returns {TemplateResult|string} Lit template result, or '' for none
+   */
+  renderZeroLabel(axis, labels, bound, index) {
+    const graph = this.graphOnAxis(axis);
+    if (!graph) return '';
+    const getY = value => graph.getY(value);
+    if (!showsZeroLabel(labels, bound, getY, GRID_LABEL_MIN_SPACING)) return '';
+    return html`<span class="label--zero" style="top: ${getY(0)}px">${this.computeState(0, index)}</span>`;
+  }
+
+  /**
+   * The first graph with data drawn on an axis; its scale is the axis's.
+   * @param {string} axis "primary" or "secondary"
+   * @returns {Graph|undefined} The graph, or undefined while there is none
+   */
+  graphOnAxis(axis) {
+    const secondary = axis === 'secondary';
+    return (this.Graph || []).find((item, index) => item && item.coords.length > 0
+      && (this.config.entities[index].y_axis === 'secondary') === secondary);
   }
 
   /**
@@ -1619,8 +1660,7 @@ class MiniGraphCard extends LitElement {
     // without labels the column falls back to naming the bounds, as it always did
     if (!grid || !grid.labels || (grid.axis || 'primary') !== axis) return undefined;
     const secondary = axis === 'secondary';
-    const onAxis = (this.Graph || []).find((item, index) => item && item.coords.length > 0
-      && (this.config.entities[index].y_axis === 'secondary') === secondary);
+    const onAxis = this.graphOnAxis(axis);
     if (!onAxis) return undefined;
 
     const bound = secondary ? this.boundSecondary : this.bound;
@@ -1696,13 +1736,7 @@ class MiniGraphCard extends LitElement {
     }
     const grid = this.renderGridLabelsY('secondary');
     if (grid) return grid;
-    // index "-1" is passed into computeState() for a secondary axis
-    return html`
-      <div class="graph__labels --secondary flex" ?inactive=${this.isAxisInactive('secondary')}>
-        <span class="label--max">${this.computeState(this.boundSecondary[1], -1)}</span>
-        <span class="label--min">${this.computeState(this.boundSecondary[0], -1)}</span>
-      </div>
-    `;
+    return this.renderBoundLabels('secondary');
   }
 
   /**

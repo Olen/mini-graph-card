@@ -33,6 +33,7 @@ import {
   checkLineStyle,
   checkGroupBy,
   checkShowState,
+  checkAxisLabels,
   checkPointsPerHour,
 } from './checkOption';
 import { getFactor, parseGraphHeight, parseGrid } from './others';
@@ -250,6 +251,7 @@ export default (config) => {
       axis, 'decimals', undefined,
       { minBound: 0, allowString: true, logOptionName: `${yAxis}.decimals` },
     );
+    checkAxisLabels(axis, yAxis);
   });
   conf.decimals = checkIntegerOption(conf, 'decimals', undefined, { minBound: 0, allowString: true });
 

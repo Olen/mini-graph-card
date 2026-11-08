@@ -596,6 +596,7 @@ y_axis:
 | min_bound_range | number |  | Applied last: the smallest range the axis will span, so small changes do not look large.
 | decimals | integer |  | Exact number of decimals for this axis's labels, see [Number format](#number-format).
 | value_factor | number *or* object |  | Scale the values on this axis, see [Value factor](#value-factor).
+| labels | list | `[max, min]` | Which bound labels the axis shows: `max`, `min`, `zero` or `all`. A bound left out is hidden but keeps its place; `zero` adds a `0` at the zero line when the axis crosses it, unless a shown bound label is already there. A [`grid_y`](#grid-lines) with labels replaces these labels, and its lines include 0.
 
 ##### Deprecated flat options
 The older flat spellings still work and are migrated automatically, with a

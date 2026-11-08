@@ -773,6 +773,36 @@ const computeBoundary = (type, series, configVal, fallback) => {
 };
 
 /**
+ * Whether an axis shows one of its bound labels.
+ * @param {string[]|undefined} labels The axis's checked y_axis.<axis>.labels; unset = max & min
+ * @param {string} label "max", "min" or "zero"
+ * @returns {boolean} True when it is shown
+ */
+const axisLabelShown = (labels, label) => {
+  const shown = labels === undefined ? ['max', 'min'] : labels;
+  return shown.includes(label) || shown.includes('all');
+};
+
+/**
+ * Whether an axis gets a "0" label: when asked for, when 0 is inside its
+ * range, and when it is not right next to a bound label that is shown -
+ * that label then already sits at, or almost at, the zero line.
+ * @param {string[]|undefined} labels The axis's checked y_axis.<axis>.labels
+ * @param {number[]} bound The axis's [min, max]
+ * @param {function} getY Pixel Y of a value on the axis
+ * @param {number} minSpacing Pixels two labels need between them
+ * @returns {boolean} True when the zero label is drawn
+ */
+const showsZeroLabel = (labels, bound, getY, minSpacing) => {
+  const [min, max] = bound;
+  if (!axisLabelShown(labels, 'zero') || min > 0 || max < 0) return false;
+  const zeroY = getY(0);
+  const tooClose = (value, label) => axisLabelShown(labels, label)
+    && Math.abs(getY(value) - zeroY) < minSpacing;
+  return !tooClose(min, 'min') && !tooClose(max, 'max');
+};
+
+/**
  * Whether a value is text rather than a number, like a motion sensor's "on".
  * A decimal comma still makes a number.
  * @param {*} value A state or value
@@ -980,6 +1010,8 @@ const getLineWidthRange = (config) => {
 };
 
 export {
+  axisLabelShown,
+  showsZeroLabel,
   isTextState,
   isOverallState,
   overallFuncName,

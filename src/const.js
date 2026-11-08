@@ -143,6 +143,8 @@ const GRID_MIN_SPACING = 32;
 // mistaken for part of the bar
 const BAR_MARKER_GAP = 3;
 const GRID_LABEL_MIN_SPACING = 16;
+// y_axis.<axis>.labels
+const AXIS_LABELS = ['max', 'min', 'zero', 'all'];
 // A time label only earns its place when it names a date. "13:00" on an hourly
 // grid is a dozen labels saying little; "Tue" or "Aug" is worth the ink.
 const GRID_LABEL_INTERVALS = ['day', 'week', 'month'];
@@ -238,6 +240,7 @@ export {
   GRID_MIN_SPACING,
   BAR_MARKER_GAP,
   GRID_LABEL_MIN_SPACING,
+  AXIS_LABELS,
   GRID_LABEL_INTERVALS,
   GRID_LABEL_MODES,
   DEFAULT_GRID_LABEL_MODE,

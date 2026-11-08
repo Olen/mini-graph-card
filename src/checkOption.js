@@ -2,6 +2,7 @@ import {
   URL_DOCS,
   GROUP_BY_HOURS,
   AGGREGATE_FUNCS,
+  AXIS_LABELS,
   OVERALL_PREFIX,
   STATISTICS_PERIODS,
   STATISTICS_TYPES,
@@ -367,6 +368,29 @@ const checkGroupBy = (config) => {
   return groupBy;
 };
 
+/* eslint-disable no-param-reassign */
+/**
+ * Check y_axis.<axis>.labels: a list of max, min, zero & all. Unknown names
+ * are dropped, anything but a list is removed - both with a warning.
+ * @param {object} axisConfig The axis's config; changed in place
+ * @param {string} yAxis "primary" or "secondary", for the warning
+ */
+const checkAxisLabels = (axisConfig, yAxis) => {
+  const { labels } = axisConfig;
+  if (labels === undefined) return;
+  if (!Array.isArray(labels)) {
+    log(`Invalid option y_axis.${yAxis}.labels: expected a list of ${AXIS_LABELS.join(', ')}; showing max and min`);
+    delete axisConfig.labels;
+    return;
+  }
+  const unknown = labels.filter(label => !AXIS_LABELS.includes(label));
+  if (unknown.length > 0) {
+    log(`Invalid option y_axis.${yAxis}.labels: ignoring ${unknown.join(', ')}; expected ${AXIS_LABELS.join(', ')}`);
+  }
+  axisConfig.labels = labels.filter(label => AXIS_LABELS.includes(label));
+};
+/* eslint-enable no-param-reassign */
+
 /**
  * show.state: true, false, "last", "overall" or "overall_<aggregate func>".
  * Anything else shows the current state, with a warning.
@@ -396,6 +420,7 @@ const checkPointsPerHour = (config) => {
 };
 
 export {
+  checkAxisLabels,
   checkShowState,
   checkEntities,
   checkGroupBy,

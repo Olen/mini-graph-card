@@ -559,6 +559,19 @@ const style = css`
     right: .6em;
     transform: translateY(-50%);
   }
+  /* The zero label sits at the zero line, like a grid label, in a column
+     whose bound labels are placed by space-between. */
+  .graph__labels > .label--zero {
+    position: absolute;
+    white-space: nowrap;
+    transform: translateY(-50%);
+  }
+  .graph__labels.--primary > .label--zero {
+    left: .6em;
+  }
+  .graph__labels.--secondary > .label--zero {
+    right: .6em;
+  }
   .graph__labels.--grid-x {
     grid-column: 1;
     grid-row: 1;
