@@ -774,6 +774,30 @@ const computeBoundary = (type, series, configVal, fallback) => {
 };
 
 /**
+ * An axis range widened so that 0 sits at `zeroPosition` of the graph's
+ * height from the top. It only ever grows - every value still fits - by
+ * moving the bound on the side that has too little room.
+ * @param {number[]} bound The axis's [min, max]
+ * @param {number} zeroPosition 0 (top) to 1 (bottom)
+ * @param {boolean} inverted Whether the axis has its low values at the top
+ * @returns {number[]} The new [min, max]
+ */
+const boundsForZeroPosition = (bound, zeroPosition, inverted) => {
+  // 0 or 1 would need an infinite range on the other side
+  const position = Math.min(Math.max(zeroPosition, 0.01), 0.99);
+  // the share of the height above 0 belongs to max, or to min when inverted
+  const maxShare = inverted ? 1 - position : position;
+  const min = Math.min(bound[0], 0);
+  const max = Math.max(bound[1], 0);
+  if (min === 0 && max === 0) return bound;
+
+  // keep max, and find the min that puts 0 in place; else keep min instead
+  const minForMax = -max * (1 - maxShare) / maxShare;
+  if (minForMax <= min) return [minForMax, max];
+  return [min, -min * maxShare / (1 - maxShare)];
+};
+
+/**
  * Whether an axis shows one of its bound labels.
  * @param {string[]|undefined} labels The axis's checked y_axis.<axis>.labels; unset = max & min
  * @param {string} label "max", "min" or "zero"
@@ -1011,6 +1035,7 @@ const getLineWidthRange = (config) => {
 };
 
 export {
+  boundsForZeroPosition,
   axisLabelShown,
   showsZeroLabel,
   isTextState,

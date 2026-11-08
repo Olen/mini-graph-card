@@ -23,6 +23,7 @@ export default class Graph {
     total_bars_in_group = 1, // number of bars (i.e. number of entities with a shown bar graph)
     baseline,
     overallFuncName, // undefined: no overall value
+    invert = false, // low values at the top
   }) {
     const aggregateFuncMap = {
       avg: this._average,
@@ -55,6 +56,7 @@ export default class Graph {
     this._groupBy = groupBy;
     this._endTime = 0;
     this._baseline = baseline;
+    this._invert = invert;
     this._overallFuncName = overallFuncName;
     this.overall = undefined;
   }
@@ -94,8 +96,12 @@ export default class Graph {
     const min = this._logarithmic ? getLog10(this.min) : this.min;
     const val = this._logarithmic ? getLog10(value) : value;
     const yRatio = ((max - min) / this._height) || 1;
-    return this._height - ((val - min) / yRatio) + this._margin[Y] * 2;
+    const fromMin = (val - min) / yRatio;
+    const fromTop = this._invert ? fromMin : this._height - fromMin;
+    return fromTop + this._margin[Y] * 2;
   }
+
+  get inverted() { return this._invert; }
 
   /**
    * X for a moment inside the shown window. The window ends at _endTime, which
@@ -256,18 +262,7 @@ export default class Graph {
    * @returns Array of X, Y, Value, where Y - recalculated based on min/max thresholds
    */
   _calcY(coords) {
-    // account for logarithmic graph
-    const max = this._logarithmic ? getLog10(this.max) : this.max;
-    const min = this._logarithmic ? getLog10(this.min) : this.min;
-
-    const yRatio = ((max - min) / this._height) || 1;
-    const coords2 = coords.map((coord) => {
-      const val = this._logarithmic ? getLog10(coord[V]) : coord[V];
-      const coordY = this._height - ((val - min) / yRatio) + this._margin[Y] * 2;
-      return [coord[X], coordY, coord[V], coord[BUCKET]];
-    });
-
-    return coords2;
+    return coords.map(coord => [coord[X], this.getY(coord[V]), coord[V], coord[BUCKET]]);
   }
 
   getPoints() {
@@ -351,7 +346,7 @@ export default class Graph {
       ? getLog10(this._max) - getLog10(this._min)
       : this._max - this._min;
 
-    return thresholds.map((stop, index, arr) => {
+    const stops = thresholds.map((stop, index, arr) => {
       let color;
       if (stop.value > this._max && arr[index + 1]) {
         const factor = (this._max - arr[index + 1].value) / (stop.value - arr[index + 1].value);
@@ -369,6 +364,8 @@ export default class Graph {
         offset,
       };
     });
+    // SVG stops must rise in offset; an inverted axis reverses their order
+    return stops.sort((a, b) => a.offset - b.offset);
   }
 
   /**
@@ -385,7 +382,8 @@ export default class Graph {
   get baselineY() {
     const absoluteTop = 0;
     const absoluteBottom = this._height + this._margin[Y] * 4;
-    if (this._baseline === undefined) return absoluteBottom;
+    // without one, bars & fill start from the edge the low values are on
+    if (this._baseline === undefined) return this._invert ? absoluteTop : absoluteBottom;
 
     const baselineY = this.getY(this._baseline);
     if (baselineY <= this._margin[Y] * 2) return absoluteTop;

@@ -55,7 +55,7 @@ import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
   isNumericEntity, smoothingFor, overallFuncName, isOverallState, isTextState,
-  axisLabelShown, showsZeroLabel,
+  axisLabelShown, showsZeroLabel, boundsForZeroPosition,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
@@ -260,6 +260,7 @@ class MiniGraphCard extends LitElement {
             entity.baseline,
             this.config.baseline,
           ),
+          invert: this.axisOption(entity.y_axis === 'secondary' ? 'secondary' : 'primary', 'invert') === true,
           overallFuncName: this.showsOverall(index)
             ? overallFuncName(
               this.config.show.state,
@@ -1009,11 +1010,13 @@ class MiniGraphCard extends LitElement {
     const isAnimated = isEntryAnimated(this.config, index);
     const fade = this.config.show.fill === 'fade';
     const init = this.length[index] || this.config.entities[index].show_line === false;
+    // the fill fades away from the line, which is at the bottom when inverted
+    const inverted = this.Graph[index] && this.Graph[index].inverted;
     return svg`
       <defs>
         <linearGradient id=${`fill-grad-${this.id}-${index}`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop stop-color='white' offset='0%' stop-opacity='1'/>
-          <stop stop-color='white' offset='100%' stop-opacity='.15'/>
+          <stop stop-color='white' offset='0%' stop-opacity=${inverted ? '.15' : '1'}/>
+          <stop stop-color='white' offset='100%' stop-opacity=${inverted ? '1' : '.15'}/>
         </linearGradient>
         <mask id=${`fill-grad-mask-${this.id}-${index}`}>
           <rect width="100%" height="100%" fill=${`url(#fill-grad-${this.id}-${index})`} />
@@ -1610,10 +1613,14 @@ class MiniGraphCard extends LitElement {
     const index = secondary ? -1 : undefined;
     const labels = this.axisOption(axis, 'labels');
     const hidden = label => (axisLabelShown(labels, label) ? '' : 'visibility: hidden');
+    const max = html`<span class="label--max" style=${hidden('max')}>${this.computeState(bound[1], index)}</span>`;
+    const min = html`<span class="label--min" style=${hidden('min')}>${this.computeState(bound[0], index)}</span>`;
+    // the column runs top to bottom; an inverted axis has its min at the top
+    const inverted = this.axisOption(axis, 'invert') === true;
     return html`
       <div class="graph__labels --${axis} flex" ?inactive=${this.isAxisInactive(axis)}>
-        <span class="label--max" style=${hidden('max')}>${this.computeState(bound[1], index)}</span>
-        <span class="label--min" style=${hidden('min')}>${this.computeState(bound[0], index)}</span>
+        ${inverted ? min : max}
+        ${inverted ? max : min}
         ${this.renderZeroLabel(axis, labels, bound, index)}
       </div>
     `;
@@ -2594,6 +2601,16 @@ class MiniGraphCard extends LitElement {
       this.boundSecondary,
       this.axisOption('secondary', 'min_bound_range', config),
     );
+
+    const zeroPosition = config.y_axis && config.y_axis.zero_position;
+    if (zeroPosition !== undefined) {
+      this.bound = boundsForZeroPosition(
+        this.bound, zeroPosition, this.axisOption('primary', 'invert', config) === true,
+      );
+      this.boundSecondary = boundsForZeroPosition(
+        this.boundSecondary, zeroPosition, this.axisOption('secondary', 'invert', config) === true,
+      );
+    }
   }
 
   async getCache(key) {

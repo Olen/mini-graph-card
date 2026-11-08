@@ -600,6 +600,11 @@ y_axis:
 | decimals | integer |  | Exact number of decimals for this axis's labels, see [Number format](#number-format).
 | value_factor | number *or* object |  | Scale the values on this axis, see [Value factor](#value-factor).
 | labels | list | `[max, min]` | Which bound labels the axis shows: `max`, `min`, `zero` or `all`. A bound left out is hidden but keeps its place; `zero` adds a `0` at the zero line when the axis crosses it, unless a shown bound label is already there. A [`grid_y`](#grid-lines) with labels replaces these labels, and its lines include 0.
+| invert | boolean | `false` | Draw low values at the top, for a value where less is better (a ping) or one counted downwards (the depth to water in a well). Bars and fill start from the top edge unless a `baseline` is set. See [Opposing graphs](#opposing-graphs).
+
+`y_axis` itself also takes `zero_position`: where the zero line sits, from `0`
+(top) to `1` (bottom), on both axes. Each axis's range is widened - never
+narrowed - until 0 lands there. See [Opposing graphs](#opposing-graphs).
 
 ##### Deprecated flat options
 The older flat spellings still work and are migrated automatically, with a
@@ -1197,6 +1202,34 @@ when both are set, `baseline` wins.
 
 See examples [below](#custom-baseline).
 
+
+### Opposing graphs
+
+Two series drawn against each other from one zero line - download upwards,
+upload downwards - take an inverted secondary axis and a fixed zero position:
+
+```yaml
+type: custom:mini-graph-card
+entities:
+  - entity: sensor.router_download
+  - entity: sensor.router_upload
+    y_axis: secondary
+    show_state: true
+show:
+  labels: true
+  labels_secondary: true
+y_axis:
+  zero_position: 0.6
+  primary:
+    labels: [max, zero]
+  secondary:
+    invert: true
+    labels: [max]
+```
+
+The download fills the top 60% of the graph and the upload hangs below it,
+each on its own scale. Without `zero_position` each axis would put its own 0 at
+its own edge, so the two zero lines would not meet.
 
 ### Graphs order
 

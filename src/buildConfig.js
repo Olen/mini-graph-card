@@ -252,7 +252,19 @@ export default (config) => {
       { minBound: 0, allowString: true, logOptionName: `${yAxis}.decimals` },
     );
     checkAxisLabels(axis, yAxis);
+    if (axis.invert !== undefined && typeof axis.invert !== 'boolean') {
+      log(`Invalid option y_axis.${yAxis}.invert: expected true or false; using false`);
+      axis.invert = false;
+    }
   });
+  if (conf.y_axis) {
+    conf.y_axis.zero_position = checkNumericOption(
+      conf.y_axis, 'zero_position', undefined,
+      {
+        minBound: 0, maxBound: 1, allowString: true, logOptionName: 'y_axis.zero_position',
+      },
+    );
+  }
   conf.decimals = checkIntegerOption(conf, 'decimals', undefined, { minBound: 0, allowString: true });
 
   conf.static_value_label_offset = checkNumericOption(
