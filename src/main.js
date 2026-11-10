@@ -57,6 +57,7 @@ import {
   isNumericEntity, smoothingFor, baselineFor, isBarEntity, pickPointOrBar,
   overallFuncName, isOverallState, isTextState,
   axisLabelShown, showsZeroLabel, boundsForZeroPosition, sharesScale, sharedBounds,
+  widenToMinRange,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
@@ -2551,37 +2552,11 @@ class MiniGraphCard extends LitElement {
   }
 
   getBoundaries(series, min, max, fallback, minRange) {
-    let boundary = [
+    const boundary = [
       this.getBoundary('min', series, min, fallback[0]),
       this.getBoundary('max', series, max, fallback[1]),
     ];
-
-    if (minRange) {
-      const currentRange = Math.abs(boundary[0] - boundary[1]);
-      const diff = parseFloat(minRange) - currentRange;
-
-      // Doesn't matter if minBoundRange is NaN because this will be false if so
-      if (diff > 0) {
-        const weights = [
-          min !== undefined && min[0] !== '~' || max === undefined ? 0 : 1,
-          max !== undefined && max[0] !== '~' || min === undefined ? 0 : 1,
-        ];
-        const sum = weights[0] + weights[1];
-        if (sum > 0) {
-          boundary = [
-            boundary[0] - diff * weights[0] / sum,
-            boundary[1] + diff * weights[1] / sum,
-          ];
-        } else {
-          boundary = [
-            boundary[0] - diff / 2,
-            boundary[1] + diff / 2,
-          ];
-        }
-      }
-    }
-
-    return boundary;
+    return widenToMinRange(boundary, min, max, minRange);
   }
 
   /**

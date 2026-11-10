@@ -597,7 +597,7 @@ y_axis:
 |------|------|---------|-------------|
 | lower_bound | number *or* string |  | Fixed lower bound for the axis. A string starting with `~` (e.g. `~50`) is a soft bound.
 | upper_bound | number *or* string |  | Fixed upper bound for the axis. A string starting with `~` (e.g. `~50`) is a soft bound.
-| min_bound_range | number |  | Applied last: the smallest range the axis will span, so small changes do not look large.
+| min_bound_range | number |  | Applied last: the smallest range the axis will span, so small changes do not look large. A bound you set stays where it is and the range grows on the other side, so `lower_bound: ~0` with no upper bound keeps 0 at the bottom; with no bounds, or both set the same way, it grows equally up and down; with one fixed and one soft (`~`), on the soft side.
 | decimals | integer |  | Exact number of decimals for this axis's labels, see [Number format](#number-format).
 | value_factor | number *or* object |  | Scale the values on this axis, see [Value factor](#value-factor).
 | labels | list | `[max, min]` | Which bound labels the axis shows: `max`, `min`, `zero` or `all`. A bound left out is hidden but keeps its place; `zero` adds a `0` at the zero line when the axis crosses it, unless a shown bound label is already there. A [`grid_y`](#grid-lines) with labels replaces these labels, and its lines include 0.

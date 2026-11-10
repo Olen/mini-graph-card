@@ -824,6 +824,33 @@ const isOpposingBars = (config) => {
 };
 
 /**
+ * An axis range widened to min_bound_range. A bound the user set stays put
+ * and the range grows on the other side - so `lower_bound: ~0` alone keeps 0
+ * at the bottom; a soft bound only moves when the other bound is set and
+ * fixed. With no bounds, or both pinned alike, it grows equally both ways.
+ * @param {number[]} boundary The axis's [min, max]
+ * @param {number|string|undefined} lowerBound lower_bound as configured ("~" = soft)
+ * @param {number|string|undefined} upperBound upper_bound as configured
+ * @param {number|string|undefined} minRange min_bound_range
+ * @returns {number[]} The [min, max] to draw
+ */
+const widenToMinRange = (boundary, lowerBound, upperBound, minRange) => {
+  // NaN for a missing or invalid min_bound_range, which leaves the range alone
+  const missing = parseFloat(minRange) - Math.abs(boundary[0] - boundary[1]);
+  if (!(missing > 0)) return boundary;
+
+  const isFixed = bound => bound !== undefined && String(bound)[0] !== '~';
+  const lowerStays = isFixed(lowerBound) || upperBound === undefined;
+  const upperStays = isFixed(upperBound) || lowerBound === undefined;
+  if (lowerStays === upperStays) {
+    return [boundary[0] - missing / 2, boundary[1] + missing / 2];
+  }
+  return lowerStays
+    ? [boundary[0], boundary[1] + missing]
+    : [boundary[0] - missing, boundary[1]];
+};
+
+/**
  * Whether both axes share one scale: y_axis.same_scale says so, or, unset,
  * for opposing graphs (a fixed zero line, one axis inverted) whose drawn
  * entities all have the same unit - one download/upload pair then compares
@@ -1131,6 +1158,7 @@ const getLineWidthRange = (config) => {
 };
 
 export {
+  widenToMinRange,
   sharesScale,
   sharedBounds,
   isBarEntity,
