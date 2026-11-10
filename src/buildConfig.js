@@ -148,6 +148,18 @@ const computeThresholds = (stops, type) => {
   }
 };
 
+/**
+ * Options without the ones a YAML key with no value (null, as in
+ * `line_width:`) would set over a default - those keep the default instead
+ * of becoming unset.
+ * @param {object} options Options from the user's config
+ * @param {object} defaults The defaults they are laid over
+ * @returns {object} A copy without such keys
+ */
+const withoutEmptyKeys = (options, defaults) => Object.keys(options)
+  .filter(key => !(options[key] === null && defaults[key] !== undefined))
+  .reduce((kept, key) => ({ ...kept, [key]: options[key] }), {});
+
 export default (config) => {
   checkEntities(config.entities);
   if (config.line_color_above || config.line_color_below)
@@ -158,7 +170,7 @@ export default (config) => {
   // legacy options still work: flat axis options move into y_axis, fill_baseline becomes baseline
   const migratedConfig = migrateBaselineConfig(migrateYaxisConfig(config));
 
-  const conf = {
+  const defaults = {
     animate: false,
     font_size_header: DEFAULT_FONT_SIZE_HEADER,
     hours_to_show: DEFAULT_HOURS_TO_SHOW,
@@ -179,8 +191,11 @@ export default (config) => {
     hold_action: {
       action: 'more-info',
     },
-    ...JSON.parse(JSON.stringify(migratedConfig)),
-    show: { ...DEFAULT_SHOW, ...migratedConfig.show },
+  };
+  const conf = {
+    ...defaults,
+    ...withoutEmptyKeys(JSON.parse(JSON.stringify(migratedConfig)), defaults),
+    show: { ...DEFAULT_SHOW, ...withoutEmptyKeys(migratedConfig.show || {}, DEFAULT_SHOW) },
   };
 
   // check numeric options for validity
