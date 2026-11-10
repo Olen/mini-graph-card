@@ -56,7 +56,7 @@ import {
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
   isNumericEntity, smoothingFor, baselineFor, isBarEntity, pickPointOrBar,
   overallFuncName, isOverallState, isTextState,
-  axisLabelShown, showsZeroLabel, boundsForZeroPosition,
+  axisLabelShown, showsZeroLabel, boundsForZeroPosition, sharesScale, sharedBounds,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
@@ -2614,6 +2614,13 @@ class MiniGraphCard extends LitElement {
       this.axisOption('secondary', 'min_bound_range', config),
     );
 
+    const bothAxesDrawn = this.primaryYaxisSeries.length > 0
+      && this.secondaryYaxisSeries.length > 0;
+    if (bothAxesDrawn && sharesScale(config, this.entityUnits())) {
+      this.bound = sharedBounds(this.bound, this.boundSecondary);
+      this.boundSecondary = [...this.bound];
+    }
+
     const zeroPosition = config.y_axis && config.y_axis.zero_position;
     if (zeroPosition !== undefined) {
       this.bound = boundsForZeroPosition(
@@ -2623,6 +2630,12 @@ class MiniGraphCard extends LitElement {
         this.boundSecondary, zeroPosition, this.axisOption('secondary', 'invert', config) === true,
       );
     }
+  }
+
+  /** Each entity's unit, or undefined while its state has not arrived. */
+  entityUnits() {
+    return this.config.entities.map((_, index) => (
+      this.entity[index] || this._isStaticValue[index] ? this.computeUom(index) : undefined));
   }
 
   async getCache(key) {

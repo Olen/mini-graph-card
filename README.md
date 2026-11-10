@@ -608,6 +608,11 @@ y_axis:
 narrowed - until 0 lands there, and bars and fill start from it unless a
 `baseline` says otherwise. See [Opposing graphs](#opposing-graphs).
 
+`y_axis.same_scale` gives both axes one range, wide enough for both, so two
+series of the same kind compare truthfully. Unset, opposing graphs (a fixed
+zero line, one axis inverted) share it when all their entities have the same
+unit; `true` or `false` decides for any card.
+
 ##### Deprecated flat options
 The older flat spellings still work and are migrated automatically, with a
 warning in the browser console. Setting both wins for the `y_axis` one.
@@ -1261,8 +1266,9 @@ entities they stand side by side, as usual; a `bar_spacing` you set yourself
 always applies.
 
 The download fills the top 60% of the graph and the upload hangs below it,
-each on its own scale, and bars or fill grow from the shared zero line in both
-directions. Without `zero_position` each axis would put its own 0 at its own
+and bars or fill grow from the shared zero line in both directions. With the
+same unit on both, they share one scale, so a small upload looks small next to
+a large download; `y_axis.same_scale: false` gives each its own. Without `zero_position` each axis would put its own 0 at its own
 edge, so the two zero lines would not meet.
 
 ### Graphs order

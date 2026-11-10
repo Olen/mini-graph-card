@@ -260,6 +260,10 @@ export default (config) => {
     }
   });
   if (conf.y_axis) {
+    if (conf.y_axis.same_scale !== undefined && typeof conf.y_axis.same_scale !== 'boolean') {
+      log('Invalid option y_axis.same_scale: expected true or false; deciding by itself');
+      delete conf.y_axis.same_scale;
+    }
     conf.y_axis.zero_position = checkNumericOption(
       conf.y_axis, 'zero_position', undefined,
       {

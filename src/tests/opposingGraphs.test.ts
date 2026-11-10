@@ -8,7 +8,9 @@ import {
   assert, describe, it, expect,
 } from 'vitest';
 import Graph from '../graph';
-import { boundsForZeroPosition, baselineFor, isOpposingBars } from '../others';
+import {
+  boundsForZeroPosition, baselineFor, isOpposingBars, sharesScale, sharedBounds,
+} from '../others';
 import buildConfig from '../buildConfig';
 
 // a 100px graph from 0 to 100, no margins
@@ -163,5 +165,44 @@ describe('opposing bars', () => {
 
   it('keep a bar_spacing that is set', () => {
     expect(buildConfig(opposing({ bar_spacing: 4 })).config.bar_spacing).toBe(4);
+  });
+});
+
+describe('sharesScale()', () => {
+  const opposing = (yAxis: any = {}) => ({
+    entities: [{ entity: 'sensor.download' }, { entity: 'sensor.upload', y_axis: 'secondary' }],
+    y_axis: { zero_position: 0.6, secondary: { invert: true }, ...yAxis },
+  });
+
+  it('shares one for opposing graphs of the same unit', () => {
+    expect(sharesScale(opposing(), ['MB/s', 'MB/s'])).toBe(true);
+  });
+
+  it('keeps each axis\'s own scale for different units', () => {
+    expect(sharesScale(opposing(), ['kWh', '°C'])).toBe(false);
+  });
+
+  it('waits for the units to be known', () => {
+    expect(sharesScale(opposing(), ['MB/s', undefined])).toBe(false);
+  });
+
+  it('keeps own scales for graphs that are not opposing', () => {
+    const notInverted = { ...opposing(), y_axis: { zero_position: 0.6 } };
+    expect(sharesScale(notInverted, ['MB/s', 'MB/s'])).toBe(false);
+    const noZeroLine = { ...opposing(), y_axis: { secondary: { invert: true } } };
+    expect(sharesScale(noZeroLine, ['MB/s', 'MB/s'])).toBe(false);
+  });
+
+  it('follows y_axis.same_scale either way', () => {
+    expect(sharesScale(opposing({ same_scale: false }), ['MB/s', 'MB/s'])).toBe(false);
+    const plain = { entities: [{}, { y_axis: 'secondary' }], y_axis: { same_scale: true } };
+    expect(sharesScale(plain, ['kWh', '°C'])).toBe(true);
+  });
+});
+
+describe('sharedBounds()', () => {
+  it('spans both ranges', () => {
+    expect(sharedBounds([0, 0.3], [0, 0.01])).toEqual([0, 0.3]);
+    expect(sharedBounds([-2, 5], [-8, 3])).toEqual([-8, 5]);
   });
 });

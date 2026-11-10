@@ -824,6 +824,40 @@ const isOpposingBars = (config) => {
 };
 
 /**
+ * Whether both axes share one scale: y_axis.same_scale says so, or, unset,
+ * for opposing graphs (a fixed zero line, one axis inverted) whose drawn
+ * entities all have the same unit - one download/upload pair then compares
+ * truthfully instead of each filling its own half.
+ * @param {object} config Card config
+ * @param {Array<string|undefined>} units Each entity's unit, indexed like config.entities
+ * @returns {boolean} True when the axes share a scale
+ */
+const sharesScale = (config, units) => {
+  const yAxis = config.y_axis || {};
+  if (yAxis.same_scale !== undefined) return yAxis.same_scale === true;
+  if (yAxis.zero_position === undefined) return false;
+  const inverted = axis => !!yAxis[axis] && yAxis[axis].invert === true;
+  if (inverted('primary') === inverted('secondary')) return false;
+  const drawn = config.entities
+    .map((entity, index) => ({ entity, unit: units[index] }))
+    .filter(({ entity }) => entity.show_graph !== false);
+  const onSecondary = drawn.filter(({ entity }) => entity.y_axis === 'secondary').length;
+  if (onSecondary === 0 || onSecondary === drawn.length) return false;
+  return drawn.every(({ unit }) => unit !== undefined && unit === drawn[0].unit);
+};
+
+/**
+ * The range of two axes sharing one scale: wide enough for both.
+ * @param {number[]} primary The primary axis's [min, max]
+ * @param {number[]} secondary The secondary axis's [min, max]
+ * @returns {number[]} The shared [min, max]
+ */
+const sharedBounds = (primary, secondary) => [
+  Math.min(primary[0], secondary[0]),
+  Math.max(primary[1], secondary[1]),
+];
+
+/**
  * An axis range widened so that 0 sits at `zeroPosition` of the graph's
  * height from the top. It only ever grows - every value still fits - by
  * moving the bound on the side that has too little room.
@@ -1097,6 +1131,8 @@ const getLineWidthRange = (config) => {
 };
 
 export {
+  sharesScale,
+  sharedBounds,
   isBarEntity,
   pickPointOrBar,
   isOpposingBars,
