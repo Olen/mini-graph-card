@@ -37,7 +37,7 @@ import {
   checkPointsPerHour,
 } from './checkOption';
 import {
-  getFactor, parseGraphHeight, parseGrid, isOpposingBars,
+  getFactor, parseGraphHeight, parseGrid, isOpposingBars, isBarEntity,
 } from './others';
 import { checkStateMap } from './stateMap';
 
@@ -359,10 +359,11 @@ export default (config) => {
   conf.group_by = checkGroupBy(conf);
   conf.points_per_hour = checkPointsPerHour(conf);
 
-  if (conf.show.graph === 'bar') {
-    const entities = conf.entities.length;
-    if (conf.hours_to_show * conf.points_per_hour * entities > MAX_BARS) {
-      conf.points_per_hour = MAX_BARS / (conf.hours_to_show * entities);
+  // only entities drawn as bars take up bar slots
+  const barEntities = conf.entities.filter(entity => isBarEntity(entity, conf)).length;
+  if (barEntities > 0) {
+    if (conf.hours_to_show * conf.points_per_hour * barEntities > MAX_BARS) {
+      conf.points_per_hour = MAX_BARS / (conf.hours_to_show * barEntities);
       log(`Not enough space, adjusting points_per_hour to ${conf.points_per_hour}`);
     }
   }

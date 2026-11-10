@@ -54,7 +54,8 @@ import {
 import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
-  isNumericEntity, smoothingFor, baselineFor, overallFuncName, isOverallState, isTextState,
+  isNumericEntity, smoothingFor, baselineFor, isBarEntity,
+  overallFuncName, isOverallState, isTextState,
   axisLabelShown, showsZeroLabel, boundsForZeroPosition,
   getIntervalEndDate, iconFor,
   getStatisticsType, getCardSizeUnits, getGridOptions,
@@ -108,6 +109,8 @@ class MiniGraphCard extends LitElement {
     this._isStaticValue = [];
     // array of flags: true if that static_value has `show_static_inactive: true`
     this._isShowStaticInactive = [];
+    // array of flags: true if an entity is drawn as bars, false for a line
+    this._isBar = [];
     this._staticValueUpdated = [];
     this.stateChanged = false;
     this.initial = true;
@@ -210,6 +213,7 @@ class MiniGraphCard extends LitElement {
     this._isShowStaticInactive = this.config.entities.map(
       (entity, index) => this._isStaticValue[index] && entity.show_static_inactive === true,
     );
+    this._isBar = this.config.entities.map(entity => isBarEntity(entity, this.config));
 
     this._md5Config = SparkMD5.hash(JSON.stringify(this.config));
     const entitiesChanged = !compareArray(this.config.entities || [], config.entities);
@@ -231,7 +235,7 @@ class MiniGraphCard extends LitElement {
         min: min_line_width,
         max: max_line_width,
       } = getLineWidthRange(this.config);
-      const margin = this.config.show.graph === 'bar'
+      const margin = this.allBars
         ? [DEFAULT_MARGIN, DEFAULT_MARGIN]
         : this.config.show.fill
           ? [0, max_line_width]
@@ -742,8 +746,7 @@ class MiniGraphCard extends LitElement {
       if (overall !== undefined) return overall;
     }
     if (this.config.show.state === 'last') {
-      const isBarGraph = this.config.show.graph === 'bar';
-      const last = lastPlottedValue(isBarGraph, this.bar[index], this.points[index]);
+      const last = lastPlottedValue(this._isBar[index], this.bar[index], this.points[index]);
       // nothing plotted yet (hidden graph, no data): show the current state
       if (last !== undefined) return last;
     }
@@ -1112,7 +1115,7 @@ class MiniGraphCard extends LitElement {
       this.config.line_width,
     ) * 1.5;
 
-    if (this.config.show.graph === 'bar') {
+    if (this._isBar[entity]) {
       // Bars have no point to mark, so mark the bar - ABOVE it, clear of its
       // top edge. Centred on the edge, half the marker reads as extra height
       // and the bar appears to grow when it is hovered. Nothing else says which
@@ -1236,7 +1239,7 @@ class MiniGraphCard extends LitElement {
     if (!matrix) return;
     const { x, y } = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
 
-    if (this.config.show.graph === 'bar') {
+    if (this.allBars) {
       const hit = findNearestBar(this.bar, x, y);
       // Re-rendering on every move of a cursor would be wasteful
       if (!hit || (this.tooltip.entity === hit.entity && this.tooltip.index === hit.index)) return;
@@ -1403,7 +1406,7 @@ class MiniGraphCard extends LitElement {
     const { entity: hovered, index: bucket } = this.tooltip;
     if (hovered === undefined || hovered === index) return false;
     if (this._isShowStaticInactive[index]) return false;
-    const isSingleBar = this.config.show.graph === 'bar' && bucket !== -1;
+    const isSingleBar = this._isBar[hovered] && bucket !== -1;
     return !isSingleBar;
   }
 
@@ -1416,7 +1419,7 @@ class MiniGraphCard extends LitElement {
   isAxisInactive(axis) {
     const { entity: hovered, index: bucket } = this.tooltip;
     if (hovered === undefined) return false;
-    if (this.config.show.graph === 'bar' && bucket !== -1) return false;
+    if (this._isBar[hovered] && bucket !== -1) return false;
     const hoveredAxis = this.config.entities[hovered].y_axis === 'secondary' ? 'secondary' : 'primary';
     return hoveredAxis !== axis;
   }
@@ -1876,6 +1879,11 @@ class MiniGraphCard extends LitElement {
     if (this.readOnTouch(e)) return;
     e.stopPropagation();
     this.runAction(this.config.tap_action, entity);
+  }
+
+  /** Whether every entity is drawn as bars. */
+  get allBars() {
+    return this._isBar.every(Boolean);
   }
 
   get visibleEntities() {
@@ -2508,7 +2516,7 @@ class MiniGraphCard extends LitElement {
           return;
         const bound = config.entities[i].y_axis === 'secondary' ? this.boundSecondary : this.bound;
         [this.Graph[i].min, this.Graph[i].max] = [bound[0], bound[1]];
-        if (config.show.graph === 'bar') {
+        if (this._isBar[i]) {
           this.bar[i] = this.Graph[i].getBars(graphPos);
           graphPos += 1;
         } else {

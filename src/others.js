@@ -774,6 +774,15 @@ const computeBoundary = (type, series, configVal, fallback) => {
 };
 
 /**
+ * Whether an entity is drawn as bars rather than a line: the card's
+ * show.graph decides.
+ * @param {object} entityConfig The entity's entry in config.entities
+ * @param {object} config Card config
+ * @returns {boolean} True for bars
+ */
+const isBarEntity = (entityConfig, config) => config.show.graph === 'bar';
+
+/**
  * Whether a card draws opposing bars: one series per axis, one axis inverted,
  * and a fixed zero line, so one goes up and the other down. Such bars belong
  * in one column per period - side by side, half of each column would be
@@ -783,8 +792,9 @@ const computeBoundary = (type, series, configVal, fallback) => {
  */
 const isOpposingBars = (config) => {
   const yAxis = config.y_axis || {};
-  if (config.show.graph !== 'bar' || yAxis.zero_position === undefined) return false;
+  if (yAxis.zero_position === undefined) return false;
   const drawn = config.entities.filter(entity => entity.show_graph !== false);
+  if (!drawn.every(entity => isBarEntity(entity, config))) return false;
   const onSecondary = drawn.filter(entity => entity.y_axis === 'secondary').length;
   if (drawn.length !== 2 || onSecondary !== 1) return false;
   const inverted = axis => !!yAxis[axis] && yAxis[axis].invert === true;
@@ -1065,6 +1075,7 @@ const getLineWidthRange = (config) => {
 };
 
 export {
+  isBarEntity,
   isOpposingBars,
   boundsForZeroPosition,
   axisLabelShown,
