@@ -54,7 +54,7 @@ import {
 import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
-  isNumericEntity, smoothingFor, baselineFor, isBarEntity,
+  isNumericEntity, smoothingFor, baselineFor, isBarEntity, pickPointOrBar,
   overallFuncName, isOverallState, isTextState,
   axisLabelShown, showsZeroLabel, boundsForZeroPosition,
   getIntervalEndDate, iconFor,
@@ -262,6 +262,8 @@ class MiniGraphCard extends LitElement {
           total_bars_in_group: this.visibleEntities.length,
           baseline: baselineFor(entity, this.config),
           invert: this.axisOption(entity.y_axis === 'secondary' ? 'secondary' : 'primary', 'invert') === true,
+          // a line next to bars puts its points at the bars' centres
+          barCentres: this.mixesLinesAndBars,
           overallFuncName: this.showsOverall(index)
             ? overallFuncName(
               this.config.show.state,
@@ -1239,18 +1241,16 @@ class MiniGraphCard extends LitElement {
     if (!matrix) return;
     const { x, y } = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
 
-    if (this.allBars) {
-      const hit = findNearestBar(this.bar, x, y);
-      // Re-rendering on every move of a cursor would be wasteful
-      if (!hit || (this.tooltip.entity === hit.entity && this.tooltip.index === hit.index)) return;
-      this.setTooltip(hit.entity, hit.index, hit.bar.value);
-      return;
-    }
-    const hit = findNearestPoint(this.points, x, y);
-    const sameAsShown = hit
-      && this.tooltip.entity === hit.entity && this.tooltip.index === hit.point[BUCKET];
-    if (!hit || sameAsShown) return;
-    this.setTooltip(hit.entity, hit.point[BUCKET], hit.point[V]);
+    const barHit = findNearestBar(this.bar, x, y);
+    const pointHit = findNearestPoint(this.points, x, y);
+    const picked = pickPointOrBar(pointHit, barHit, x, y);
+    if (picked === undefined) return;
+    const hit = picked === 'bar'
+      ? { entity: barHit.entity, index: barHit.index, value: barHit.bar.value }
+      : { entity: pointHit.entity, index: pointHit.point[BUCKET], value: pointHit.point[V] };
+    // Re-rendering on every move of a cursor would be wasteful
+    if (this.tooltip.entity === hit.entity && this.tooltip.index === hit.index) return;
+    this.setTooltip(hit.entity, hit.index, hit.value);
   }
 
   /**
@@ -1463,11 +1463,11 @@ class MiniGraphCard extends LitElement {
           <defs>
             ${this.renderSvgGradient(this.gradient)}
           </defs>
+          ${this.renderSvgPart(this.bar, this.renderSvgBars, this.config.bar_spacing === -1 && reversed)}
           ${this.renderSvgPart(this.fill, this.renderSvgFill, reversed)}
           ${this.renderSvgPart(this.fill, this.renderSvgFillRect, reversed)}
           ${this.renderSvgPart(this.line, this.renderSvgLine, reversed)}
           ${this.renderSvgPart(this.line, this.renderSvgLineRect, reversed)}
-          ${this.renderSvgPart(this.bar, this.renderSvgBars, this.config.bar_spacing === -1 && reversed)}
         </g>
         ${this.renderSvgPart(this.points, this.renderSvgPoints, reversed)}
         ${this.renderSvgHoverMarker()}
@@ -1881,9 +1881,16 @@ class MiniGraphCard extends LitElement {
     this.runAction(this.config.tap_action, entity);
   }
 
-  /** Whether every entity is drawn as bars. */
+  /** Whether every entity that is drawn is drawn as bars. */
   get allBars() {
-    return this._isBar.every(Boolean);
+    return this.config.entities
+      .every((entity, index) => entity.show_graph === false || this._isBar[index]);
+  }
+
+  /** Whether the card draws both lines and bars. */
+  get mixesLinesAndBars() {
+    return !this.allBars && this.config.entities
+      .some((entity, index) => entity.show_graph !== false && this._isBar[index]);
   }
 
   get visibleEntities() {

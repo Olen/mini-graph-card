@@ -661,6 +661,26 @@ const findNearestPoint = (pointsPerEntity, x, y) => {
 };
 
 /**
+ * In a card with both lines and bars: whether the hovered value is the
+ * nearest point or the nearest bar. Over a bar, whichever value end is closer
+ * to the cursor wins - the line's point or the bar's tip; between bars, the
+ * line does.
+ * @param {object|undefined} pointHit From findNearestPoint()
+ * @param {object|undefined} barHit From findNearestBar()
+ * @param {number} x A cursor coordinate in the graph's coordinates
+ * @param {number} y A cursor coordinate in the graph's coordinates
+ * @returns {string|undefined} "point", "bar", or undefined for neither
+ */
+const pickPointOrBar = (pointHit, barHit, x, y) => {
+  if (!barHit) return pointHit ? 'point' : undefined;
+  if (!pointHit) return 'bar';
+  const { bar } = barHit;
+  const overBar = x >= bar.x && x <= bar.x + bar.width;
+  if (!overBar) return 'point';
+  return Math.abs(bar.tip - y) < Math.abs(pointHit.point[Y] - y) ? 'bar' : 'point';
+};
+
+/**
  * The bar a cursor is pointing at, across all entities.
  *
  * Bars own a width, so X alone identifies one whenever they are drawn side by
@@ -774,13 +794,15 @@ const computeBoundary = (type, series, configVal, fallback) => {
 };
 
 /**
- * Whether an entity is drawn as bars rather than a line: the card's
- * show.graph decides.
+ * Whether an entity is drawn as bars rather than a line: its own `graph`,
+ * else the card's show.graph.
  * @param {object} entityConfig The entity's entry in config.entities
  * @param {object} config Card config
  * @returns {boolean} True for bars
  */
-const isBarEntity = (entityConfig, config) => config.show.graph === 'bar';
+const isBarEntity = (entityConfig, config) => (entityConfig.graph !== undefined
+  ? entityConfig.graph === 'bar'
+  : config.show.graph === 'bar');
 
 /**
  * Whether a card draws opposing bars: one series per axis, one axis inverted,
@@ -1076,6 +1098,7 @@ const getLineWidthRange = (config) => {
 
 export {
   isBarEntity,
+  pickPointOrBar,
   isOpposingBars,
   boundsForZeroPosition,
   axisLabelShown,

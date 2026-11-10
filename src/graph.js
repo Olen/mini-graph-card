@@ -24,6 +24,7 @@ export default class Graph {
     baseline,
     overallFuncName, // undefined: no overall value
     invert = false, // low values at the top
+    barCentres = false, // a line's points at the centres of bars drawn beside it
   }) {
     const aggregateFuncMap = {
       avg: this._average,
@@ -57,6 +58,7 @@ export default class Graph {
     this._endTime = 0;
     this._baseline = baseline;
     this._invert = invert;
+    this._barCentres = barCentres;
     this._overallFuncName = overallFuncName;
     this.overall = undefined;
   }
@@ -104,28 +106,43 @@ export default class Graph {
   get inverted() { return this._invert; }
 
   /**
-   * X for a moment inside the shown window. The window ends at _endTime, which
-   * group_by rounds (see _updateEndTime), so this follows the axis the data was
-   * binned against rather than the wall clock.
-   * @param {number} time A timestamp in ms
-   * @returns {number} An X coordinate
-   */
-  /**
    * X of a moment, on the scale the points are drawn on: the start of a bucket
    * lands on that bucket's point, so a grid line marks the value it belongs to.
-   * The last bucket's point is on the right edge, so "now" lies past it.
+   * The window ends at _endTime, which group_by rounds (see _updateEndTime).
    * @param {number} time Epoch ms
    * @returns {number} X coordinate
    */
   getX(time) {
     const bucket = ONE_HOUR / this._points_per_hour;
     const windowStart = this._endTime - this._hours_to_show * ONE_HOUR;
-    return this._margin[X] + this._xRatio() * ((time - windowStart) / bucket);
+    return this._xAt((time - windowStart) / bucket);
   }
 
-  /** X of the right edge, where the newest point is drawn. */
+  /** X of the newest point; nothing is drawn past it. */
   get rightEdgeX() {
-    return this._margin[X] + this._width;
+    // a lone bucket still draws its line edge to edge
+    if (!this._barCentres) return this._margin[X] + this._width;
+    return this._xAt(this._bucketCount() - 1);
+  }
+
+  _bucketCount() {
+    return Math.ceil(this._hours_to_show * this._points_per_hour);
+  }
+
+  /**
+   * X of a bucket position (fractional between buckets). Points normally
+   * spread edge to edge, the first and last on the edges; next to bars they
+   * sit at the centre of their bucket's bar group, as getBars() lays it out.
+   * @param {number} position Bucket index, 0 = oldest
+   * @returns {number} X coordinate
+   */
+  _xAt(position) {
+    if (this._barCentres) {
+      const count = this._bucketCount();
+      const groupWidth = (this._width - this._bar_spacing_group * (count - 1)) / count;
+      return this._margin[X] + (groupWidth + this._bar_spacing_group) * position + groupWidth / 2;
+    }
+    return this._margin[X] + this._xRatio() * position;
   }
 
   /** Distance between two neighbouring points: the first and last sit on the edges. */
@@ -226,8 +243,6 @@ export default class Graph {
   }
 
   _calcPoints(history) {
-    const xRatio = this._xRatio();
-
     const coords = [];
 
     // A bucket that reported nothing carries the previous value forward: Home
@@ -245,7 +260,7 @@ export default class Graph {
     let last = history[first];
     let x;
     for (let i = first; i < history.length; i += 1) {
-      x = xRatio * i + this._margin[X];
+      x = this._xAt(i);
       if (history[i]) {
         last = history[i];
         coords.push([x, 0, this._calcPoint(last), i]);
@@ -268,7 +283,7 @@ export default class Graph {
   getPoints() {
     let { coords } = this;
     if (coords.length === 1) {
-      coords[1] = [this._width + this._margin[X], 0, coords[0][V], coords[0][BUCKET]];
+      coords[1] = [this.rightEdgeX, 0, coords[0][V], coords[0][BUCKET]];
     }
     coords = this._calcY(this.coords);
     return coords.map(point => [point[X], point[Y], point[V], point[BUCKET]]);
@@ -278,7 +293,7 @@ export default class Graph {
   getPath() {
     let { coords } = this;
     if (coords.length === 1) {
-      coords[1] = [this._width + this._margin[X], 0, coords[0][V], coords[0][BUCKET]];
+      coords[1] = [this.rightEdgeX, 0, coords[0][V], coords[0][BUCKET]];
     }
     coords = this._calcY(this.coords);
     if (this._smoothing && coords.length > 2) {
@@ -395,7 +410,7 @@ export default class Graph {
     const height = this.baselineY;
     let fill = path;
     // note that currently this._margin[X] = 0 when fill is defined
-    fill += ` L ${this._width + this._margin[X]}, ${height}`;
+    fill += ` L ${this.rightEdgeX}, ${height}`;
     fill += ` L ${this.coords[0][X]}, ${height} z`;
     return fill;
   }

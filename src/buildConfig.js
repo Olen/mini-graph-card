@@ -302,6 +302,7 @@ export default (config) => {
       entity.line_width = checkNumericOption(entity, 'line_width', conf.line_width, { minBound: 0, allowString: true });
       entity.decimals = checkIntegerOption(entity, 'decimals', conf.decimals, { minBound: 0, allowString: true });
       entity.format = checkStringOption(entity, 'format', VALUE_FORMATS, conf.format);
+      entity.graph = checkStringOption(entity, 'graph', ['line', 'bar'], undefined);
       entity.baseline = checkNumericOption(entity, 'baseline', undefined, { allowString: true });
       entity.state_map = checkStateMap(entity.state_map, `entities[${i}].state_map`);
 

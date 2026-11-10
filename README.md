@@ -392,6 +392,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | show_legend_state | boolean |  false  | Display the current state as part of the legend.
 | show_indicator | boolean |         | Display a color indicator next to the state.
 | show_graph | boolean |         | Set to false to completely hide the graph.
+| graph | string |         | `line` or `bar`: draw this entity differently from the card's `show.graph`, see [Lines and bars together](#lines-and-bars-together).
 | state_map | [state map object](#state-map-object) |         | This entity's own state map, instead of the card's.
 | show_line | boolean |         | Set to false to hide the line.
 | show_fill | boolean |         | Set to false to hide the fill.
@@ -425,7 +426,7 @@ All properties are optional.
 | name | `true` | `true` / `false` | Display name.
 | icon | `true` | `true` / `false` | Display icon.
 | state | `true` | `true` / `false` / `last` / `overall` / `overall_<func>` | Display current state. `last` will show the last graph point's or bar's value (fallback to `true` if points are not shown for a line graph). `overall` shows one value for the whole period, see [Overall value](#overall-value).
-| graph | `line` | `line` / `bar` / `false` | Display option for the graph. If set to `bar` a maximum of `96` bars will be displayed.
+| graph | `line` | `line` / `bar` / `false` | Display option for the graph. If set to `bar` a maximum of `96` bars will be displayed. An entity can override it with its own `graph`.
 | fill | `true` | `true` / `false` / `fade` | Display the line graph fill.
 | points | `hover` | `true` / `false` / `hover` | Display graph data points (for a line graph only).
 | legend | `true` | `true` / `false` / `below` | Display the graph legend (only shown when graph contains multiple entities); `below` - place below a graph.
@@ -1203,6 +1204,32 @@ when both are set, `baseline` wins.
 
 See examples [below](#custom-baseline).
 
+
+### Lines and bars together
+
+An entity's own `graph` draws it as a line or as bars whatever the card's
+`show.graph` says - say, hourly energy as bars with the outdoor temperature as
+a line over them, on its own axis:
+
+```yaml
+type: custom:mini-graph-card
+entities:
+  - entity: sensor.energy_hourly
+    graph: bar
+    aggregate_func: max
+  - entity: sensor.outdoor_temperature
+    graph: line
+    y_axis: secondary
+hours_to_show: 24
+group_by: hour
+show:
+  labels: true
+  labels_secondary: true
+```
+
+The line's points sit at the centres of the bars, so each hour's value lines
+up with its bar, and the line is drawn over the bars. Hovering picks whichever
+is closer to the cursor - the bar's top or the line's point.
 
 ### Opposing graphs
 
