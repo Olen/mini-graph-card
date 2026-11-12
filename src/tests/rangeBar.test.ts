@@ -89,6 +89,25 @@ describe('checkRange()', () => {
     expect(checkRange({ gaps: false }, 'avg', 'range').gaps).toBe(false);
   });
 
+  it('reads the card\'s own entity as its own readings, however it is named', () => {
+    const range = checkRange({
+      low: 'sensor.sys',
+      high: { entity: 'sensor.sys', aggregate: 'last' },
+    }, 'avg', 'range', 'sensor.sys');
+    expect(range.low).toEqual({ func: 'min' });
+    expect(range.high).toEqual({ func: 'last' });
+  });
+
+  it('keeps a part\'s own colour thresholds, & its usual function without one', () => {
+    const thresholds = [{ value: 80, color: 'red' }];
+    const range = checkRange({
+      low: { entity: 'sensor.dia', color_thresholds: thresholds },
+      high: { color_thresholds: thresholds },
+    }, 'avg', 'range', 'sensor.sys');
+    expect(range.low).toEqual({ func: 'last', entity: 'sensor.dia', colorThresholds: thresholds });
+    expect(range.high).toEqual({ func: 'max', colorThresholds: thresholds });
+  });
+
   it('colours by a chosen part, or along the span', () => {
     expect(checkRange({ color_by: 'low' }, 'avg', 'range').colorBy).toBe('low');
     expect(checkRange({ color_by: 'span' }, 'avg', 'range').colorBy).toBe('span');
@@ -136,6 +155,27 @@ describe('range bar entities', () => {
     });
     expect(built.entities[0].range.low).toEqual({ func: 'min' });
     expect(built.entities[1].range).toBeUndefined();
+  });
+
+  it('get a part\'s colour thresholds prepared as an entity\'s are', () => {
+    const { config: built } = buildConfig({
+      entities: [{
+        entity: 'sensor.sys',
+        graph: 'range',
+        range: {
+          color_by: 'ends',
+          low: {
+            entity: 'sensor.dia',
+            color_thresholds: [{ value: 0, color: 'green' }, { value: 80, color: 'red' }],
+          },
+        },
+      }],
+    });
+    const { range } = built.entities[0];
+    expect(range.colorBy).toBe('ends');
+    // highest first, as computeColor() looks them up
+    expect(range.low.colorThresholds.map(stop => stop.value)).toEqual([80, 0]);
+    expect(range.high.colorThresholds).toBeUndefined();
   });
 
   it('accept graph: range on an entity', () => {
@@ -391,8 +431,16 @@ describe('Graph.getRanges() colour', () => {
     expect(colourOf('marker', false)).toBe(8);
   });
 
-  it('comes from no one value along the span', () => {
+  it('comes from no one value along the span, or from its ends', () => {
     expect(colourOf('span')).toBeUndefined();
+    expect(colourOf('ends')).toBeUndefined();
+  });
+
+  it('knows where the ends are drawn', () => {
+    const graph = makeGraph({ color_by: 'ends' });
+    graph.update([at(3.5, 2), at(3.4, 8)]);
+    [graph.min, graph.max] = [0, 10];
+    expect(graph.getRanges(0)[0]).toMatchObject({ lowY: 80, highY: 20 });
   });
 });
 

@@ -232,14 +232,15 @@ export default class Graph {
 
   /**
    * The value a range bar takes its colour from, as range.color_by says;
-   * undefined for "span", which colours it along its length instead.
+   * undefined for "span" & "ends", which colour it along its length instead.
    */
   _rangeColorValue(range) {
     switch (this._range.colorBy) {
       case 'low': return range.low;
       case 'high': return range.high;
       case 'marker': return range.marker !== undefined ? range.marker : range.high;
-      case 'span': return undefined;
+      case 'span':
+      case 'ends': return undefined;
       default: return this._rangeValue(range);
     }
   }
@@ -725,6 +726,8 @@ export default class Graph {
         high: range.high,
         marker: range.marker,
         markerY: range.marker === undefined ? undefined : this.getY(range.marker),
+        lowY,
+        highY,
       };
     });
   }

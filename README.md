@@ -1262,11 +1262,11 @@ give it an `aggregate`. `marker: false` draws no marker.
 
 | Name | Default | Description |
 |------|---------|-------------|
-| low | `min` | The bottom of each bar: a function, an entity id, or `{ entity, aggregate }`.
+| low | `min` | The bottom of each bar: a function, an entity id, or `{ entity, aggregate, color_thresholds }` - each key optional; without `entity` it reads the card's own.
 | high | `max` | The top of each bar, the same way.
 | marker | `aggregate_func` | The marker line, the same way; `false` for none.
 | gaps | `true` | Leave a period empty when none of the entities changed in it. With `false` the last value is repeated, as lines and bars do.
-| color_by | `value` | What [`color_thresholds`](#line-color-object) colour a bar by: `value` (its marker, else its high), `low`, `high`, `marker`, or `span` - along its length, each part in the colour of the value it covers.
+| color_by | `value` | What [`color_thresholds`](#line-color-object) colour a bar by: `value` (its marker, else its high), `low`, `high`, `marker`; `span` - along its length, each part in the colour of the value it covers; or `ends` - from the colour of its low to that of its high, each judged by its own part's `color_thresholds`.
 
 A heart rate from its daily minimum to maximum, marked at the resting rate:
 
@@ -1298,6 +1298,33 @@ color_thresholds_transition: hard
 ```
 
 With `color_by: span` a day that crossed 0 is blue below it & orange above.
+
+A part's own `color_thresholds` judge that part only, so the two ends of a
+bar can have different limits - a blood pressure is high from a diastolic of
+80, but from a systolic of 120. With `color_by: ends` a bar goes from its low
+end's colour to its high end's: red at the bottom for a high diastolic, red at
+the top for a high systolic, all green when neither is:
+
+```yaml
+entities:
+  - entity: sensor.blood_pressure_systolic
+    graph: range
+    range:
+      color_by: ends
+      marker: false
+      low:
+        entity: sensor.blood_pressure_diastolic
+        color_thresholds:
+          - { value: 0, color: '#26a269' }
+          - { value: 80, color: '#c01c28' }
+      high:
+        entity: sensor.blood_pressure_systolic
+        aggregate: last
+        color_thresholds:
+          - { value: 0, color: '#26a269' }
+          - { value: 120, color: '#c01c28' }
+color_thresholds_transition: hard
+```
 
 A blood pressure, from diastolic to systolic, with no marker. Gaps leave the
 days without a measurement empty, rather than repeating the last one:

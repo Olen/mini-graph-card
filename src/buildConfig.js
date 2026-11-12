@@ -340,11 +340,24 @@ export default (config) => {
     // `true` as shorthand for the defaults.
     checkStatistics(conf, i);
     if (isRangeEntity(conf.entities[i], conf)) {
-      conf.entities[i].range = checkRange(
-        conf.entities[i].range,
-        conf.entities[i].aggregate_func || conf.aggregate_func,
+      const rangeEntity = conf.entities[i];
+      rangeEntity.range = checkRange(
+        rangeEntity.range,
+        rangeEntity.aggregate_func || conf.aggregate_func,
         `entities[${i}].range`,
+        rangeEntity.entity,
       );
+      // a part's own color_thresholds are checked & prepared as the entity's are
+      ['low', 'high', 'marker'].forEach((name) => {
+        const part = rangeEntity.range[name];
+        if (!part || part.colorThresholds === undefined) return;
+        const holder = { color_thresholds: part.colorThresholds };
+        checkColorThresholds(holder, `entities[${i}].range.${name}`);
+        part.colorThresholds = computeThresholds(
+          holder.color_thresholds,
+          rangeEntity.color_thresholds_transition || conf.color_thresholds_transition,
+        );
+      });
     }
   });
   /* eslint-enable no-param-reassign */

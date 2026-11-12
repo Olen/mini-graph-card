@@ -1154,13 +1154,41 @@ class MiniGraphCard extends LitElement {
    * @returns {SVGTemplateResult} SVG element
    */
   renderSvgRange(bar, index, spanStyle, hoverable) {
-    // "span" colours a bar along its length, its marker by its own value
-    const alongSpan = !!this.rangeGradient[index];
-    const color = alongSpan
-      ? `url(#range-grad-${this.id}-${index})`
-      : this.computeColor(bar.colorValue !== undefined ? bar.colorValue : bar.value, index);
-    const markerColor = alongSpan ? this.computeColor(bar.marker, index) : color;
+    const { range } = this.config.entities[index];
+    // each part is coloured by its own color_thresholds, if it has them
+    const partColor = (name, value) => this.computeColor(
+      value, index, range[name] ? range[name].colorThresholds : undefined,
+    );
+    let color = ['low', 'high', 'marker'].includes(range.colorBy)
+      ? partColor(range.colorBy, bar.colorValue)
+      : this.computeColor(bar.value, index);
+    let gradient = '';
+    if (this.rangeGradient[index]) {
+      // "span": along its length, through the thresholds
+      color = `url(#range-grad-${this.id}-${index})`;
+    } else if (range.colorBy === 'ends') {
+      // "ends": from the colour of its low end to that of its high one
+      const lowColor = partColor('low', bar.low);
+      const highColor = partColor('high', bar.high);
+      if (lowColor === highColor) {
+        color = lowColor;
+      } else {
+        const id = `range-ends-${this.id}-${index}-${bar.index}`;
+        const lowAtBottom = bar.lowY >= bar.highY;
+        gradient = svg`
+          <linearGradient id=${id} x1="0" x2="0"
+            y1=${lowAtBottom ? 1 : 0} y2=${lowAtBottom ? 0 : 1}>
+            <stop offset="0%" stop-color=${lowColor} />
+            <stop offset="100%" stop-color=${highColor} />
+          </linearGradient>`;
+        color = `url(#${id})`;
+      }
+    }
+    const markerColor = this.rangeGradient[index] || range.colorBy === 'ends'
+      ? partColor('marker', bar.marker)
+      : color;
     return svg`
+      ${gradient}
       <g class='range'
         @mouseover=${hoverable ? () => this.setTooltip(index, bar.index, bar.value) : undefined}
         @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}>
@@ -2057,7 +2085,7 @@ class MiniGraphCard extends LitElement {
   * @param {string | number} inState Value of a state/attribute or a static_value
   * @param {number} index Index of an entry in config.entities
   */
-  computeColor(inState, index) {
+  computeColor(inState, index, thresholds) {
     const { line_color } = this.config;
     const defaultColor = line_color[index] || line_color[0];
 
@@ -2066,7 +2094,8 @@ class MiniGraphCard extends LitElement {
         || defaultColor;
     }
 
-    const color_thresholds = this.config.entities[index].color_thresholds
+    const color_thresholds = thresholds
+      || this.config.entities[index].color_thresholds
       || this.config.color_thresholds;
     const state = Number(inState) || 0;
     let intColor;

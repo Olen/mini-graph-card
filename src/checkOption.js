@@ -309,26 +309,39 @@ const checkStatistics = (config, index) => {
 /**
  * One part of a range bar - its low, high or marker: a function over the
  * entity's own readings ("min"), another entity's readings (its id, read with
- * "last"), or { entity, aggregate } for both.
+ * "last"), or { entity, aggregate, color_thresholds } for any of them. The
+ * card's own entity named as `entity` is read as its own readings.
  * @param {*} value The part as configured
  * @param {string} fallback A function to use when the part is not set
  * @param {string} path Where the part sits, for the log
- * @returns {{func: string, entity: (string|undefined)}} The part
+ * @param {string} [ownEntity] The range bar's own entity
+ * @returns {{func: string, entity: (string|undefined), colorThresholds: (Array|undefined)}}
+ * The part; its color_thresholds are still as configured
  */
-const checkRangePart = (value, fallback, path) => {
+const checkRangePart = (value, fallback, path, ownEntity) => {
+  const other = entity => (entity === ownEntity ? undefined : entity);
   if (value === undefined || value === null) return { func: fallback };
   if (typeof value === 'string' && RANGE_FUNCS.includes(value)) return { func: value };
-  if (typeof value === 'string' && value.includes('.')) return { func: 'last', entity: value };
-  if (typeof value === 'object' && !Array.isArray(value) && typeof value.entity === 'string') {
-    if (value.aggregate === undefined) return { func: 'last', entity: value.entity };
-    if (RANGE_FUNCS.includes(value.aggregate)) {
-      return { func: value.aggregate, entity: value.entity };
+  if (typeof value === 'string' && value.includes('.')) {
+    return other(value) ? { func: 'last', entity: value } : { func: fallback };
+  }
+  const isObject = typeof value === 'object' && !Array.isArray(value);
+  if (isObject && (value.entity === undefined || typeof value.entity === 'string')) {
+    const entity = other(value.entity);
+    // another entity is read at its last value; the own one as the part's default
+    const usual = entity ? 'last' : fallback;
+    let func = usual;
+    if (value.aggregate !== undefined) {
+      if (RANGE_FUNCS.includes(value.aggregate)) func = value.aggregate;
+      else log(`Option ${path}.aggregate must be one of ${RANGE_FUNCS.join(', ')}; using "${usual}"`);
     }
-    log(`Option ${path}.aggregate must be one of ${RANGE_FUNCS.join(', ')}; using "last"`);
-    return { func: 'last', entity: value.entity };
+    const part = { func };
+    if (entity) part.entity = entity;
+    if (value.color_thresholds !== undefined) part.colorThresholds = value.color_thresholds;
+    return part;
   }
   log(`Option ${path} must be one of ${RANGE_FUNCS.join(', ')}, an entity id `
-    + `or { entity, aggregate }; using "${fallback}"`);
+    + `or { entity, aggregate, color_thresholds }; using "${fallback}"`);
   return { func: fallback };
 };
 
@@ -340,9 +353,10 @@ const checkRangePart = (value, fallback, path) => {
  * @param {*} range The entity's range option
  * @param {string} aggregateFunc The card's aggregate_func
  * @param {string} path Where the option sits, for the log
+ * @param {string} [ownEntity] The range bar's own entity
  * @returns {object} { low, high, marker, gaps, colorBy }; marker is false for none
  */
-const checkRange = (range, aggregateFunc, path) => {
+const checkRange = (range, aggregateFunc, path, ownEntity) => {
   let opts = range;
   if (opts !== undefined && (typeof opts !== 'object' || opts === null || Array.isArray(opts))) {
     log(`Option ${path} must be an object; using the defaults`);
@@ -357,11 +371,11 @@ const checkRange = (range, aggregateFunc, path) => {
   }
   return {
     colorBy: checkStringOption(given, 'color_by', RANGE_COLOR_BY, 'value'),
-    low: checkRangePart(given.low, 'min', `${path}.low`),
-    high: checkRangePart(given.high, 'max', `${path}.high`),
+    low: checkRangePart(given.low, 'min', `${path}.low`, ownEntity),
+    high: checkRangePart(given.high, 'max', `${path}.high`, ownEntity),
     marker: given.marker === false
       ? false
-      : checkRangePart(given.marker, markerFunc, `${path}.marker`),
+      : checkRangePart(given.marker, markerFunc, `${path}.marker`, ownEntity),
     gaps,
   };
 };
