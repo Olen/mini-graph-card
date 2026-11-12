@@ -248,6 +248,72 @@ describe('Graph range bars from other entities', () => {
   });
 });
 
+describe('Graph range bar gaps', () => {
+  const pressure = (over = {}) => makeGraph({
+    low: 'sensor.dia', high: 'last', marker: false,
+  }, over);
+
+  it('are not filled by a restart writing the same value again', () => {
+    const graph = pressure();
+    graph.setRangeHistory('sensor.dia', [at(3.5, 80), at(1.5, 80)]);
+    graph.update([at(3.5, 120), at(1.5, 120)]);
+    expect(graph.ranges.map(range => range.index)).toEqual([0]);
+  });
+
+  it('are filled by a change in either entity', () => {
+    const graph = pressure();
+    graph.setRangeHistory('sensor.dia', [at(3.5, 80), at(1.5, 79)]);
+    graph.update([at(3.5, 120), at(1.5, 120)]);
+    expect(spans(graph)).toEqual([
+      {
+        index: 0, low: 80, high: 120, marker: undefined,
+      },
+      {
+        index: 2, low: 79, high: 120, marker: undefined,
+      },
+    ]);
+  });
+
+  it('come from statistics rows whose min equals their max', () => {
+    // hourly rows: the value went 121 -> 115 in the second hour
+    const rows = (value: number) => [
+      at(4, 121, { min: 121, max: 121 }),
+      at(3, value === 115 ? 116.8 : value, { min: 115, max: 121 }),
+      at(2, 115, { min: 115, max: 115 }),
+      at(1, 115, { min: 115, max: 115 }),
+    ];
+    const graph = pressure({ statistics: true });
+    graph.setRangeHistory('sensor.dia', [
+      at(4, 80, { min: 80, max: 80 }),
+      at(3, 75, { min: 75, max: 75 }),
+      at(2, 75, { min: 75, max: 75 }),
+      at(1, 75, { min: 75, max: 75 }),
+    ]);
+    graph.update(rows(115));
+    // the hour the value changed in, read at the value it changed to
+    expect(spans(graph)).toEqual([{
+      index: 1, low: 75, high: 115, marker: undefined,
+    }]);
+  });
+
+  it('read a statistics row the value changed twice in from the steady row after it', () => {
+    // 121 -> 110 -> 115 within the second hour: its span is 110-121, the end 115
+    const graph = makeGraph({ high: 'last', low: 'last' }, { statistics: true });
+    graph.update([
+      at(4, 121, { min: 121, max: 121 }),
+      at(3, 114, { min: 110, max: 121 }),
+      at(2, 115, { min: 115, max: 115 }),
+    ]);
+    expect(graph.ranges[0]).toMatchObject({ index: 1, low: 115, high: 115 });
+  });
+
+  it('read the newest statistics row at the end its span did not start from', () => {
+    const graph = makeGraph({ high: 'last', low: 'last' }, { statistics: true });
+    graph.update([at(4, 121, { min: 121, max: 121 }), at(0.5, 117, { min: 115, max: 121 })]);
+    expect(graph.ranges[0]).toMatchObject({ index: 3, low: 115, high: 115 });
+  });
+});
+
 describe('Graph.getRanges()', () => {
   it('lays range bars out where getBars() puts bars', () => {
     const graph = makeGraph({});

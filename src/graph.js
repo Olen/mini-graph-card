@@ -284,31 +284,88 @@ export default class Graph {
   }
 
   /**
-   * A history split into buckets: the readings taken in each, and the one
-   * that was held when it opened - Home Assistant keeps a state until the
-   * next, so that value was there too.
+   * A history split into buckets: the readings taken in each, the one that
+   * was held when it opened - Home Assistant keeps a state until the next, so
+   * that value was there too - and whether the value changed in it.
+   *
+   * A reading is not a measurement: a restart or a sensor back from
+   * unavailable writes the same value again. A change is what tells that
+   * something was measured - in a statistics row, a min that differs from
+   * its max. A measurement repeating the last value cannot be told apart.
    * @param {Array} history A [{last_changed, state}] series
-   * @returns {Array<{fresh: Array, held: (object|undefined)}>} One per bucket
+   * @returns {Array<{fresh: Array, held: (object|undefined), changed: boolean}>}
+   * One per bucket
    */
   _bucketed(history) {
     const time = item => new Date(item.last_changed).getTime();
     const readings = this._windowHistory(history)
       .filter(item => !Number.isNaN(parseFloat(item.state)))
       .sort((a, b) => time(a) - time(b));
-    const buckets = Array.from({ length: this._bucketCount() }, () => ({ fresh: [] }));
-    let opening;
+    if (this._statistics) this._markEndValues(readings);
+    const buckets = Array.from({ length: this._bucketCount() }, () => ({
+      fresh: [], changed: false,
+    }));
+    let previous;
     readings.forEach((item) => {
       const bucket = this._bucketOf(item);
-      if (bucket === undefined) opening = item;
-      else buckets[bucket].fresh.push(item);
+      if (bucket !== undefined) {
+        buckets[bucket].fresh.push(item);
+        if (this._changedSince(item, previous)) buckets[bucket].changed = true;
+      }
+      previous = item;
     });
-    let held = opening;
+    let held = readings.length > 0 && this._bucketOf(readings[0]) === undefined
+      ? readings[0] : undefined;
     buckets.forEach((bucket) => {
       // eslint-disable-next-line no-param-reassign
       bucket.held = held;
       if (bucket.fresh.length > 0) held = bucket.fresh[bucket.fresh.length - 1];
     });
     return buckets;
+  }
+
+  /**
+   * Whether a reading is a new value: a statistics row whose min & max differ,
+   * else a state unlike the reading before it.
+   * @param {object} item A reading
+   * @param {object} [previous] The reading before it
+   * @returns {boolean} True for a change
+   */
+  _changedSince(item, previous) {
+    const hasRange = item.min !== undefined && item.max !== undefined;
+    if (this._statistics && hasRange) return parseFloat(item.min) !== parseFloat(item.max);
+    if (previous === undefined) return true;
+    return parseFloat(this._endValue(item)) !== parseFloat(this._endValue(previous));
+  }
+
+  /**
+   * Give each statistics row the value it ended at, which "first" & "last"
+   * read: a row the value changed in has a mean mixing the old & the new one.
+   * The next row tells, if nothing changed in it; else the end of the row's
+   * span that is not the value held before it.
+   * @param {Array} rows Statistics rows in time order; changed in place
+   */
+  _markEndValues(rows) {
+    let before;
+    rows.forEach((row, i) => {
+      const steady = item => item && item.min !== undefined && item.max !== undefined
+        && parseFloat(item.min) === parseFloat(item.max);
+      const next = rows[i + 1];
+      let end = parseFloat(row.state);
+      if (row.min !== undefined && row.max !== undefined && !steady(row)) {
+        if (steady(next)) end = parseFloat(next.state);
+        else if (before === parseFloat(row.min)) end = parseFloat(row.max);
+        else if (before === parseFloat(row.max)) end = parseFloat(row.min);
+      }
+      // eslint-disable-next-line no-param-reassign
+      row.end = end;
+      before = end;
+    });
+  }
+
+  /** The value a reading ends at: a statistics row's end, else its state. */
+  _endValue(item) {
+    return item.end !== undefined ? item.end : parseFloat(item.state);
   }
 
   /**
@@ -325,22 +382,22 @@ export default class Graph {
     const number = (item, key) => parseFloat(
       this._statistics && item[key] !== undefined && item[key] !== null ? item[key] : item.state,
     );
-    if (fresh.length === 0) return held === undefined ? undefined : parseFloat(held.state);
+    if (fresh.length === 0) return held === undefined ? undefined : this._endValue(held);
     if (func === 'min' || func === 'max') {
       const values = fresh.map(item => number(item, func));
       if (!this._statistics && held !== undefined) values.push(parseFloat(held.state));
       return func === 'min' ? Math.min(...values) : Math.max(...values);
     }
-    const calc = {
-      avg: this._average, median: this._median, first: this._first, last: this._last,
-    }[func];
+    if (func === 'first') return this._endValue(fresh[0]);
+    if (func === 'last') return this._endValue(fresh[fresh.length - 1]);
+    const calc = { avg: this._average, median: this._median }[func];
     return calc.call(this, fresh);
   }
 
   /**
    * Low, high & marker of every bucket a range bar is drawn in. With gaps, a
-   * bucket none of its entities reported anything in is left out rather than
-   * repeating the last reading.
+   * bucket none of its entities changed in is left out rather than repeating
+   * the last value.
    * @returns {Array<{index, low, high, marker}>} Ascending by bucket
    */
   _calcRanges() {
@@ -356,7 +413,7 @@ export default class Graph {
 
     const ranges = [];
     for (let index = 0; index < this._bucketCount(); index += 1) {
-      const measured = Object.values(sources).some(buckets => buckets[index].fresh.length > 0);
+      const measured = Object.values(sources).some(buckets => buckets[index].changed);
       if (this._range.gaps && !measured) continue; // eslint-disable-line no-continue
       const value = {};
       parts.forEach((name) => {

@@ -1265,7 +1265,7 @@ give it an `aggregate`. `marker: false` draws no marker.
 | low | `min` | The bottom of each bar: a function, an entity id, or `{ entity, aggregate }`.
 | high | `max` | The top of each bar, the same way.
 | marker | `aggregate_func` | The marker line, the same way; `false` for none.
-| gaps | `true` | Leave a period empty when none of the entities reported anything in it. With `false` the last value is repeated, as lines and bars do.
+| gaps | `true` | Leave a period empty when none of the entities changed in it. With `false` the last value is repeated, as lines and bars do.
 
 A heart rate from its daily minimum to maximum, marked at the resting rate:
 
@@ -1301,9 +1301,15 @@ entities:
   Assistant keeps a state until the next one, so that value was there too.
 - With [`statistics`](#statistics), `min` & `max` read the statistics' own
   minimum & maximum - an hourly mean would hide the peaks. The other entities
-  are read from their statistics as well. Gaps need the raw history, though:
-  statistics have a row for every period, whether anything was measured in it
-  or not.
+  are read from their statistics as well, so a blood pressure can be shown
+  for longer than the recorder keeps its history.
+- Gaps go by changes, not by rows: a restart, or a sensor coming back from
+  `unavailable`, writes the same value again, and statistics have a row for
+  every period whether anything was measured or not. A statistics row whose
+  minimum differs from its maximum is a change. A measurement which repeats
+  the last value exactly cannot be told from no measurement.
+- `first` & `last` read a statistics row at the value it ended at: in the hour
+  a value changed, the row's mean mixes the old one & the new one.
 - Hovering shows the span as `low – high`, with the marker beside the time.
 - Range bars take a bar's place, so they work with `bar_spacing`,
   [lines and bars together](#lines-and-bars-together) and
