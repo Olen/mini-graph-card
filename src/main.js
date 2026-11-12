@@ -1345,7 +1345,10 @@ class MiniGraphCard extends LitElement {
     const { x, y } = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
 
     const barHit = findNearestBar(this.bar, x, y);
-    const pointHit = findNearestPoint(this.points, x, y);
+    // a static value marks a limit; it is not a value to read off the graph
+    const readable = this.points.map((points, index) => (this._isStaticValue[index]
+      ? undefined : points));
+    const pointHit = findNearestPoint(readable, x, y);
     const picked = pickPointOrBar(pointHit, barHit, x, y);
     if (picked === undefined) return;
     const hit = picked === 'bar'

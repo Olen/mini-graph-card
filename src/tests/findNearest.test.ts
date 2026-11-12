@@ -76,6 +76,12 @@ describe('findNearestPoint', () => {
       expect(findNearestPoint([TOP, BOTTOM], 200, 61).entity).toBe(1);
     });
 
+    it('skips an entity left out of the hover, keeping the others\' indexes', () => {
+      // a static value is left out: the card passes no points for it
+      const hit = findNearestPoint([undefined, BOTTOM], 100, 15);
+      expect(hit.entity).toBe(1);
+    });
+
     it('ignores an entity whose data does not reach the cursor', () => {
       // LATE only covers the right-hand quarter. With the cursor on the far left
       // its nearest point lies 250px away, so it must not win on Y alone even
