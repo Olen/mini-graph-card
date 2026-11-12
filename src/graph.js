@@ -6,7 +6,9 @@ import {
   MIN_RANGE_HEIGHT,
 } from './const';
 import { log } from './utils';
-import { getIntervalEndDate, getLog10, timeWeightedAverage } from './others';
+import {
+  getIntervalEndDate, getLog10, timeWeightedAverage, bucketCount,
+} from './others';
 
 export default class Graph {
   constructor({
@@ -140,7 +142,7 @@ export default class Graph {
   }
 
   _bucketCount() {
-    return Math.ceil(this._hours_to_show * this._points_per_hour);
+    return bucketCount(this._hours_to_show, this._points_per_hour);
   }
 
   /**
@@ -188,7 +190,7 @@ export default class Graph {
     const histGroups = readings.reduce((res, item) => this._reducer(res, item), []);
 
     // extend length to fill missing history
-    const requiredNumOfPoints = Math.ceil(this._hours_to_show * this._points_per_hour);
+    const requiredNumOfPoints = bucketCount(this._hours_to_show, this._points_per_hour);
     histGroups.length = requiredNumOfPoints;
 
     if (this._range) {
@@ -269,7 +271,7 @@ export default class Graph {
     // A reading taken right now lands one bucket past the last, and the
     // length trim below then discarded it - so the newest value never
     // reached the graph. Hold it in the final bucket instead.
-    const maxKey = Math.ceil(this._hours_to_show * this._points_per_hour) - 1;
+    const maxKey = bucketCount(this._hours_to_show, this._points_per_hour) - 1;
     return Math.min(Math.floor(Math.abs(interval)), maxKey);
   }
 
@@ -677,7 +679,7 @@ export default class Graph {
     const total = this._total_bars_in_group;
 
     // number of measures
-    const total_groups = Math.ceil(this._hours_to_show * this._points_per_hour);
+    const total_groups = bucketCount(this._hours_to_show, this._points_per_hour);
 
     // width of a group of bars
     const group_width = (this._width - spacing_group * (total_groups - 1))

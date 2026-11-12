@@ -60,7 +60,7 @@ import {
   axisLabelShown, showsZeroLabel, boundsForZeroPosition, sharesScale, sharedBounds,
   widenToMinRange,
   getIntervalEndDate, iconFor,
-  getStatisticsType, statisticsSeries, getCardSizeUnits, getGridOptions,
+  getStatisticsType, statisticsSeries, bucketCount, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
   getLabelStride, getChromeHeight,
@@ -1608,7 +1608,7 @@ class MiniGraphCard extends LitElement {
 
     // time units in milliseconds in this function
     const interval = getMilli(1 / points_per_hour);
-    const n_points = Math.ceil(hours_to_show * points_per_hour);
+    const n_points = bucketCount(hours_to_show, points_per_hour);
 
     // index is 0 (oldest) to n_points-1 (most recent ~= now)
     // count of intervals from now to end of bin

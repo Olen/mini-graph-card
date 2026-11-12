@@ -206,6 +206,19 @@ const getStatisticsType = (stats, requested) => {
 };
 
 /**
+ * How many buckets a window holds. hours_to_show * points_per_hour is a whole
+ * number whenever points_per_hour was derived from it, but floating point can
+ * leave it a hair above one - 96 / 4368 * 4368 is 96.00000000000001 - and a
+ * plain ceil() would then count a bucket that does not exist.
+ * @param {number} hoursToShow The window, in hours
+ * @param {number} pointsPerHour Buckets per hour
+ * @returns {number} The number of buckets
+ */
+const bucketCount = (hoursToShow, pointsPerHour) => Math.ceil(
+  hoursToShow * pointsPerHour - 1e-9,
+);
+
+/**
  * Statistics rows as a [{last_changed, state}] series, the value of a chosen
  * type as the state. A row's own min & max come along where it has them: a
  * range bar spans those, which an hourly mean would hide.
@@ -1232,6 +1245,7 @@ export {
   findNearestBar,
   getStatisticsType,
   statisticsSeries,
+  bucketCount,
   isStateInCorner,
   getInfoHeight,
   getCardHeight,
