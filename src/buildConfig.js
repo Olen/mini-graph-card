@@ -387,8 +387,10 @@ export default (config) => {
   conf.group_by = checkGroupBy(conf);
   conf.points_per_hour = checkPointsPerHour(conf);
 
-  // only entities drawn as bars take up bar slots
-  const barEntities = conf.entities.filter(entity => isBarEntity(entity, conf)).length;
+  // only entities drawn as bars take up bar slots - but range bars with gaps
+  // draw only the measured periods, so they are not limited by the slots
+  const barEntities = conf.entities.filter(entity => isBarEntity(entity, conf)
+    && !(isRangeEntity(entity, conf) && entity.range.gaps)).length;
   if (barEntities > 0) {
     if (conf.hours_to_show * conf.points_per_hour * barEntities > MAX_BARS) {
       conf.points_per_hour = MAX_BARS / (conf.hours_to_show * barEntities);

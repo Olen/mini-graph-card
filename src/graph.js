@@ -2,13 +2,25 @@ import { interpolateRGB } from './color';
 import {
   X, Y, V, BUCKET,
   ONE_HOUR,
+  ONE_DAY,
+  CALENDAR_BUCKET_DAYS,
   DEFAULT_BAR_SPACING,
   MIN_RANGE_HEIGHT,
+  MIN_RANGE_WIDTH,
+  RANGE_GAP,
+  LONE_RANGE_SHARE,
 } from './const';
 import { log } from './utils';
 import {
   getIntervalEndDate, getLog10, timeWeightedAverage, bucketCount,
 } from './others';
+
+/** The middle one of some numbers. */
+const median = (values) => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
 
 export default class Graph {
   constructor({
@@ -264,6 +276,8 @@ export default class Graph {
    * @returns {number|undefined} Bucket index, 0 = oldest
    */
   _bucketOf(item) {
+    const days = CALENDAR_BUCKET_DAYS[this._groupBy];
+    if (days !== undefined) return this._calendarBucketOf(item, days);
     const age = this._endTime - new Date(item.last_changed).getTime();
     const interval = (age / ONE_HOUR * this._points_per_hour)
       - this._hours_to_show * this._points_per_hour;
@@ -273,6 +287,28 @@ export default class Graph {
     // reached the graph. Hold it in the final bucket instead.
     const maxKey = bucketCount(this._hours_to_show, this._points_per_hour) - 1;
     return Math.min(Math.floor(Math.abs(interval)), maxKey);
+  }
+
+  /**
+   * The bucket of a reading when buckets are calendar days or weeks: counted
+   * in days, not in hours, so a change to or from summer time does not move a
+   * reading taken at midnight - a day's statistics row - into the day before.
+   * @param {object} item A reading
+   * @param {number} days Days in a bucket
+   * @returns {number|undefined} Bucket index, or undefined before the window
+   */
+  _calendarBucketOf(item, days) {
+    const dayNumber = (time) => {
+      const date = new Date(time);
+      return Math.round(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / ONE_DAY);
+    };
+    const count = this._bucketCount();
+    const back = Math.floor(
+      (dayNumber(this._endTime - 1) - dayNumber(new Date(item.last_changed).getTime())) / days,
+    );
+    if (back >= count) return undefined;
+    // a reading from the future is held in the newest bucket, as for intervals
+    return count - 1 - Math.max(back, 0);
   }
 
   _reducer(res, item) {
@@ -337,7 +373,10 @@ export default class Graph {
   _changedSince(item, previous) {
     const hasRange = item.min !== undefined && item.max !== undefined;
     if (this._statistics && hasRange && parseFloat(item.min) !== parseFloat(item.max)) return true;
-    if (previous === undefined) return true;
+    // Statistics start at the window, with no row before it to compare with:
+    // the first one holds what was measured earlier. A history's first reading
+    // is new, though - the history includes the state the window opened with.
+    if (previous === undefined) return !this._statistics;
     return parseFloat(this._endValue(item)) !== parseFloat(this._endValue(previous));
   }
 
@@ -644,15 +683,18 @@ export default class Graph {
    * @returns {Array<object>} Bars, with low, high, marker & markerY added
    */
   getRanges(position) {
-    const { width, x } = this._barLayout(position);
-    return this.ranges.map((range) => {
+    const place = this._fitsMeasurements
+      ? this._measurementLayout()
+      : this._slotLayout(position);
+    return this.ranges.map((range, i) => {
       const lowY = this.getY(range.low);
       const highY = this.getY(range.high);
       const centre = (lowY + highY) / 2;
       const height = Math.max(Math.abs(lowY - highY), MIN_RANGE_HEIGHT);
       const y = centre - height / 2;
+      const { x, width } = place(range, i);
       return {
-        x: x(range.index),
+        x,
         y,
         height,
         width,
@@ -666,6 +708,54 @@ export default class Graph {
         markerY: range.marker === undefined ? undefined : this.getY(range.marker),
       };
     });
+  }
+
+  /**
+   * Whether range bars are laid out by their measurements rather than in a
+   * slot per bucket: with gaps, as the only graph on a card. Only measured
+   * periods are drawn then, so they can be as wide as the measurements allow.
+   */
+  get _fitsMeasurements() {
+    return !!this._range && this._range.gaps
+      && this._total_bars_in_group === 1 && !this._barCentres;
+  }
+
+  /** The bucket slots of _barLayout(), as a function of a range. */
+  _slotLayout(position) {
+    const { width, x } = this._barLayout(position);
+    return range => ({ x: x(range.index), width });
+  }
+
+  /**
+   * Range bars at the time of their period, as wide as the measurements allow:
+   * the usual distance between neighbouring bars, but never closer than
+   * RANGE_GAP to a neighbour, nor narrower than MIN_RANGE_WIDTH. A missed
+   * measurement thus shows as a wider gap. A bar is centred on its period's
+   * time; one at an end of the graph is cut off at the edge.
+   * @returns {function(object, number): {x: number, width: number}} The layout
+   */
+  _measurementLayout() {
+    const step = this._width / this._bucketCount();
+    const centres = this.ranges.map(range => this._margin[X] + step * (range.index + 0.5));
+    const distances = centres.slice(1).map((centre, i) => centre - centres[i]);
+    const typical = distances.length > 0
+      ? median(distances)
+      : this._width / LONE_RANGE_SHARE;
+    const left = this._margin[X];
+    const right = this._margin[X] + this._width;
+    return (range, i) => {
+      const centre = centres[i];
+      const toLeft = i > 0 ? distances[i - 1] : Infinity;
+      const toRight = i < distances.length ? distances[i] : Infinity;
+      const half = Math.min(typical, toLeft, toRight) / 2 - RANGE_GAP / 2;
+      const leftHalf = Math.min(half, centre - left);
+      const rightHalf = Math.min(half, right - centre);
+      if (leftHalf + rightHalf >= MIN_RANGE_WIDTH) {
+        return { x: centre - leftHalf, width: leftHalf + rightHalf };
+      }
+      const x = Math.min(Math.max(centre - MIN_RANGE_WIDTH / 2, left), right - MIN_RANGE_WIDTH);
+      return { x, width: MIN_RANGE_WIDTH };
+    };
   }
 
   /**

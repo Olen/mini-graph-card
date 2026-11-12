@@ -28,6 +28,11 @@ const OVERALL_PREFIX = 'overall_';
 const AGGREGATE_FUNCS = ['avg', 'median', 'max', 'min', 'first', 'last', 'sum', 'delta', 'diff'];
 // A range bar with no height is drawn this tall (px), or it would not show
 const MIN_RANGE_HEIGHT = 2;
+// Range bars laid out by their measurements: no narrower than this (px),
+// this far (px) from a neighbour, and a lone one this share of the width
+const MIN_RANGE_WIDTH = 2;
+const RANGE_GAP = 1;
+const LONE_RANGE_SHARE = 10;
 // what a range bar's low, high & marker may be computed with
 const RANGE_FUNCS = ['min', 'max', 'avg', 'median', 'first', 'last'];
 // The length of a bucket, in hours, for each fixed group_by; "interval" uses
@@ -77,6 +82,9 @@ const V = 2;
 // A graph can start part-way into its window, so a point's position is not its bucket
 const BUCKET = 3;
 const ONE_HOUR = 1000 * 3600;
+const ONE_DAY = ONE_HOUR * 24;
+// group_by buckets that are calendar days, counted in days rather than hours
+const CALENDAR_BUCKET_DAYS = { date: 1, week: 7 };
 
 // Sections grid: a cell is 56px high with an 8px gap, so N rows take 64*N-8 px.
 const GRID_ROW_HEIGHT = 56;
@@ -219,6 +227,9 @@ export {
   AGGREGATE_FUNCS,
   RANGE_FUNCS,
   MIN_RANGE_HEIGHT,
+  MIN_RANGE_WIDTH,
+  RANGE_GAP,
+  LONE_RANGE_SHARE,
   OVERALL_PREFIX,
   DEFAULT_STATIC_VALUE_LABEL_OFFSET,
   NBSP,
@@ -230,6 +241,8 @@ export {
   V,
   BUCKET,
   ONE_HOUR,
+  ONE_DAY,
+  CALENDAR_BUCKET_DAYS,
   HOVER_NEAREST,
   HOVER_POINT,
   HOVER_MODES,

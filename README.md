@@ -1311,6 +1311,12 @@ entities:
 - `first` & `last` read a statistics row at the value it ended at: in the hour
   a value changed, the row's mean mixes the old one & the new one.
 - Hovering shows the span as `low – high`, with the marker beside the time.
+- With gaps, as the only graph on a card, the bars are laid out by the
+  measurements rather than in a slot per period: each sits at the time of its
+  period, as wide as the usual distance between them allows, 1 px from a
+  neighbour and at least 2 px wide. A missed measurement shows as a wider gap.
+  Only the measured periods are drawn, so the limit of 96 bars does not apply:
+  `group_by: date` over half a year keeps a bar per day measured in.
 - Range bars take a bar's place, so they work with `bar_spacing`,
   [lines and bars together](#lines-and-bars-together) and
   [opposing graphs](#opposing-graphs). `baseline`, `fill` and `smoothing` do

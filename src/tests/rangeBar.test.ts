@@ -304,6 +304,13 @@ describe('Graph range bar gaps', () => {
     }]);
   });
 
+  it('do not take the first statistics row for a measurement', () => {
+    // nothing before the window to compare it with: it holds an older one
+    const graph = makeGraph({ high: 'last', low: 'last' }, { statistics: true });
+    graph.update([at(3.5, 120, { min: 120, max: 120 }), at(1.5, 109, { min: 109, max: 109 })]);
+    expect(graph.ranges.map(range => range.index)).toEqual([2]);
+  });
+
   it('read a statistics row the value changed twice in from the steady row after it', () => {
     // 121 -> 110 -> 115 within the second hour: its span is 110-121, the end 115
     const graph = makeGraph({ high: 'last', low: 'last' }, { statistics: true });
@@ -323,8 +330,8 @@ describe('Graph range bar gaps', () => {
 });
 
 describe('Graph.getRanges()', () => {
-  it('lays range bars out where getBars() puts bars', () => {
-    const graph = makeGraph({});
+  it('lays range bars out where getBars() puts bars without gaps', () => {
+    const graph = makeGraph({ gaps: false });
     graph.update([at(3.5, 0), at(3.2, 100), at(0.5, 50)]);
     [graph.min, graph.max] = [0, 100];
     const bars = graph.getBars(0);
@@ -350,6 +357,91 @@ describe('Graph.getRanges()', () => {
     const [range] = graph.getRanges(0);
     expect(range.height).toBe(MIN_RANGE_HEIGHT);
     expect(range.y + range.height / 2).toBe(50);
+  });
+});
+
+describe('Graph.getRanges() by measurements', () => {
+  // 10 one-hour buckets over 1000 px: bucket i is centred on 100 * i + 50
+  const measured = (hoursAgo: number[], over = {}) => {
+    const graph = new Graph({
+      width: 1000,
+      height: 100,
+      margin: [0, 0],
+      hours_to_show: 10,
+      points_per_hour: 1,
+      range: checkRange({}, 'avg', 'range'),
+      ...over,
+    });
+    graph.update(hoursAgo.map(hours => at(hours, hours)));
+    [graph.min, graph.max] = [0, 10];
+    return graph.getRanges(0).map(({ x, width }) => [x, width]);
+  };
+
+  it('keeps 1 px between measurements in neighbouring periods', () => {
+    // buckets 3, 4 & 5
+    expect(measured([6.5, 5.5, 4.5])).toEqual([[300.5, 99], [400.5, 99], [500.5, 99]]);
+  });
+
+  it('shows a missed measurement as a wider gap, the bars as wide as usual', () => {
+    // buckets 1, 2, 3 & 7: the usual distance is 100 px
+    expect(measured([8.5, 7.5, 6.5, 2.5])).toEqual([
+      [100.5, 99], [200.5, 99], [300.5, 99], [700.5, 99],
+    ]);
+  });
+
+  it('narrows bars that are closer than usual, centred on their time', () => {
+    // usually 400 px apart, but two of them in neighbouring periods
+    const bars = measured([9.5, 5.5, 4.5, 0.5]);
+    expect(bars[1]).toEqual([400.5, 99]);
+    expect(bars[2]).toEqual([500.5, 99]);
+    expect(bars[3]).toEqual([750.5, 249.5]);
+  });
+
+  it('keeps a bar at an end of the graph inside it', () => {
+    // buckets 0 & 9: 900 px apart, but only 50 px to each edge
+    expect(measured([9.5, 0.5])).toEqual([[0, 499.5], [500.5, 499.5]]);
+  });
+
+  it('draws a bar at least 2 px wide', () => {
+    const graph = new Graph({
+      width: 100,
+      height: 100,
+      margin: [0, 0],
+      hours_to_show: 200,
+      points_per_hour: 1,
+      range: checkRange({}, 'avg', 'range'),
+    });
+    graph.update([at(10.5, 1), at(9.5, 2)]);
+    [graph.min, graph.max] = [0, 10];
+    expect(graph.getRanges(0).map(bar => bar.width)).toEqual([2, 2]);
+  });
+
+  it('keeps the slots with other graphs on the card, or without gaps', () => {
+    expect(measured([6.5, 2.5], { total_bars_in_group: 2 })[0][1]).toBeLessThan(99);
+    // a slot per period from the first reading on, measured or not
+    expect(measured([6.5, 2.5], { range: checkRange({ gaps: false }, 'avg', 'range') }))
+      .toHaveLength(7);
+  });
+});
+
+describe('range bars and the bar limit', () => {
+  it('do not count against it with gaps: only measured periods are drawn', () => {
+    const { config: built } = buildConfig({
+      entities: [{ entity: 'sensor.bp', graph: 'range' }],
+      hours_to_show: 4368,
+      group_by: 'date',
+    });
+    expect(built.points_per_hour).toBe(1 / 24);
+  });
+
+  it('do without gaps', () => {
+    mockLog();
+    const { config: built } = buildConfig({
+      entities: [{ entity: 'sensor.bp', graph: 'range', range: { gaps: false } }],
+      hours_to_show: 4368,
+      group_by: 'date',
+    });
+    expect(built.points_per_hour).toBeLessThan(1 / 24);
   });
 });
 
