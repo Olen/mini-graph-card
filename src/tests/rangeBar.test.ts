@@ -11,7 +11,7 @@ import {
 import Graph from '../graph';
 import { checkRange } from '../checkOption';
 import {
-  isBarEntity, isRangeEntity, rangeEntityIds, statisticsSeries,
+  isBarEntity, isRangeEntity, rangeEntityIds, statisticsSeries, fitsMeasurements,
 } from '../others';
 import buildConfig from '../buildConfig';
 import { MIN_RANGE_HEIGHT } from '../const';
@@ -454,6 +454,7 @@ describe('Graph.getRanges() by measurements', () => {
       hours_to_show: 10,
       points_per_hour: 1,
       range: checkRange({}, 'avg', 'range'),
+      fitsMeasurements: true,
       ...over,
     });
     graph.update(hoursAgo.map(hours => at(hours, hours)));
@@ -473,12 +474,11 @@ describe('Graph.getRanges() by measurements', () => {
     ]);
   });
 
-  it('narrows bars that are closer than usual, centred on their time', () => {
-    // usually 400 px apart, but two of them in neighbouring periods
-    const bars = measured([9.5, 5.5, 4.5, 0.5]);
-    expect(bars[1]).toEqual([400.5, 99]);
-    expect(bars[2]).toEqual([500.5, 99]);
-    expect(bars[3]).toEqual([750.5, 249.5]);
+  it('makes every bar as wide as the closest two allow, centred on its time', () => {
+    // mostly 400 px apart, but two of them in neighbouring periods
+    expect(measured([9.5, 5.5, 4.5, 0.5])).toEqual([
+      [0.5, 99], [400.5, 99], [500.5, 99], [900.5, 99],
+    ]);
   });
 
   it('keeps a bar at an end of the graph inside it', () => {
@@ -494,17 +494,44 @@ describe('Graph.getRanges() by measurements', () => {
       hours_to_show: 200,
       points_per_hour: 1,
       range: checkRange({}, 'avg', 'range'),
+      fitsMeasurements: true,
     });
     graph.update([at(10.5, 1), at(9.5, 2)]);
     [graph.min, graph.max] = [0, 10];
     expect(graph.getRanges(0).map(bar => bar.width)).toEqual([2, 2]);
   });
 
-  it('keeps the slots with other graphs on the card, or without gaps', () => {
-    expect(measured([6.5, 2.5], { total_bars_in_group: 2 })[0][1]).toBeLessThan(99);
+  it('keeps the slots when the card says so', () => {
+    expect(measured([6.5, 2.5], { fitsMeasurements: false, total_bars_in_group: 2 })[0][1])
+      .toBeLessThan(99);
     // a slot per period from the first reading on, measured or not
     expect(measured([6.5, 2.5], { range: checkRange({ gaps: false }, 'avg', 'range') }))
       .toHaveLength(7);
+  });
+});
+
+describe('fitsMeasurements()', () => {
+  const card = (entities: any[]) => buildConfig({ entities }).config;
+  const pressure = { entity: 'sensor.sys', graph: 'range' };
+
+  it('lays range bars with gaps out by their measurements', () => {
+    expect(fitsMeasurements(card([pressure]), 0)).toBe(true);
+  });
+
+  it('does so beside static values, which are flat', () => {
+    expect(fitsMeasurements(card([pressure, { static_value: 80 }, { static_value: 120 }]), 0))
+      .toBe(true);
+  });
+
+  it('keeps the slots beside another graph', () => {
+    expect(fitsMeasurements(card([pressure, 'sensor.pulse']), 0)).toBe(false);
+    expect(fitsMeasurements(card([pressure, { entity: 'sensor.pulse', show_graph: false }]), 0))
+      .toBe(true);
+  });
+
+  it('keeps the slots without gaps, and for other graphs', () => {
+    expect(fitsMeasurements(card([{ ...pressure, range: { gaps: false } }]), 0)).toBe(false);
+    expect(fitsMeasurements(card(['sensor.sys']), 0)).toBe(false);
   });
 });
 

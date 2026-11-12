@@ -399,7 +399,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | show_line | boolean |         | Set to false to hide the line.
 | show_fill | boolean |         | Set to false to hide the fill.
 | show_points | boolean |         | Set to false to hide the points (see a note below).
-| show_legend | boolean |         | Set to false to turn hide from the legend.
+| show_legend | boolean |         | Set to `false` to leave the entity out of the legend - say, a [static value](#static-lines) drawn as a limit.
 | show_static_inactive | boolean |         | Set to true to disable hiding the line when a point of a line of another entity selected; meaningful for a [static line](#static-lines) only.
 | state_adaptive_color | boolean |         | Make the color of the state adapt to the entity/static value color.
 | y_axis | string |         | If 'secondary', displays using the secondary Y-axis on the right.
@@ -1357,12 +1357,14 @@ entities:
 - `first` & `last` read a statistics row at the value it ended at: in the hour
   a value changed, the row's mean mixes the old one & the new one.
 - Hovering shows the span as `low – high`, with the marker beside the time.
-- With gaps, as the only graph on a card, the bars are laid out by the
+- With gaps, as the only graph on a card but static values, the bars are laid out by the
   measurements rather than in a slot per period: each sits at the time of its
-  period, as wide as the usual distance between them allows, 1 px from a
-  neighbour and at least 2 px wide. A missed measurement shows as a wider gap.
+  period, all as wide as the closest two allow - 1 px apart there - and at
+  least 2 px wide. A missed measurement shows as a wider gap.
   Only the measured periods are drawn, so the limit of 96 bars does not apply:
   `group_by: date` over half a year keeps a bar per day measured in.
+- [Static values](#static-lines) can mark limits beside them - say, dashed
+  lines at 80 & 120 for a blood pressure - without changing the layout.
 - Range bars take a bar's place, so they work with `bar_spacing`,
   [lines and bars together](#lines-and-bars-together) and
   [opposing graphs](#opposing-graphs). `baseline`, `fill` and `smoothing` do

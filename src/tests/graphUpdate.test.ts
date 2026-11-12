@@ -134,3 +134,20 @@ describe('Graph.update: the start of a graph', () => {
     expect(graph.coords).toEqual([]);
   });
 });
+
+describe('Graph.update with a static value', () => {
+  // a static_value's history has no times: it holds for the whole window
+  const flat = (groupBy: string, pointsPerHour: number) => {
+    const graph = makeGraph({ groupBy, points_per_hour: pointsPerHour });
+    graph.update([{ state: 80 }, { state: 80 }]);
+    return graph.coords.map(coord => coord[2]);
+  };
+
+  it('draws a flat line by interval', () => {
+    expect(flat('interval', 1)).toEqual(Array(24).fill(80));
+  });
+
+  it('draws a flat line by calendar day', () => {
+    expect(flat('date', 1 / 24)).toEqual([80]);
+  });
+});

@@ -847,6 +847,20 @@ const isBarEntity = (entityConfig, config) => ['bar', 'range']
 const isRangeEntity = (entityConfig, config) => graphTypeOf(entityConfig, config) === 'range';
 
 /**
+ * Whether an entity's range bars are laid out by their measurements: with
+ * gaps, & nothing else drawn on the card but static values, which are flat.
+ * @param {object} config Card config, after buildConfig()'s checks
+ * @param {number} index Index of an entry in config.entities
+ * @returns {boolean} True to lay them out by their measurements
+ */
+const fitsMeasurements = (config, index) => {
+  const entity = config.entities[index];
+  if (!isRangeEntity(entity, config) || !entity.range || !entity.range.gaps) return false;
+  return config.entities.every((other, j) => j === index
+    || other.show_graph === false || isNumeric(other.static_value));
+};
+
+/**
  * The other entities a range bar reads, each once.
  * @param {object} [range] An entity's range option, after checkRange()
  * @returns {string[]} Entity ids
@@ -1219,6 +1233,7 @@ export {
   isBarEntity,
   isRangeEntity,
   rangeEntityIds,
+  fitsMeasurements,
   pickPointOrBar,
   isOpposingBars,
   boundsForZeroPosition,

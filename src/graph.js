@@ -15,13 +15,6 @@ import {
   getIntervalEndDate, getLog10, timeWeightedAverage, bucketCount,
 } from './others';
 
-/** The middle one of some numbers. */
-const median = (values) => {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-};
-
 export default class Graph {
   constructor({
     width,
@@ -42,6 +35,7 @@ export default class Graph {
     barCentres = false, // a line's points at the centres of bars drawn beside it
     range, // a range bar's parts (see checkRange); undefined for other graphs
     statistics = false, // the history is statistics rows, which carry min & max
+    fitsMeasurements = false, // range bars laid out by their measurements
   }) {
     const aggregateFuncMap = {
       avg: this._average,
@@ -80,6 +74,7 @@ export default class Graph {
     this.overall = undefined;
     this._range = range;
     this._statistics = statistics;
+    this._fitsMeasurementsOption = fitsMeasurements;
     this._rangeHistories = {};
     this.ranges = [];
   }
@@ -291,11 +286,13 @@ export default class Graph {
 
   /**
    * The bucket a reading belongs in, or undefined for the one from before the
-   * window (see _windowHistory).
+   * window (see _windowHistory) & for one without a time.
    * @param {object} item A reading
    * @returns {number|undefined} Bucket index, 0 = oldest
    */
   _bucketOf(item) {
+    // a static_value has no time: it is held from before the window
+    if (Number.isNaN(new Date(item.last_changed).getTime())) return undefined;
     const days = CALENDAR_BUCKET_DAYS[this._groupBy];
     if (days !== undefined) return this._calendarBucketOf(item, days);
     const age = this._endTime - new Date(item.last_changed).getTime();
@@ -734,12 +731,12 @@ export default class Graph {
 
   /**
    * Whether range bars are laid out by their measurements rather than in a
-   * slot per bucket: with gaps, as the only graph on a card. Only measured
-   * periods are drawn then, so they can be as wide as the measurements allow.
+   * slot per bucket - the card decides: with gaps, & nothing else on the card
+   * but static values. Only measured periods are drawn then, so they can be
+   * as wide as the measurements allow.
    */
   get _fitsMeasurements() {
-    return !!this._range && this._range.gaps
-      && this._total_bars_in_group === 1 && !this._barCentres;
+    return !!this._range && this._range.gaps && this._fitsMeasurementsOption;
   }
 
   /** The bucket slots of _barLayout(), as a function of a range. */
@@ -749,27 +746,24 @@ export default class Graph {
   }
 
   /**
-   * Range bars at the time of their period, as wide as the measurements allow:
-   * the usual distance between neighbouring bars, but never closer than
-   * RANGE_GAP to a neighbour, nor narrower than MIN_RANGE_WIDTH. A missed
-   * measurement thus shows as a wider gap. A bar is centred on its period's
-   * time; one at an end of the graph is cut off at the edge.
+   * Range bars at the time of their period, all as wide as the closest two
+   * allow: RANGE_GAP apart there, and never narrower than MIN_RANGE_WIDTH. A
+   * missed measurement thus shows as a wider gap. A bar is centred on its
+   * period's time; one at an end of the graph is cut off at the edge.
    * @returns {function(object, number): {x: number, width: number}} The layout
    */
   _measurementLayout() {
     const step = this._width / this._bucketCount();
     const centres = this.ranges.map(range => this._margin[X] + step * (range.index + 0.5));
     const distances = centres.slice(1).map((centre, i) => centre - centres[i]);
-    const typical = distances.length > 0
-      ? median(distances)
+    const closest = distances.length > 0
+      ? Math.min(...distances)
       : this._width / LONE_RANGE_SHARE;
     const left = this._margin[X];
     const right = this._margin[X] + this._width;
     return (range, i) => {
       const centre = centres[i];
-      const toLeft = i > 0 ? distances[i - 1] : Infinity;
-      const toRight = i < distances.length ? distances[i] : Infinity;
-      const half = Math.min(typical, toLeft, toRight) / 2 - RANGE_GAP / 2;
+      const half = closest / 2 - RANGE_GAP / 2;
       const leftHalf = Math.min(half, centre - left);
       const rightHalf = Math.min(half, right - centre);
       if (leftHalf + rightHalf >= MIN_RANGE_WIDTH) {

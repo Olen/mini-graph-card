@@ -55,7 +55,7 @@ import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
   isNumericEntity, smoothingFor, baselineFor, isBarEntity, pickPointOrBar,
-  isRangeEntity, rangeEntityIds,
+  isRangeEntity, rangeEntityIds, fitsMeasurements,
   overallFuncName, isOverallState, isTextState,
   axisLabelShown, showsZeroLabel, boundsForZeroPosition, sharesScale, sharedBounds,
   widenToMinRange,
@@ -295,6 +295,7 @@ class MiniGraphCard extends LitElement {
           // a line next to bars puts its points at the bars' centres
           barCentres: this.mixesLinesAndBars,
           range: this._isRange[index] ? entity.range : undefined,
+          fitsMeasurements: fitsMeasurements(this.config, index),
           statistics: !!entity.statistics,
           overallFuncName: this.showsOverall(index)
             ? overallFuncName(
@@ -2026,9 +2027,16 @@ class MiniGraphCard extends LitElement {
   }
 
   /** Whether the card draws both lines and bars. */
+  /**
+   * Whether bars share the card with lines whose points must line up with
+   * them. A static value is a flat line across the card, so it does not count.
+   */
   get mixesLinesAndBars() {
-    return !this.allBars && this.config.entities
-      .some((entity, index) => entity.show_graph !== false && this._isBar[index]);
+    const drawn = this.config.entities
+      .map((entity, index) => ({ entity, index }))
+      .filter(({ entity }) => entity.show_graph !== false);
+    return drawn.some(({ index }) => this._isBar[index])
+      && drawn.some(({ index }) => !this._isBar[index] && !this._isStaticValue[index]);
   }
 
   get visibleEntities() {
