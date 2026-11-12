@@ -1266,6 +1266,7 @@ give it an `aggregate`. `marker: false` draws no marker.
 | high | `max` | The top of each bar, the same way.
 | marker | `aggregate_func` | The marker line, the same way; `false` for none.
 | gaps | `true` | Leave a period empty when none of the entities changed in it. With `false` the last value is repeated, as lines and bars do.
+| color_by | `value` | What [`color_thresholds`](#line-color-object) colour a bar by: `value` (its marker, else its high), `low`, `high`, `marker`, or `span` - along its length, each part in the colour of the value it covers.
 
 A heart rate from its daily minimum to maximum, marked at the resting rate:
 
@@ -1279,6 +1280,24 @@ entities:
       high: last
       marker: sensor.resting_heart_rate
 ```
+
+A temperature's daily spread, blue for every day it froze, by its low:
+
+```yaml
+entities:
+  - entity: sensor.outdoor_temperature
+    graph: range
+    range:
+      color_by: low
+color_thresholds:
+  - value: -50
+    color: '#3584e4'
+  - value: 0
+    color: '#e66100'
+color_thresholds_transition: hard
+```
+
+With `color_by: span` a day that crossed 0 is blue below it & orange above.
 
 A blood pressure, from diastolic to systolic, with no marker. Gaps leave the
 days without a measurement empty, rather than repeating the last one:

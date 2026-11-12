@@ -35,6 +35,8 @@ const RANGE_GAP = 1;
 const LONE_RANGE_SHARE = 10;
 // what a range bar's low, high & marker may be computed with
 const RANGE_FUNCS = ['min', 'max', 'avg', 'median', 'first', 'last'];
+// what a range bar is coloured by: one of its values, or along its span
+const RANGE_COLOR_BY = ['value', 'low', 'high', 'marker', 'span'];
 // The length of a bucket, in hours, for each fixed group_by; "interval" uses
 // points_per_hour instead.
 const GROUP_BY_HOURS = {
@@ -226,6 +228,7 @@ export {
   GROUP_BY_HOURS,
   AGGREGATE_FUNCS,
   RANGE_FUNCS,
+  RANGE_COLOR_BY,
   MIN_RANGE_HEIGHT,
   MIN_RANGE_WIDTH,
   RANGE_GAP,

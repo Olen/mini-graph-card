@@ -231,6 +231,25 @@ export default class Graph {
   }
 
   /**
+   * The value a range bar takes its colour from, as range.color_by says;
+   * undefined for "span", which colours it along its length instead.
+   */
+  _rangeColorValue(range) {
+    switch (this._range.colorBy) {
+      case 'low': return range.low;
+      case 'high': return range.high;
+      case 'marker': return range.marker !== undefined ? range.marker : range.high;
+      case 'span': return undefined;
+      default: return this._rangeValue(range);
+    }
+  }
+
+  /** Height of the whole drawing, margins included, which a gradient spans. */
+  get drawingHeight() {
+    return this._height + this._margin[Y] * 4;
+  }
+
+  /**
    * The readings inside the window, preceded by the newest one from before it:
    * that is what the sensor read when the window opened. Older ones are left
    * out, so a quiet sensor's left edge does not average its whole past.
@@ -607,8 +626,7 @@ export default class Graph {
       }
       // The gradient paints a rect over the whole graph, margins included, so
       // a stop sits where its value is drawn in that frame
-      const totalHeight = this._height + this._margin[Y] * 4;
-      const offset = scale > 0 ? (this.getY(stop.value) / totalHeight) * 100 : 0;
+      const offset = scale > 0 ? (this.getY(stop.value) / this.drawingHeight) * 100 : 0;
       return {
         color: color || stop.color,
         offset,
@@ -699,6 +717,7 @@ export default class Graph {
         height,
         width,
         value: this._rangeValue(range),
+        colorValue: this._rangeColorValue(range),
         index: range.index,
         base: y + height,
         tip: y,

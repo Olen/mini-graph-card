@@ -58,7 +58,11 @@ const spans = (graph: Graph) => graph.ranges.map(({
 describe('checkRange()', () => {
   it('spans a bucket\'s min to max, marked at the aggregate, with gaps', () => {
     expect(checkRange(undefined, 'avg', 'range')).toEqual({
-      low: { func: 'min' }, high: { func: 'max' }, marker: { func: 'avg' }, gaps: true,
+      low: { func: 'min' },
+      high: { func: 'max' },
+      marker: { func: 'avg' },
+      gaps: true,
+      colorBy: 'value',
     });
   });
 
@@ -85,6 +89,11 @@ describe('checkRange()', () => {
     expect(checkRange({ gaps: false }, 'avg', 'range').gaps).toBe(false);
   });
 
+  it('colours by a chosen part, or along the span', () => {
+    expect(checkRange({ color_by: 'low' }, 'avg', 'range').colorBy).toBe('low');
+    expect(checkRange({ color_by: 'span' }, 'avg', 'range').colorBy).toBe('span');
+  });
+
   it('warns & falls back on a value it does not know', () => {
     const warn = mockLog();
     expect(checkRange({ low: 'lowest' }, 'avg', 'range').low).toEqual({ func: 'min' });
@@ -92,7 +101,8 @@ describe('checkRange()', () => {
       .toEqual({ func: 'last', entity: 'sensor.x' });
     expect(checkRange({ gaps: 'no' }, 'avg', 'range').gaps).toBe(true);
     expect(checkRange('min', 'avg', 'range').low).toEqual({ func: 'min' });
-    expect(warn).toHaveBeenCalledTimes(4);
+    expect(checkRange({ color_by: 'coldest' }, 'avg', 'range').colorBy).toBe('value');
+    expect(warn).toHaveBeenCalledTimes(5);
   });
 });
 
@@ -357,6 +367,32 @@ describe('Graph.getRanges()', () => {
     const [range] = graph.getRanges(0);
     expect(range.height).toBe(MIN_RANGE_HEIGHT);
     expect(range.y + range.height / 2).toBe(50);
+  });
+});
+
+describe('Graph.getRanges() colour', () => {
+  // a span from 2 to 8 with its marker at 5
+  const colourOf = (colorBy: string, marker: any = undefined) => {
+    const graph = makeGraph({ color_by: colorBy, marker });
+    graph.update([at(3.5, 2), at(3.4, 8), at(3.3, 5)]);
+    [graph.min, graph.max] = [0, 10];
+    return graph.getRanges(0)[0].colorValue;
+  };
+
+  it('comes from the value the bar stands for by default', () => {
+    expect(colourOf('value')).toBe(5);
+    expect(colourOf('value', false)).toBe(8);
+  });
+
+  it('comes from the low, the high or the marker when asked', () => {
+    expect(colourOf('low')).toBe(2);
+    expect(colourOf('high')).toBe(8);
+    expect(colourOf('marker')).toBe(5);
+    expect(colourOf('marker', false)).toBe(8);
+  });
+
+  it('comes from no one value along the span', () => {
+    expect(colourOf('span')).toBeUndefined();
   });
 });
 

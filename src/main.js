@@ -93,6 +93,7 @@ class MiniGraphCard extends LitElement {
     this.fill = [];
     this.points = [];
     this.gradient = [];
+    this.rangeGradient = [];
     this.tooltip = {};
     // Pointer state, with three different lifetimes:
     // _pointerType & _pointerOrigin describe the last press & must survive
@@ -1148,12 +1149,17 @@ class MiniGraphCard extends LitElement {
    * line across it in full colour.
    * @param {object} bar From Graph.getRanges()
    * @param {number} index Index of an entry in config.entities
-   * @param {string} color The bar's colour
    * @param {string} spanStyle Style of the span (animation, seam)
    * @param {boolean} hoverable Whether the bar sets the tooltip itself
    * @returns {SVGTemplateResult} SVG element
    */
-  renderSvgRange(bar, index, color, spanStyle, hoverable) {
+  renderSvgRange(bar, index, spanStyle, hoverable) {
+    // "span" colours a bar along its length, its marker by its own value
+    const alongSpan = !!this.rangeGradient[index];
+    const color = alongSpan
+      ? `url(#range-grad-${this.id}-${index})`
+      : this.computeColor(bar.colorValue !== undefined ? bar.colorValue : bar.value, index);
+    const markerColor = alongSpan ? this.computeColor(bar.marker, index) : color;
     return svg`
       <g class='range'
         @mouseover=${hoverable ? () => this.setTooltip(index, bar.index, bar.value) : undefined}
@@ -1166,7 +1172,7 @@ class MiniGraphCard extends LitElement {
         ${bar.markerY === undefined ? '' : svg`
           <line class='range__marker'
             x1=${bar.x} x2=${bar.x + bar.width} y1=${bar.markerY} y2=${bar.markerY}
-            stroke=${color} vector-effect="non-scaling-stroke">
+            stroke=${markerColor} vector-effect="non-scaling-stroke">
           </line>`}
       </g>`;
   }
@@ -1373,6 +1379,26 @@ class MiniGraphCard extends LitElement {
   }
 
   /**
+   * Gradients for range bars coloured along their span: in the drawing's own
+   * coordinates, so every bar takes the colours of the values it covers.
+   * @param {Array} gradients Stops per entity, from Graph.computeGradient()
+   * @returns {SVGTemplateResult|undefined} SVG elements
+   */
+  renderSvgRangeGradient(gradients) {
+    const items = gradients.map((gradient, i) => {
+      if (!gradient) return '';
+      return svg`
+        <linearGradient id=${`range-grad-${this.id}-${i}`} gradientUnits="userSpaceOnUse"
+          x1="0" y1="0" x2="0" y2=${this.Graph[i].drawingHeight}>
+          ${gradient.map(stop => svg`
+            <stop stop-color=${stop.color} offset=${`${stop.offset}%`} />
+          `)}
+        </linearGradient>`;
+    });
+    return svg`${items}`;
+  }
+
+  /**
   * Renders a background rectangle for a particular entity/static value
   * @returns {SVGTemplateResult} SVG element
   * @param {Array} line Array of lines for a particular entity/static value
@@ -1445,8 +1471,8 @@ class MiniGraphCard extends LitElement {
       const barsStyle = (isAnimated
         ? `transform-origin: ${bar.x}px ${bar.base}px;`
         : '') + seam;
+      if (this._isRange[index]) return this.renderSvgRange(bar, index, barsStyle, hoverable);
       const color = this.computeColor(bar.value, index);
-      if (this._isRange[index]) return this.renderSvgRange(bar, index, color, barsStyle, hoverable);
       return svg`
         <rect class='bar' x=${bar.x} y=${bar.y}
           height=${bar.height} width=${bar.width} fill=${color}
@@ -1531,6 +1557,7 @@ class MiniGraphCard extends LitElement {
         <g>
           <defs>
             ${this.renderSvgGradient(this.gradient)}
+            ${this.renderSvgRangeGradient(this.rangeGradient)}
           </defs>
           ${this.renderSvgPart(this.bar, this.renderSvgBars, this.config.bar_spacing === -1 && reversed)}
           ${this.renderSvgPart(this.fill, this.renderSvgFill, reversed)}
@@ -2609,6 +2636,11 @@ class MiniGraphCard extends LitElement {
         if (this._isRange[i]) {
           this.bar[i] = this.Graph[i].getRanges(graphPos);
           graphPos += 1;
+          const thresholds = config.entities[i].color_thresholds || config.color_thresholds;
+          this.rangeGradient[i] = config.entities[i].range.colorBy === 'span'
+            && thresholds.length > 0 && !config.entities[i].color
+            ? this.Graph[i].computeGradient(thresholds)
+            : undefined;
         } else if (this._isBar[i]) {
           this.bar[i] = this.Graph[i].getBars(graphPos);
           graphPos += 1;

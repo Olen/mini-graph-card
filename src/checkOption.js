@@ -3,6 +3,7 @@ import {
   GROUP_BY_HOURS,
   AGGREGATE_FUNCS,
   RANGE_FUNCS,
+  RANGE_COLOR_BY,
   AXIS_LABELS,
   OVERALL_PREFIX,
   STATISTICS_PERIODS,
@@ -339,7 +340,7 @@ const checkRangePart = (value, fallback, path) => {
  * @param {*} range The entity's range option
  * @param {string} aggregateFunc The card's aggregate_func
  * @param {string} path Where the option sits, for the log
- * @returns {object} { low, high, marker, gaps }; marker is false for none
+ * @returns {object} { low, high, marker, gaps, colorBy }; marker is false for none
  */
 const checkRange = (range, aggregateFunc, path) => {
   let opts = range;
@@ -355,6 +356,7 @@ const checkRange = (range, aggregateFunc, path) => {
     else log(`Option ${path}.gaps must be true or false; using true`);
   }
   return {
+    colorBy: checkStringOption(given, 'color_by', RANGE_COLOR_BY, 'value'),
     low: checkRangePart(given.low, 'min', `${path}.low`),
     high: checkRangePart(given.high, 'max', `${path}.high`),
     marker: given.marker === false
