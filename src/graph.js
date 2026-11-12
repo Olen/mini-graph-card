@@ -326,14 +326,15 @@ export default class Graph {
 
   /**
    * Whether a reading is a new value: a statistics row whose min & max differ,
-   * else a state unlike the reading before it.
+   * or a value unlike the reading before it - which is how a change shows when
+   * a sensor was unavailable over it, and statistics have no rows for that.
    * @param {object} item A reading
    * @param {object} [previous] The reading before it
    * @returns {boolean} True for a change
    */
   _changedSince(item, previous) {
     const hasRange = item.min !== undefined && item.max !== undefined;
-    if (this._statistics && hasRange) return parseFloat(item.min) !== parseFloat(item.max);
+    if (this._statistics && hasRange && parseFloat(item.min) !== parseFloat(item.max)) return true;
     if (previous === undefined) return true;
     return parseFloat(this._endValue(item)) !== parseFloat(this._endValue(previous));
   }

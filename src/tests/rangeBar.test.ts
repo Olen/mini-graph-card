@@ -296,6 +296,14 @@ describe('Graph range bar gaps', () => {
     }]);
   });
 
+  it('see a change a sensor was unavailable over, with no statistics rows for it', () => {
+    const graph = makeGraph({ high: 'last', low: 'last' }, { statistics: true });
+    graph.update([at(4, 118, { min: 118, max: 118 }), at(1.5, 111, { min: 111, max: 111 })]);
+    expect(spans(graph)).toEqual([{
+      index: 2, low: 111, high: 111, marker: 111,
+    }]);
+  });
+
   it('read a statistics row the value changed twice in from the steady row after it', () => {
     // 121 -> 110 -> 115 within the second hour: its span is 110-121, the end 115
     const graph = makeGraph({ high: 'last', low: 'last' }, { statistics: true });
