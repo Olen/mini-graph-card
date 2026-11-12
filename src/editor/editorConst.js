@@ -331,6 +331,7 @@ const MAINSCHEMA = [
                     options: [
                       { label: 'Line', value: 'line' },
                       { label: 'Bar', value: 'bar' },
+                      { label: 'Range', value: 'range' },
                       { label: 'Hide', value: 'hide' },
                     ],
                     mode: 'dropdown',

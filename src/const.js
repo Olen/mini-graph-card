@@ -26,6 +26,10 @@ const DEFAULT_POINTS_PER_HOUR = 0.5;
 // show.state: "overall_<aggregate func>"
 const OVERALL_PREFIX = 'overall_';
 const AGGREGATE_FUNCS = ['avg', 'median', 'max', 'min', 'first', 'last', 'sum', 'delta', 'diff'];
+// A range bar with no height is drawn this tall (px), or it would not show
+const MIN_RANGE_HEIGHT = 2;
+// what a range bar's low, high & marker may be computed with
+const RANGE_FUNCS = ['min', 'max', 'avg', 'median', 'first', 'last'];
 // The length of a bucket, in hours, for each fixed group_by; "interval" uses
 // points_per_hour instead.
 const GROUP_BY_HOURS = {
@@ -213,6 +217,8 @@ export {
   DEFAULT_POINTS_PER_HOUR,
   GROUP_BY_HOURS,
   AGGREGATE_FUNCS,
+  RANGE_FUNCS,
+  MIN_RANGE_HEIGHT,
   OVERALL_PREFIX,
   DEFAULT_STATIC_VALUE_LABEL_OFFSET,
   NBSP,

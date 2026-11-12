@@ -38,6 +38,7 @@ has not been released - the last stable upstream release is v0.13.0.
 | [`grid_x` / `grid_y`](#grid-lines) | Grid lines, with labels. Vertical ones land on real midnights and whole hours, horizontal ones on round values, and both thin out on a small card. ([upstream #837](https://github.com/kalkih/mini-graph-card/issues/837), [#739](https://github.com/kalkih/mini-graph-card/issues/739), and where [#1179](https://github.com/kalkih/mini-graph-card/pull/1179) was heading) |
 | [`hover_mode`](#hovering) | Hover anywhere in the graph to read the nearest value, instead of having to hit a point a few pixels wide. Works with several entities & on a touch screen. ([upstream #1357](https://github.com/kalkih/mini-graph-card/issues/1357)) |
 | [`show.state: overall`](#overall-value) | One value for the whole period instead of the current state, like upstream's - except that `avg` is weighted by time, so a burst of reports does not outweigh a quiet day. |
+| [`graph: range`](#range-bars) | Draw each period as a bar from a low to a high value, with a marker between: a temperature's daily spread, a heart rate from its daily min to max, a blood pressure from diastolic to systolic. Low, high & marker can each come from another entity. |
 | [`format`](#duration-format) | Write a value as `[h:]mm:ss` rather than as a number, converted from whatever unit the entity reports it in - 9.11 minutes is a time, and `9:07` is how a time reads. |
 
 ### The card sizes itself
@@ -392,7 +393,8 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | show_legend_state | boolean |  false  | Display the current state as part of the legend.
 | show_indicator | boolean |         | Display a color indicator next to the state.
 | show_graph | boolean |         | Set to false to completely hide the graph.
-| graph | string |         | `line` or `bar`: draw this entity differently from the card's `show.graph`, see [Lines and bars together](#lines-and-bars-together).
+| graph | string |         | `line`, `bar` or `range`: draw this entity differently from the card's `show.graph`, see [Lines and bars together](#lines-and-bars-together) and [Range bars](#range-bars).
+| range | object |         | Where a range bar's low, high & marker come from, see [Range bars](#range-bars).
 | state_map | [state map object](#state-map-object) |         | This entity's own state map, instead of the card's.
 | show_line | boolean |         | Set to false to hide the line.
 | show_fill | boolean |         | Set to false to hide the fill.
@@ -426,7 +428,7 @@ All properties are optional.
 | name | `true` | `true` / `false` | Display name.
 | icon | `true` | `true` / `false` | Display icon.
 | state | `true` | `true` / `false` / `last` / `overall` / `overall_<func>` | Display current state. `last` will show the last graph point's or bar's value (fallback to `true` if points are not shown for a line graph). `overall` shows one value for the whole period, see [Overall value](#overall-value).
-| graph | `line` | `line` / `bar` / `false` | Display option for the graph. If set to `bar` a maximum of `96` bars will be displayed. An entity can override it with its own `graph`.
+| graph | `line` | `line` / `bar` / `range` / `false` | Display option for the graph. If set to `bar` or `range` a maximum of `96` bars will be displayed. An entity can override it with its own `graph`. See [Range bars](#range-bars).
 | fill | `true` | `true` / `false` / `fade` | Display the line graph fill.
 | points | `hover` | `true` / `false` / `hover` | Display graph data points (for a line graph only).
 | legend | `true` | `true` / `false` / `below` | Display the graph legend (only shown when graph contains multiple entities); `below` - place below a graph.
@@ -1236,6 +1238,78 @@ The line's points sit at the centres of the bars, so each hour's value lines
 up with its bar, and the line is drawn over the bars. Hovering picks whichever
 is closer to the cursor - the bar's top or the line's point.
 
+### Range bars
+
+`graph: range` draws each period as a bar from a low to a high value, with a
+marker line across it. On its own it spans each period's lowest to highest
+reading, marked at the value `aggregate_func` gives (the average by default) -
+a temperature's daily spread:
+
+```yaml
+type: custom:mini-graph-card
+entities:
+  - entity: sensor.outdoor_temperature
+    graph: range
+hours_to_show: 168
+group_by: date
+points_per_hour: 0.0417  # one per day
+```
+
+`range` says where the low, the high and the marker come from. Each is either
+a function of the entity's own readings in the period - `min`, `max`, `avg`,
+`median`, `first` or `last` - or another entity, read with `last` unless you
+give it an `aggregate`. `marker: false` draws no marker.
+
+| Name | Default | Description |
+|------|---------|-------------|
+| low | `min` | The bottom of each bar: a function, an entity id, or `{ entity, aggregate }`.
+| high | `max` | The top of each bar, the same way.
+| marker | `aggregate_func` | The marker line, the same way; `false` for none.
+| gaps | `true` | Leave a period empty when none of the entities reported anything in it. With `false` the last value is repeated, as lines and bars do.
+
+A heart rate from its daily minimum to maximum, marked at the resting rate:
+
+```yaml
+entities:
+  - entity: sensor.max_heart_rate
+    name: Heart rate
+    graph: range
+    range:
+      low: sensor.min_heart_rate
+      high: last
+      marker: sensor.resting_heart_rate
+```
+
+A blood pressure, from diastolic to systolic, with no marker. Gaps leave the
+days without a measurement empty, rather than repeating the last one:
+
+```yaml
+entities:
+  - entity: sensor.blood_pressure_systolic
+    name: Blood pressure
+    graph: range
+    range:
+      low: sensor.blood_pressure_diastolic
+      high: last
+      marker: false
+```
+
+- The entity on the `entity` line owns the bar: its name, colour, legend and
+  state. The other entities are fetched along with it and need not be in the
+  card.
+- A period's own `min` & `max` include the value held when it began: Home
+  Assistant keeps a state until the next one, so that value was there too.
+- With [`statistics`](#statistics), `min` & `max` read the statistics' own
+  minimum & maximum - an hourly mean would hide the peaks. The other entities
+  are read from their statistics as well. Gaps need the raw history, though:
+  statistics have a row for every period, whether anything was measured in it
+  or not.
+- Hovering shows the span as `low – high`, with the marker beside the time.
+- Range bars take a bar's place, so they work with `bar_spacing`,
+  [lines and bars together](#lines-and-bars-together) and
+  [opposing graphs](#opposing-graphs). `baseline`, `fill` and `smoothing` do
+  not apply to them.
+
 ### Opposing graphs
 
 Two series drawn against each other from one zero line - download upwards,
@@ -1319,6 +1393,8 @@ The following theme variables can be set in your HA theme to customize the appea
 | mcg-label-static-border-radius | 1em | Border radius of the static values' labels.
 | mcg-bar-seam-width | 0.5px | Width of the seam drawn between bars when `bar_spacing: 0`.
 | mcg-bar-seam-opacity | 0.3 | Opacity of that seam, which is drawn in the card's background colour.
+| mcg-range-opacity | 0.4 | Opacity of a [range bar](#range-bars)'s span; its marker is drawn in full colour.
+| mcg-range-marker-width | 2px | Width of a range bar's marker line.
 
 
 

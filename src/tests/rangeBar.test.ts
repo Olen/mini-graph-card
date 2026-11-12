@@ -1,0 +1,300 @@
+/**
+ * Tests for range bars (graph: range): each period drawn from a low to a high
+ * value, with a marker between. Low, high & marker come from the entity's own
+ * readings ("min", "max", ...) or from other entities - a heart rate's daily
+ * min & max sensors, a blood pressure's diastolic & systolic.
+ */
+
+import {
+  expect, describe, it, vi, beforeEach, afterEach,
+} from 'vitest';
+import Graph from '../graph';
+import { checkRange } from '../checkOption';
+import {
+  isBarEntity, isRangeEntity, rangeEntityIds, statisticsSeries,
+} from '../others';
+import buildConfig from '../buildConfig';
+import { MIN_RANGE_HEIGHT } from '../const';
+
+const NOW = new Date('2026-11-12T12:00:00Z');
+// a reading `hours` before NOW; with 4 one-hour buckets, 3.5 lands in bucket 0
+const at = (hours: number, state: number | string, extra = {}) => ({
+  last_changed: new Date(NOW.getTime() - hours * 3600000).toISOString(),
+  state: String(state),
+  ...extra,
+});
+
+const mockLog = () => vi.spyOn(console, 'warn').mockImplementation(() => { });
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+// 4 one-hour buckets over 400 px, no margins, no spacing
+const makeGraph = (range: any, over = {}) => new Graph({
+  width: 400,
+  height: 100,
+  margin: [0, 0],
+  hours_to_show: 4,
+  points_per_hour: 1,
+  bar_spacing: 0,
+  bar_spacing_group: 0,
+  range: checkRange(range, 'avg', 'range'),
+  ...over,
+});
+
+const spans = (graph: Graph) => graph.ranges.map(({
+  index, low, high, marker,
+}) => ({
+  index, low, high, marker,
+}));
+
+describe('checkRange()', () => {
+  it('spans a bucket\'s min to max, marked at the aggregate, with gaps', () => {
+    expect(checkRange(undefined, 'avg', 'range')).toEqual({
+      low: { func: 'min' }, high: { func: 'max' }, marker: { func: 'avg' }, gaps: true,
+    });
+  });
+
+  it('marks the value aggregate_func gives - or the average for one a range has not', () => {
+    expect(checkRange({}, 'median', 'range').marker).toEqual({ func: 'median' });
+    expect(checkRange({}, 'sum', 'range').marker).toEqual({ func: 'avg' });
+  });
+
+  it('reads another entity\'s last value for an entity id', () => {
+    expect(checkRange({ low: 'sensor.diastolic' }, 'avg', 'range').low)
+      .toEqual({ func: 'last', entity: 'sensor.diastolic' });
+  });
+
+  it('reads another entity with a chosen aggregate', () => {
+    const range = checkRange({ high: { entity: 'sensor.hr', aggregate: 'max' } }, 'avg', 'range');
+    expect(range.high).toEqual({ func: 'max', entity: 'sensor.hr' });
+  });
+
+  it('draws no marker with marker: false', () => {
+    expect(checkRange({ marker: false }, 'avg', 'range').marker).toBe(false);
+  });
+
+  it('turns gaps off when asked', () => {
+    expect(checkRange({ gaps: false }, 'avg', 'range').gaps).toBe(false);
+  });
+
+  it('warns & falls back on a value it does not know', () => {
+    const warn = mockLog();
+    expect(checkRange({ low: 'lowest' }, 'avg', 'range').low).toEqual({ func: 'min' });
+    expect(checkRange({ high: { entity: 'sensor.x', aggregate: 'sum' } }, 'avg', 'range').high)
+      .toEqual({ func: 'last', entity: 'sensor.x' });
+    expect(checkRange({ gaps: 'no' }, 'avg', 'range').gaps).toBe(true);
+    expect(checkRange('min', 'avg', 'range').low).toEqual({ func: 'min' });
+    expect(warn).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('range bar entities', () => {
+  const config = (graph: string) => ({ show: { graph } });
+
+  it('are bars - they take a bar\'s place in a group', () => {
+    expect(isBarEntity({ graph: 'range' }, config('line'))).toBe(true);
+    expect(isBarEntity({}, config('range'))).toBe(true);
+  });
+
+  it('are told apart from plain bars', () => {
+    expect(isRangeEntity({ graph: 'range' }, config('line'))).toBe(true);
+    expect(isRangeEntity({ graph: 'bar' }, config('range'))).toBe(false);
+    expect(isRangeEntity({}, config('bar'))).toBe(false);
+  });
+
+  it('read each other entity once', () => {
+    const range = checkRange({
+      low: 'sensor.min_hr', high: 'sensor.max_hr', marker: 'sensor.min_hr',
+    }, 'avg', 'range');
+    expect(rangeEntityIds(range)).toEqual(['sensor.min_hr', 'sensor.max_hr']);
+    expect(rangeEntityIds(checkRange({}, 'avg', 'range'))).toEqual([]);
+    expect(rangeEntityIds(undefined)).toEqual([]);
+  });
+
+  it('get a checked range option from buildConfig, also card-wide', () => {
+    const { config: built } = buildConfig({
+      entities: ['sensor.a', { entity: 'sensor.b', graph: 'line' }],
+      show: { graph: 'range' },
+    });
+    expect(built.entities[0].range.low).toEqual({ func: 'min' });
+    expect(built.entities[1].range).toBeUndefined();
+  });
+
+  it('accept graph: range on an entity', () => {
+    const { config: built } = buildConfig({
+      entities: [{ entity: 'sensor.bp', graph: 'range', range: { low: 'sensor.dia', marker: false } }],
+    });
+    expect(built.entities[0].graph).toBe('range');
+    expect(built.entities[0].range.low).toEqual({ func: 'last', entity: 'sensor.dia' });
+    expect(built.entities[0].range.marker).toBe(false);
+  });
+});
+
+describe('Graph range bars from one entity', () => {
+  it('span each bucket\'s readings & the value held when it opened', () => {
+    const graph = makeGraph({});
+    graph.update([at(5, 10), at(3.5, 14), at(3.2, 12), at(2.5, 20)]);
+    expect(spans(graph)).toEqual([
+      // 10 was held from before the window, so it is part of the first hour
+      { index: 0, low: 10, high: 14, marker: 13 },
+      { index: 1, low: 12, high: 20, marker: 20 },
+    ]);
+  });
+
+  it('leave a bucket without readings empty', () => {
+    const graph = makeGraph({});
+    graph.update([at(3.5, 10), at(0.5, 30)]);
+    expect(graph.ranges.map(range => range.index)).toEqual([0, 3]);
+  });
+
+  it('repeat the held value there with gaps off', () => {
+    const graph = makeGraph({ gaps: false });
+    graph.update([at(3.5, 10), at(0.5, 30)]);
+    expect(spans(graph)).toEqual([
+      { index: 0, low: 10, high: 10, marker: 10 },
+      { index: 1, low: 10, high: 10, marker: 10 },
+      { index: 2, low: 10, high: 10, marker: 10 },
+      { index: 3, low: 10, high: 30, marker: 30 },
+    ]);
+  });
+
+  it('take statistics rows\' own min & max, & not the held mean', () => {
+    const graph = makeGraph({}, { statistics: true });
+    graph.update([
+      at(4, 50, { min: 40, max: 60 }),
+      at(3, 20, { min: 15, max: 25 }),
+      at(2.5, 22, { min: 18, max: 30 }),
+    ]);
+    expect(spans(graph)).toEqual([{
+      index: 1, low: 15, high: 30, marker: 21,
+    }]);
+  });
+
+  it('stand for their marker, else their high', () => {
+    const marked = makeGraph({});
+    marked.update([at(3.5, 10), at(3.2, 20)]);
+    expect(marked.coords[0][2]).toBe(15);
+
+    const unmarked = makeGraph({ marker: false });
+    unmarked.update([at(3.5, 10), at(3.2, 20)]);
+    expect(unmarked.ranges[0].marker).toBeUndefined();
+    expect(unmarked.coords[0][2]).toBe(20);
+  });
+
+  it('size the axis to the lows & highs', () => {
+    const graph = makeGraph({});
+    graph.update([at(3.5, 10), at(3.2, 20), at(0.5, -5), at(0.2, 40)]);
+    expect([graph.min, graph.max]).toEqual([-5, 40]);
+  });
+});
+
+describe('Graph range bars from other entities', () => {
+  // a blood pressure: systolic is the card's entity, diastolic another one
+  const bloodPressure = (gaps = true) => {
+    const graph = makeGraph({
+      low: 'sensor.dia', high: 'last', marker: false, gaps,
+    });
+    graph.setRangeHistory('sensor.dia', [at(3.5, 80), at(1.5, 75)]);
+    graph.update([at(3.5, 120), at(1.5, 118)]);
+    return graph;
+  };
+
+  it('span from one entity to another', () => {
+    expect(spans(bloodPressure())).toEqual([
+      {
+        index: 0, low: 80, high: 120, marker: undefined,
+      },
+      {
+        index: 2, low: 75, high: 118, marker: undefined,
+      },
+    ]);
+  });
+
+  it('do not repeat a measurement in the periods after it', () => {
+    expect(bloodPressure().ranges.map(range => range.index)).toEqual([0, 2]);
+    expect(bloodPressure(false).ranges.map(range => range.index)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('draw a period any of the entities reported in', () => {
+    const graph = makeGraph({ low: 'sensor.min_hr', high: 'sensor.max_hr', marker: 'last' });
+    graph.setRangeHistory('sensor.min_hr', [at(5, 50), at(2.5, 48)]);
+    graph.setRangeHistory('sensor.max_hr', [at(5, 150)]);
+    graph.update([at(5, 60)]);
+    // only min_hr reported in the window; the others are held
+    expect(spans(graph)).toEqual([{
+      index: 1, low: 48, high: 150, marker: 60,
+    }]);
+  });
+
+  it('put low below high whichever entity holds which', () => {
+    const graph = makeGraph({ low: 'sensor.higher', high: 'last' });
+    graph.setRangeHistory('sensor.higher', [at(3.5, 90)]);
+    graph.update([at(3.5, 30)]);
+    expect(graph.ranges[0]).toMatchObject({ low: 30, high: 90 });
+  });
+
+  it('draw nothing before another entity has a value', () => {
+    const graph = makeGraph({ low: 'sensor.later' });
+    graph.update([at(3.5, 30)]);
+    expect(graph.ranges).toEqual([]);
+  });
+});
+
+describe('Graph.getRanges()', () => {
+  it('lays range bars out where getBars() puts bars', () => {
+    const graph = makeGraph({});
+    graph.update([at(3.5, 0), at(3.2, 100), at(0.5, 50)]);
+    [graph.min, graph.max] = [0, 100];
+    const bars = graph.getBars(0);
+    const ranges = graph.getRanges(0);
+    expect(ranges.map(range => [range.x, range.width]))
+      .toEqual(bars.map(bar => [bar.x, bar.width]));
+  });
+
+  it('spans from the high\'s Y to the low\'s, the marker in between', () => {
+    const graph = makeGraph({});
+    graph.update([at(3.5, 20), at(3.2, 80)]);
+    [graph.min, graph.max] = [0, 100];
+    const [range] = graph.getRanges(0);
+    expect(range).toMatchObject({
+      y: 20, height: 60, markerY: 50, tip: 20, base: 80,
+    });
+  });
+
+  it('keeps a range with no height visible', () => {
+    const graph = makeGraph({});
+    graph.update([at(3.5, 50)]);
+    [graph.min, graph.max] = [0, 100];
+    const [range] = graph.getRanges(0);
+    expect(range.height).toBe(MIN_RANGE_HEIGHT);
+    expect(range.y + range.height / 2).toBe(50);
+  });
+});
+
+describe('statisticsSeries()', () => {
+  it('keeps a row\'s min & max beside the chosen type', () => {
+    const series = statisticsSeries([
+      {
+        start: NOW.getTime(), mean: 20, min: 15, max: 25,
+      },
+      {
+        start: NOW.getTime(), mean: 21, min: null, max: null,
+      },
+      { start: NOW.getTime(), mean: null },
+    ], 'mean');
+    expect(series).toEqual([
+      {
+        last_changed: NOW.toISOString(), state: 20, min: 15, max: 25,
+      },
+      { last_changed: NOW.toISOString(), state: 21 },
+    ]);
+  });
+});

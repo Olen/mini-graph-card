@@ -35,9 +35,10 @@ import {
   checkShowState,
   checkAxisLabels,
   checkPointsPerHour,
+  checkRange,
 } from './checkOption';
 import {
-  getFactor, parseGraphHeight, parseGrid, isOpposingBars, isBarEntity,
+  getFactor, parseGraphHeight, parseGrid, isOpposingBars, isBarEntity, isRangeEntity,
 } from './others';
 import { checkStateMap } from './stateMap';
 
@@ -321,7 +322,7 @@ export default (config) => {
       entity.line_width = checkNumericOption(entity, 'line_width', conf.line_width, { minBound: 0, allowString: true });
       entity.decimals = checkIntegerOption(entity, 'decimals', conf.decimals, { minBound: 0, allowString: true });
       entity.format = checkStringOption(entity, 'format', VALUE_FORMATS, conf.format);
-      entity.graph = checkStringOption(entity, 'graph', ['line', 'bar'], undefined);
+      entity.graph = checkStringOption(entity, 'graph', ['line', 'bar', 'range'], undefined);
       entity.baseline = checkNumericOption(entity, 'baseline', undefined, { allowString: true });
       entity.state_map = checkStateMap(entity.state_map, `entities[${i}].state_map`);
 
@@ -338,6 +339,13 @@ export default (config) => {
     // `statistics` may be set per entity or card-wide, and accepts a bare
     // `true` as shorthand for the defaults.
     checkStatistics(conf, i);
+    if (isRangeEntity(conf.entities[i], conf)) {
+      conf.entities[i].range = checkRange(
+        conf.entities[i].range,
+        conf.entities[i].aggregate_func || conf.aggregate_func,
+        `entities[${i}].range`,
+      );
+    }
   });
   /* eslint-enable no-param-reassign */
 

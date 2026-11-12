@@ -499,6 +499,16 @@ const style = css`
     opacity: .5;
     cursor: pointer;
   }
+  .range__span {
+    opacity: var(--mcg-range-opacity, .4);
+  }
+  .range:hover .range__span {
+    opacity: calc(var(--mcg-range-opacity, .4) / 2);
+  }
+  .range__marker {
+    stroke-width: var(--mcg-range-marker-width, 2px);
+    pointer-events: none;
+  }
   path,
   .line--points,
   .fill {

@@ -206,6 +206,23 @@ const getStatisticsType = (stats, requested) => {
 };
 
 /**
+ * Statistics rows as a [{last_changed, state}] series, the value of a chosen
+ * type as the state. A row's own min & max come along where it has them: a
+ * range bar spans those, which an hourly mean would hide.
+ * @param {Array} stats Statistics rows, as recorder/statistics_during_period gives them
+ * @param {string} type The type to read as the state
+ * @returns {Array<object>} The series; rows without a numeric value are left out
+ */
+const statisticsSeries = (stats, type) => stats
+  .map((item) => {
+    const reading = { last_changed: new Date(item.start).toISOString(), state: item[type] };
+    if (item.min !== undefined && item.min !== null) reading.min = item.min;
+    if (item.max !== undefined && item.max !== null) reading.max = item.max;
+    return reading;
+  })
+  .filter(item => !Number.isNaN(parseFloat(item.state)));
+
+/**
  * Is a state pinned to a corner of a card (& thus out of a flow)?
  * @param {string} [alignState] An align_state option
  * @returns {boolean} True if a state takes no row of its own
@@ -793,16 +810,41 @@ const computeBoundary = (type, series, configVal, fallback) => {
   return Math[type](Number(configVal.substr(1)), ...series.map(ele => ele[type]));
 };
 
+/** An entity's graph type: its own `graph`, else the card's show.graph. */
+const graphTypeOf = (entityConfig, config) => (entityConfig.graph !== undefined
+  ? entityConfig.graph
+  : config.show.graph);
+
 /**
- * Whether an entity is drawn as bars rather than a line: its own `graph`,
- * else the card's show.graph.
+ * Whether an entity is drawn as bars rather than a line. A range bar is a bar
+ * too: it takes a bar's place in each period's group.
  * @param {object} entityConfig The entity's entry in config.entities
  * @param {object} config Card config
- * @returns {boolean} True for bars
+ * @returns {boolean} True for bars & range bars
  */
-const isBarEntity = (entityConfig, config) => (entityConfig.graph !== undefined
-  ? entityConfig.graph === 'bar'
-  : config.show.graph === 'bar');
+const isBarEntity = (entityConfig, config) => ['bar', 'range']
+  .includes(graphTypeOf(entityConfig, config));
+
+/**
+ * Whether an entity is drawn as range bars, from a low to a high value.
+ * @param {object} entityConfig The entity's entry in config.entities
+ * @param {object} config Card config
+ * @returns {boolean} True for range bars
+ */
+const isRangeEntity = (entityConfig, config) => graphTypeOf(entityConfig, config) === 'range';
+
+/**
+ * The other entities a range bar reads, each once.
+ * @param {object} [range] An entity's range option, after checkRange()
+ * @returns {string[]} Entity ids
+ */
+const rangeEntityIds = (range) => {
+  if (!range) return [];
+  const ids = [range.low, range.high, range.marker]
+    .filter(part => part && part.entity)
+    .map(part => part.entity);
+  return [...new Set(ids)];
+};
 
 /**
  * Whether a card draws opposing bars: one series per axis, one axis inverted,
@@ -1162,6 +1204,8 @@ export {
   sharesScale,
   sharedBounds,
   isBarEntity,
+  isRangeEntity,
+  rangeEntityIds,
   pickPointOrBar,
   isOpposingBars,
   boundsForZeroPosition,
@@ -1187,6 +1231,7 @@ export {
   findNearestPoint,
   findNearestBar,
   getStatisticsType,
+  statisticsSeries,
   isStateInCorner,
   getInfoHeight,
   getCardHeight,

@@ -2,6 +2,7 @@ import {
   URL_DOCS,
   GROUP_BY_HOURS,
   AGGREGATE_FUNCS,
+  RANGE_FUNCS,
   AXIS_LABELS,
   OVERALL_PREFIX,
   STATISTICS_PERIODS,
@@ -305,6 +306,65 @@ const checkStatistics = (config, index) => {
 /* eslint-enable no-param-reassign */
 
 /**
+ * One part of a range bar - its low, high or marker: a function over the
+ * entity's own readings ("min"), another entity's readings (its id, read with
+ * "last"), or { entity, aggregate } for both.
+ * @param {*} value The part as configured
+ * @param {string} fallback A function to use when the part is not set
+ * @param {string} path Where the part sits, for the log
+ * @returns {{func: string, entity: (string|undefined)}} The part
+ */
+const checkRangePart = (value, fallback, path) => {
+  if (value === undefined || value === null) return { func: fallback };
+  if (typeof value === 'string' && RANGE_FUNCS.includes(value)) return { func: value };
+  if (typeof value === 'string' && value.includes('.')) return { func: 'last', entity: value };
+  if (typeof value === 'object' && !Array.isArray(value) && typeof value.entity === 'string') {
+    if (value.aggregate === undefined) return { func: 'last', entity: value.entity };
+    if (RANGE_FUNCS.includes(value.aggregate)) {
+      return { func: value.aggregate, entity: value.entity };
+    }
+    log(`Option ${path}.aggregate must be one of ${RANGE_FUNCS.join(', ')}; using "last"`);
+    return { func: 'last', entity: value.entity };
+  }
+  log(`Option ${path} must be one of ${RANGE_FUNCS.join(', ')}, an entity id `
+    + `or { entity, aggregate }; using "${fallback}"`);
+  return { func: fallback };
+};
+
+/**
+ * The range option of an entity drawn as a range bar, with every part filled
+ * in. The marker defaults to the card's aggregate_func, so it shows the value
+ * a line or bar would; "marker: false" draws none. Gaps are on unless turned
+ * off: a period nothing was measured in is left empty rather than repeated.
+ * @param {*} range The entity's range option
+ * @param {string} aggregateFunc The card's aggregate_func
+ * @param {string} path Where the option sits, for the log
+ * @returns {object} { low, high, marker, gaps }; marker is false for none
+ */
+const checkRange = (range, aggregateFunc, path) => {
+  let opts = range;
+  if (opts !== undefined && (typeof opts !== 'object' || opts === null || Array.isArray(opts))) {
+    log(`Option ${path} must be an object; using the defaults`);
+    opts = undefined;
+  }
+  const given = opts || {};
+  const markerFunc = RANGE_FUNCS.includes(aggregateFunc) ? aggregateFunc : 'avg';
+  let gaps = true;
+  if (given.gaps !== undefined) {
+    if (typeof given.gaps === 'boolean') ({ gaps } = given);
+    else log(`Option ${path}.gaps must be true or false; using true`);
+  }
+  return {
+    low: checkRangePart(given.low, 'min', `${path}.low`),
+    high: checkRangePart(given.high, 'max', `${path}.high`),
+    marker: given.marker === false
+      ? false
+      : checkRangePart(given.marker, markerFunc, `${path}.marker`),
+    gaps,
+  };
+};
+
+/**
  * Warn if line_style is defined along with animate=true.
  * @param {object} config Config object
  */
@@ -421,6 +481,7 @@ const checkPointsPerHour = (config) => {
 
 export {
   checkAxisLabels,
+  checkRange,
   checkShowState,
   checkEntities,
   checkGroupBy,

@@ -3,6 +3,7 @@ import {
   X, Y, V, BUCKET,
   ONE_HOUR,
   DEFAULT_BAR_SPACING,
+  MIN_RANGE_HEIGHT,
 } from './const';
 import { log } from './utils';
 import { getIntervalEndDate, getLog10, timeWeightedAverage } from './others';
@@ -25,6 +26,8 @@ export default class Graph {
     overallFuncName, // undefined: no overall value
     invert = false, // low values at the top
     barCentres = false, // a line's points at the centres of bars drawn beside it
+    range, // a range bar's parts (see checkRange); undefined for other graphs
+    statistics = false, // the history is statistics rows, which carry min & max
   }) {
     const aggregateFuncMap = {
       avg: this._average,
@@ -61,6 +64,10 @@ export default class Graph {
     this._barCentres = barCentres;
     this._overallFuncName = overallFuncName;
     this.overall = undefined;
+    this._range = range;
+    this._statistics = statistics;
+    this._rangeHistories = {};
+    this.ranges = [];
   }
 
   get max() { return this._max; }
@@ -72,6 +79,13 @@ export default class Graph {
   set min(min) { this._min = min; }
 
   set history(data) { this._history = data; }
+
+  /**
+   * The history of another entity a range bar reads.
+   * @param {string} entityId The entity
+   * @param {Array} data Its [{last_changed, state}] series
+   */
+  setRangeHistory(entityId, data) { this._rangeHistories[entityId] = data; }
 
   get calculatesOverall() { return this._overallFuncName !== undefined; }
 
@@ -177,9 +191,29 @@ export default class Graph {
     const requiredNumOfPoints = Math.ceil(this._hours_to_show * this._points_per_hour);
     histGroups.length = requiredNumOfPoints;
 
+    if (this._range) {
+      this.ranges = this._calcRanges();
+      this.coords = this.ranges.map(range => [
+        this._xAt(range.index), 0, this._rangeValue(range), range.index,
+      ]);
+      const values = [];
+      this.ranges.forEach((range) => {
+        values.push(range.low, range.high);
+        if (range.marker !== undefined) values.push(range.marker);
+      });
+      this.min = Math.min(...values);
+      this.max = Math.max(...values);
+      return;
+    }
+
     this.coords = this._calcPoints(histGroups);
     this.min = Math.min(...this.coords.map(item => Number(item[V])));
     this.max = Math.max(...this.coords.map(item => Number(item[V])));
+  }
+
+  /** The one value a range bar stands for - its marker, else its high. */
+  _rangeValue(range) {
+    return range.marker !== undefined ? range.marker : range.high;
   }
 
   /**
@@ -221,25 +255,127 @@ export default class Graph {
     return this._aggregateFuncMap[this._overallFuncName].call(this, numeric);
   }
 
-  _reducer(res, item) {
+  /**
+   * The bucket a reading belongs in, or undefined for the one from before the
+   * window (see _windowHistory).
+   * @param {object} item A reading
+   * @returns {number|undefined} Bucket index, 0 = oldest
+   */
+  _bucketOf(item) {
     const age = this._endTime - new Date(item.last_changed).getTime();
     const interval = (age / ONE_HOUR * this._points_per_hour)
       - this._hours_to_show * this._points_per_hour;
-    if (interval < 0) {
-      // A reading taken right now lands one bucket past the last, and the
-      // length trim below then discarded it - so the newest value never
-      // reached the graph. Hold it in the final bucket instead.
-      const maxKey = Math.ceil(this._hours_to_show * this._points_per_hour) - 1;
-      const key = Math.min(Math.floor(Math.abs(interval)), maxKey);
-      if (!res[key]) res[key] = [];
-      res[key].push(item);
-    } else {
-      // The reading that opened the window (see _windowHistory). Pushed, not
-      // assigned, so in-window readings already in this bucket are kept.
-      if (!res[0]) res[0] = [];
-      res[0].push(item);
-    }
+    if (interval >= 0) return undefined;
+    // A reading taken right now lands one bucket past the last, and the
+    // length trim below then discarded it - so the newest value never
+    // reached the graph. Hold it in the final bucket instead.
+    const maxKey = Math.ceil(this._hours_to_show * this._points_per_hour) - 1;
+    return Math.min(Math.floor(Math.abs(interval)), maxKey);
+  }
+
+  _reducer(res, item) {
+    // The reading that opened the window goes in the first bucket. Pushed, not
+    // assigned, so in-window readings already in that bucket are kept.
+    const bucket = this._bucketOf(item);
+    const key = bucket === undefined ? 0 : bucket;
+    if (!res[key]) res[key] = [];
+    res[key].push(item);
     return res;
+  }
+
+  /**
+   * A history split into buckets: the readings taken in each, and the one
+   * that was held when it opened - Home Assistant keeps a state until the
+   * next, so that value was there too.
+   * @param {Array} history A [{last_changed, state}] series
+   * @returns {Array<{fresh: Array, held: (object|undefined)}>} One per bucket
+   */
+  _bucketed(history) {
+    const time = item => new Date(item.last_changed).getTime();
+    const readings = this._windowHistory(history)
+      .filter(item => !Number.isNaN(parseFloat(item.state)))
+      .sort((a, b) => time(a) - time(b));
+    const buckets = Array.from({ length: this._bucketCount() }, () => ({ fresh: [] }));
+    let opening;
+    readings.forEach((item) => {
+      const bucket = this._bucketOf(item);
+      if (bucket === undefined) opening = item;
+      else buckets[bucket].fresh.push(item);
+    });
+    let held = opening;
+    buckets.forEach((bucket) => {
+      // eslint-disable-next-line no-param-reassign
+      bucket.held = held;
+      if (bucket.fresh.length > 0) held = bucket.fresh[bucket.fresh.length - 1];
+    });
+    return buckets;
+  }
+
+  /**
+   * One part of a range bar for one bucket. "min" & "max" take a statistics
+   * row's own min & max, and from a raw history the held value as well; the
+   * rest look at the bucket's readings. A bucket without readings keeps the
+   * held value.
+   * @param {string} func One of RANGE_FUNCS
+   * @param {{fresh: Array, held: object}} bucket From _bucketed()
+   * @returns {number|undefined} The value, or undefined before any reading
+   */
+  _rangePart(func, bucket) {
+    const { fresh, held } = bucket;
+    const number = (item, key) => parseFloat(
+      this._statistics && item[key] !== undefined && item[key] !== null ? item[key] : item.state,
+    );
+    if (fresh.length === 0) return held === undefined ? undefined : parseFloat(held.state);
+    if (func === 'min' || func === 'max') {
+      const values = fresh.map(item => number(item, func));
+      if (!this._statistics && held !== undefined) values.push(parseFloat(held.state));
+      return func === 'min' ? Math.min(...values) : Math.max(...values);
+    }
+    const calc = {
+      avg: this._average, median: this._median, first: this._first, last: this._last,
+    }[func];
+    return calc.call(this, fresh);
+  }
+
+  /**
+   * Low, high & marker of every bucket a range bar is drawn in. With gaps, a
+   * bucket none of its entities reported anything in is left out rather than
+   * repeating the last reading.
+   * @returns {Array<{index, low, high, marker}>} Ascending by bucket
+   */
+  _calcRanges() {
+    const SELF = '';
+    const parts = ['low', 'high', 'marker'].filter(name => this._range[name]);
+    const sources = {};
+    parts.forEach((name) => {
+      const key = this._range[name].entity || SELF;
+      if (sources[key]) return;
+      const history = key === SELF ? this._history : this._rangeHistories[key];
+      sources[key] = this._bucketed(history || []);
+    });
+
+    const ranges = [];
+    for (let index = 0; index < this._bucketCount(); index += 1) {
+      const measured = Object.values(sources).some(buckets => buckets[index].fresh.length > 0);
+      if (this._range.gaps && !measured) continue; // eslint-disable-line no-continue
+      const value = {};
+      parts.forEach((name) => {
+        const part = this._range[name];
+        value[name] = this._rangePart(part.func, sources[part.entity || SELF][index]);
+      });
+      if (value.low !== undefined && value.high !== undefined
+        && !Number.isNaN(value.low) && !Number.isNaN(value.high)) {
+        const marker = value.marker !== undefined && !Number.isNaN(value.marker)
+          ? value.marker : undefined;
+        ranges.push({
+          index,
+          low: Math.min(value.low, value.high),
+          high: Math.max(value.low, value.high),
+          marker,
+        });
+      }
+    }
+    return ranges;
   }
 
   _calcPoints(history) {
@@ -422,11 +558,65 @@ export default class Graph {
    * @returns Bars for an entity to be shown at a `position` index
    */
   getBars(position) {
+    const coords = this._calcY(this.coords);
+    const { width, x } = this._barLayout(position);
+
+    // A bar spans from the baseline to its value: up for a value above it,
+    // down for one below - so a negative value reads as negative.
+    const base = this.baselineY;
+    return coords.map(coord => ({
+      x: x(coord[BUCKET]),
+      y: Math.min(coord[Y], base),
+      height: Math.abs(base - coord[Y]),
+      width,
+      value: coord[V],
+      index: coord[BUCKET],
+      base,
+      tip: coord[Y],
+    }));
+  }
+
+  /**
+   * Range bars for an entity, in the places its bars would take: each spans
+   * from its low to its high, with the marker's Y where it has one. A range
+   * with no height is still drawn a little tall, or it would not show.
+   * @param {number} position Index of a bar (see getBars)
+   * @returns {Array<object>} Bars, with low, high, marker & markerY added
+   */
+  getRanges(position) {
+    const { width, x } = this._barLayout(position);
+    return this.ranges.map((range) => {
+      const lowY = this.getY(range.low);
+      const highY = this.getY(range.high);
+      const centre = (lowY + highY) / 2;
+      const height = Math.max(Math.abs(lowY - highY), MIN_RANGE_HEIGHT);
+      const y = centre - height / 2;
+      return {
+        x: x(range.index),
+        y,
+        height,
+        width,
+        value: this._rangeValue(range),
+        index: range.index,
+        base: y + height,
+        tip: y,
+        low: range.low,
+        high: range.high,
+        marker: range.marker,
+        markerY: range.marker === undefined ? undefined : this.getY(range.marker),
+      };
+    });
+  }
+
+  /**
+   * Where the bars at a position go: their width, and the X of each bucket's.
+   * @param {number} position Index of a bar in its group
+   * @returns {{width: number, x: function(number): number}} The layout
+   */
+  _barLayout(position) {
     const spacing = this._bar_spacing;
     const spacing_group = this._bar_spacing_group;
     const total = this._total_bars_in_group;
-
-    const coords = this._calcY(this.coords);
 
     // number of measures
     const total_groups = Math.ceil(this._hours_to_show * this._points_per_hour);
@@ -446,22 +636,12 @@ export default class Graph {
         log(`Invalid bar_width, adjusted to 1 (bar_spacing ${spacing}, bar_spacing_group ${spacing_group})`);
       }
     }
-
-    // A bar spans from the baseline to its value: up for a value above it,
-    // down for one below - so a negative value reads as negative.
-    const base = this.baselineY;
-    return coords.map(coord => ({
-      x: this._margin[X]
-        + (group_width + spacing_group) * coord[BUCKET]
-        + (spacing === -1 ? 0 : (bar_width + spacing) * position),
-      y: Math.min(coord[Y], base),
-      height: Math.abs(base - coord[Y]),
+    return {
       width: bar_width,
-      value: coord[V],
-      index: coord[BUCKET],
-      base,
-      tip: coord[Y],
-    }));
+      x: bucket => this._margin[X]
+        + (group_width + spacing_group) * bucket
+        + (spacing === -1 ? 0 : (bar_width + spacing) * position),
+    };
   }
 
   _average(items) {

@@ -55,11 +55,12 @@ import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
   computeBoundary, lastPlottedValue, getLineWidthRange, getObjectAttr, isObjectAttr,
   isNumericEntity, smoothingFor, baselineFor, isBarEntity, pickPointOrBar,
+  isRangeEntity, rangeEntityIds,
   overallFuncName, isOverallState, isTextState,
   axisLabelShown, showsZeroLabel, boundsForZeroPosition, sharesScale, sharedBounds,
   widenToMinRange,
   getIntervalEndDate, iconFor,
-  getStatisticsType, getCardSizeUnits, getGridOptions,
+  getStatisticsType, statisticsSeries, getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
   getLabelStride, getChromeHeight,
@@ -104,6 +105,7 @@ class MiniGraphCard extends LitElement {
     this._holdFired = false;
     this._holdTimer = undefined;
     this.updateQueue = [];
+    this._rangeSourceStates = {};
     this.updating = false;
     // set once to "true" when a history is set for a particular entry[index] with static_value
     // array of flags: true if an entity config holds a valid `static_value`
@@ -155,9 +157,15 @@ class MiniGraphCard extends LitElement {
       this.config.entities[index].index = index; // Required for filtered views
       // entityState stands for "stateObj"
       const entityState = hass && entity.entity && hass.states[entity.entity] || undefined;
+      // checked every time, so the states it remembers stay current
+      const sourcesChanged = !!entityState && this.rangeSourcesChanged(index, hass);
       // initiate an update if stateObj changed
       if (entityState && this.entity[index] !== entityState) {
         this.entity[index] = entityState;
+        queue.push(`${entityState.entity_id}-${index}`);
+        updated = true;
+      } else if (sourcesChanged) {
+        // a range bar is redrawn when an entity it reads changes, too
         queue.push(`${entityState.entity_id}-${index}`);
         updated = true;
       } else if (!entity.entity
@@ -180,6 +188,25 @@ class MiniGraphCard extends LitElement {
         this.updateQueue = [...queue, ...this.updateQueue];
       }
     }
+  }
+
+  /**
+   * Whether an entity a range bar reads has a new state; remembers it.
+   * @param {number} index Index of an entry in config.entities
+   * @param {object} hass The hass object
+   * @returns {boolean} True if one changed since the last call
+   */
+  rangeSourcesChanged(index, hass) {
+    if (!this._isRange || !this._isRange[index]) return false;
+    let changed = false;
+    rangeEntityIds(this.config.entities[index].range).forEach((entityId) => {
+      const stateObj = hass.states[entityId];
+      if (stateObj && this._rangeSourceStates[entityId] !== stateObj) {
+        this._rangeSourceStates[entityId] = stateObj;
+        changed = true;
+      }
+    });
+    return changed;
   }
 
   static get properties() {
@@ -215,6 +242,7 @@ class MiniGraphCard extends LitElement {
       (entity, index) => this._isStaticValue[index] && entity.show_static_inactive === true,
     );
     this._isBar = this.config.entities.map(entity => isBarEntity(entity, this.config));
+    this._isRange = this.config.entities.map(entity => isRangeEntity(entity, this.config));
 
     this._md5Config = SparkMD5.hash(JSON.stringify(this.config));
     const entitiesChanged = !compareArray(this.config.entities || [], config.entities);
@@ -265,6 +293,8 @@ class MiniGraphCard extends LitElement {
           invert: this.axisOption(entity.y_axis === 'secondary' ? 'secondary' : 'primary', 'invert') === true,
           // a line next to bars puts its points at the bars' centres
           barCentres: this.mixesLinesAndBars,
+          range: this._isRange[index] ? entity.range : undefined,
+          statistics: !!entity.statistics,
           overallFuncName: this.showsOverall(index)
             ? overallFuncName(
               this.config.show.state,
@@ -798,6 +828,11 @@ class MiniGraphCard extends LitElement {
       const entityConfig = this.config.entities[entityIndex];
       // check if a unit should precend a value
       const { directOrder } = this.computeStateOrder(entityIndex, value);
+      // a range bar reads as its span
+      const range = isTooltip ? this.tooltip.range : undefined;
+      const stateText = range
+        ? `${this.computeState(range.low, entityIndex)} – ${this.computeState(range.high, entityIndex)}`
+        : this.computeState(value, entityIndex);
       return html`
         <div
           reversed=${!directOrder}
@@ -807,7 +842,7 @@ class MiniGraphCard extends LitElement {
         >
           ${entityConfig.show_indicator ? this.renderIndicator(value, entityIndex) : ''}
           <span class="state__value ellipsis">
-            ${this.computeState(value, entityIndex)}
+            ${stateText}
           </span>
           <span class="state__uom ellipsis">
             ${this.computeUom(entityIndex, value)}
@@ -828,8 +863,12 @@ class MiniGraphCard extends LitElement {
     if (this.tooltip.value === undefined) {
       return html``;
     }
+    const { range } = this.tooltip;
     return html`
       <div class="state__time">
+        ${range && range.marker !== undefined ? html`
+          <span class="state__marker">${this.computeState(range.marker, this.tooltip.entity)}</span> ·
+        ` : ''}
         ${this.tooltip.label ? html`
           <span class="tooltip--label">${this.tooltip.label}</span>
         ` : html`
@@ -1102,6 +1141,34 @@ class MiniGraphCard extends LitElement {
         @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}
       />
     `;
+  }
+
+  /**
+   * One range bar: its span faded in the entity's colour, and the marker as a
+   * line across it in full colour.
+   * @param {object} bar From Graph.getRanges()
+   * @param {number} index Index of an entry in config.entities
+   * @param {string} color The bar's colour
+   * @param {string} spanStyle Style of the span (animation, seam)
+   * @param {boolean} hoverable Whether the bar sets the tooltip itself
+   * @returns {SVGTemplateResult} SVG element
+   */
+  renderSvgRange(bar, index, color, spanStyle, hoverable) {
+    return svg`
+      <g class='range'
+        @mouseover=${hoverable ? () => this.setTooltip(index, bar.index, bar.value) : undefined}
+        @mouseout=${hoverable ? () => (this.tooltip = {}) : undefined}>
+        <rect class='bar range__span' x=${bar.x} y=${bar.y}
+          height=${bar.height} width=${bar.width} fill=${color}
+          vector-effect="non-scaling-stroke"
+          style=${spanStyle}>
+        </rect>
+        ${bar.markerY === undefined ? '' : svg`
+          <line class='range__marker'
+            x1=${bar.x} x2=${bar.x + bar.width} y1=${bar.markerY} y2=${bar.markerY}
+            stroke=${color} vector-effect="non-scaling-stroke">
+          </line>`}
+      </g>`;
   }
 
   /**
@@ -1379,6 +1446,7 @@ class MiniGraphCard extends LitElement {
         ? `transform-origin: ${bar.x}px ${bar.base}px;`
         : '') + seam;
       const color = this.computeColor(bar.value, index);
+      if (this._isRange[index]) return this.renderSvgRange(bar, index, color, barsStyle, hoverable);
       return svg`
         <rect class='bar' x=${bar.x} y=${bar.y}
           height=${bar.height} width=${bar.width} fill=${color}
@@ -1582,7 +1650,21 @@ class MiniGraphCard extends LitElement {
       time: [start, end],
       index,
       label,
+      range: this.rangeAt(entity, index),
     };
+  }
+
+  /**
+   * The low, high & marker of a range bar in a bucket.
+   * @param {number} entity Index of an entry in config.entities
+   * @param {number} index Bucket index; -1 for the current state
+   * @returns {object|undefined} { low, high, marker }, or undefined for no range bar
+   */
+  rangeAt(entity, index) {
+    if (!this._isRange[entity] || index < 0) return undefined;
+    const bar = (this.bar[entity] || []).find(item => item.index === index);
+    if (!bar) return undefined;
+    return { low: bar.low, high: bar.high, marker: bar.marker };
   }
 
   /**
@@ -2524,7 +2606,10 @@ class MiniGraphCard extends LitElement {
           return;
         const bound = config.entities[i].y_axis === 'secondary' ? this.boundSecondary : this.bound;
         [this.Graph[i].min, this.Graph[i].max] = [bound[0], bound[1]];
-        if (this._isBar[i]) {
+        if (this._isRange[i]) {
+          this.bar[i] = this.Graph[i].getRanges(graphPos);
+          graphPos += 1;
+        } else if (this._isBar[i]) {
           this.bar[i] = this.Graph[i].getBars(graphPos);
           graphPos += 1;
         } else {
@@ -2638,6 +2723,8 @@ class MiniGraphCard extends LitElement {
 
     this.updateQueue = this.updateQueue.filter(entry => entry !== `${entity.entity_id}-${index}`);
 
+    await this.updateRangeSources(index, initStart, end);
+
     // The whole window is refetched, not appended to a cached tail:
     // a bucket is revised until its period completes.
     const { statistics } = this.config.entities[index];
@@ -2659,13 +2746,7 @@ class MiniGraphCard extends LitElement {
       if (statistics.type !== undefined && statistics.type !== type) {
         this.logOnce(`Statistics type ${statistics.type} is not available for ${entity.entity_id}; using ${type}`);
       }
-      const statHistory = stats
-        .map(item => ({
-          last_changed: new Date(item.start).toISOString(),
-          state: item[type],
-        }))
-        .filter(item => !Number.isNaN(parseFloat(item.state)));
-      this.applyHistory(entity, index, statHistory);
+      this.applyHistory(entity, index, statisticsSeries(stats, type));
       return;
     }
 
@@ -2752,6 +2833,36 @@ class MiniGraphCard extends LitElement {
     }
 
     this.applyHistory(entity, index, stateHistory);
+  }
+
+  /**
+   * Fetch the other entities a range bar reads, the way its own entity is
+   * read: statistics with the same period, else the raw history. Not cached -
+   * they are only fetched alongside an entity which is.
+   * @param {number} index Index of the range bar's entry in config.entities
+   * @param {Date} start Start of the window
+   * @param {Date} end End of the window
+   */
+  async updateRangeSources(index, start, end) {
+    const entityConfig = this.config.entities[index];
+    if (!this._isRange[index]) return;
+    const { statistics } = entityConfig;
+    await Promise.all(rangeEntityIds(entityConfig.range).map(async (entityId) => {
+      let series = [];
+      if (statistics) {
+        const period = statistics.period || this.statisticsPeriod();
+        const stats = await this.fetchStatistics(entityId, start, end, period);
+        const type = getStatisticsType(stats, statistics.type);
+        if (type !== undefined) series = statisticsSeries(stats, type);
+      } else {
+        const history = await this.fetchRecent(entityId, start, end, false, false);
+        series = (history[0] || [])
+          .filter(item => !Number.isNaN(parseFloat(item.state)))
+          .map(item => ({ last_changed: item.last_changed, state: item.state }));
+      }
+      if (series.length === 0) this.logOnce(`No values for ${entityId} in a shown period`);
+      this.Graph[index].setRangeHistory(entityId, series);
+    }));
   }
 
   /** Log a message once: updateEntity() is called on every update. */
