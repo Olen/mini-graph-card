@@ -39,6 +39,7 @@ has not been released - the last stable upstream release is v0.13.0.
 | [`hover_mode`](#hovering) | Hover anywhere in the graph to read the nearest value, instead of having to hit a point a few pixels wide. Works with several entities & on a touch screen. ([upstream #1357](https://github.com/kalkih/mini-graph-card/issues/1357)) |
 | [`show.state: overall`](#overall-value) | One value for the whole period instead of the current state, like upstream's - except that `avg` is weighted by time, so a burst of reports does not outweigh a quiet day. |
 | [`graph: range`](#range-bars) | Draw each period as a bar from a low to a high value, with a marker between: a temperature's daily spread, a heart rate from its daily min to max, a blood pressure from diastolic to systolic. Low, high & marker can each come from another entity. |
+| [`trend`](#trend) | A moving-average trend line behind an entity's line - centred, so it does not lag the readings - and the slope of the period under its state: `↘ -0,3 kg/week`. |
 | [`format`](#duration-format) | Write a value as `[h:]mm:ss` rather than as a number, converted from whatever unit the entity reports it in - 9.11 minutes is a time, and `9:07` is how a time reads. |
 
 ### The card sizes itself
@@ -395,6 +396,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | show_graph | boolean |         | Set to false to completely hide the graph.
 | graph | string |         | `line`, `bar` or `range`: draw this entity differently from the card's `show.graph`, see [Lines and bars together](#lines-and-bars-together) and [Range bars](#range-bars).
 | range | object |         | Where a range bar's low, high & marker come from, see [Range bars](#range-bars).
+| trend | boolean / object |         | Draw a moving-average trend line behind the entity's line and show its slope under the state, see [Trend](#trend).
 | state_map | [state map object](#state-map-object) |         | This entity's own state map, instead of the card's.
 | show_line | boolean |         | Set to false to hide the line.
 | show_fill | boolean |         | Set to false to hide the fill.
@@ -1370,6 +1372,36 @@ entities:
   [opposing graphs](#opposing-graphs). `baseline`, `fill` and `smoothing` do
   not apply to them.
 
+### Trend
+
+`trend` draws a trend line behind an entity's line: a moving average of its
+readings, faint and twice as wide, in the entity's colour. Under the state it
+shows the slope of the period - the least-squares line through the readings
+in the window - as a change per week, say `↘ -0,3 kg/week`.
+
+```yaml
+type: custom:mini-graph-card
+entities:
+  - entity: sensor.weight
+    trend: true
+hours_to_show: 720
+group_by: date
+aggregate_func: last
+```
+
+| Name | Default | Description |
+|------|---------|-------------|
+| days | `7` | How wide the moving average is, in days.
+| slope | `week` | The period the slope is given per: `day`, `week` or `month`; `false` for none.
+
+- The average is centred: each point is the mean of the readings half the
+  window before it and half after, so it follows the readings without lagging
+  them, the way a sensor averaging the last 7 days does. At the newest end
+  there are only older readings to average.
+- The slope is shown under the state of the card's first entity, when nothing
+  is hovered. Its period is named in the user's language.
+- The theme variable `mcg-trend-opacity` sets how faint the line is.
+
 ### Opposing graphs
 
 Two series drawn against each other from one zero line - download upwards,
@@ -1453,6 +1485,7 @@ The following theme variables can be set in your HA theme to customize the appea
 | mcg-label-static-border-radius | 1em | Border radius of the static values' labels.
 | mcg-bar-seam-width | 0.5px | Width of the seam drawn between bars when `bar_spacing: 0`.
 | mcg-bar-seam-opacity | 0.3 | Opacity of that seam, which is drawn in the card's background colour.
+| mcg-trend-opacity | 0.35 | Opacity of a [trend](#trend) line.
 | mcg-range-opacity | 0.4 | Opacity of a [range bar](#range-bars)'s span; its marker is drawn in full colour.
 | mcg-range-marker-width | 2px | Width of a range bar's marker line.
 

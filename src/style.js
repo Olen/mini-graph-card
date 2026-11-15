@@ -499,6 +499,14 @@ const style = css`
     opacity: .5;
     cursor: pointer;
   }
+  .line--trend {
+    opacity: var(--mcg-trend-opacity, .35);
+    stroke-linecap: round;
+    pointer-events: none;
+  }
+  .state__trend {
+    animation: none;
+  }
   .range__span {
     opacity: var(--mcg-range-opacity, .4);
   }

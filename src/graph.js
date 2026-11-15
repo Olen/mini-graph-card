@@ -13,7 +13,7 @@ import {
 } from './const';
 import { log } from './utils';
 import {
-  getIntervalEndDate, getLog10, timeWeightedAverage, bucketCount,
+  getIntervalEndDate, getLog10, timeWeightedAverage, bucketCount, movingAverage, slopePerDay,
 } from './others';
 
 export default class Graph {
@@ -37,6 +37,7 @@ export default class Graph {
     range, // a range bar's parts (see checkRange); undefined for other graphs
     statistics = false, // the history is statistics rows, which carry min & max
     fitsMeasurements = false, // range bars laid out by their measurements
+    trend, // { days, slope } for a moving-average trend line; undefined for none
   }) {
     const aggregateFuncMap = {
       avg: this._average,
@@ -76,6 +77,9 @@ export default class Graph {
     this._range = range;
     this._statistics = statistics;
     this._fitsMeasurementsOption = fitsMeasurements;
+    this._trend = trend;
+    this.trend = [];
+    this.slope = undefined;
     this._rangeHistories = {};
     this.ranges = [];
   }
@@ -219,6 +223,39 @@ export default class Graph {
     this.coords = this._calcPoints(histGroups);
     this.min = Math.min(...this.coords.map(item => Number(item[V])));
     this.max = Math.max(...this.coords.map(item => Number(item[V])));
+    if (this._trend) this._calcTrend(readings);
+  }
+
+  /**
+   * The trend of the readings: a centred moving average at every point the
+   * line has, and the slope of the least-squares line through the readings
+   * taken in the window.
+   * @param {Array} readings The window's readings (see _windowHistory)
+   */
+  _calcTrend(readings) {
+    const numeric = readings
+      .map(item => ({ time: new Date(item.last_changed).getTime(), value: parseFloat(item.state) }))
+      .filter(reading => !Number.isNaN(reading.time) && !Number.isNaN(reading.value))
+      .sort((a, b) => a.time - b.time);
+    const interval = ONE_HOUR / this._points_per_hour;
+    const windowStart = this._endTime - this._hours_to_show * ONE_HOUR;
+    const times = this.coords.map(coord => windowStart + (coord[BUCKET] + 0.5) * interval);
+    const averages = movingAverage(numeric, times, (this._trend.days * ONE_DAY) / 2);
+    this.trend = this.coords
+      .map((coord, i) => [coord[X], 0, averages[i], coord[BUCKET]])
+      .filter(point => point[V] !== undefined);
+    this.slope = slopePerDay(numeric.filter(reading => reading.time >= windowStart));
+  }
+
+  /** An SVG path for the trend line, drawn like the entity's own line. */
+  getTrendPath() {
+    if (this.trend.length < 2) return undefined;
+    const coords = this._calcY(this.trend);
+    if (this._smoothing && coords.length > 2) return this._smoothPath(coords);
+    return coords.reduce(
+      (path, point, i) => `${path}${i ? ' L' : 'M'}${point[X]},${point[Y]}`,
+      '',
+    );
   }
 
   /** The one value a range bar stands for - its marker, else its high. */

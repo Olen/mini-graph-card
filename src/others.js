@@ -40,6 +40,7 @@ import {
   GRID_FLAT_RELATIVE_RANGE,
   GRID_MAX_LINES,
   GRID_AXES,
+  ONE_DAY,
 } from './const';
 
 /**
@@ -203,6 +204,42 @@ const getStatisticsType = (stats, requested) => {
     return requested;
   }
   return DEFAULT_STATISTICS_TYPES.find(type => available.includes(type)) || available[0];
+};
+
+/**
+ * A centred moving average: at each time, the mean of the readings within
+ * half a window either side of it. At the ends of a series fewer readings
+ * fall in that window - only older ones at the newest end.
+ * @param {Array<{time: number, value: number}>} readings Readings in time order
+ * @param {number[]} times The times to average at
+ * @param {number} halfWindow Half the window, in the readings' time unit
+ * @returns {Array<number|undefined>} The average at each time; undefined
+ * where no reading falls within the window
+ */
+const movingAverage = (readings, times, halfWindow) => times.map((time) => {
+  const near = readings.filter(reading => Math.abs(reading.time - time) <= halfWindow);
+  if (near.length === 0) return undefined;
+  return near.reduce((sum, reading) => sum + reading.value, 0) / near.length;
+});
+
+/**
+ * The slope of the least-squares line through some readings.
+ * @param {Array<{time: number, value: number}>} readings Readings, time in ms
+ * @returns {number|undefined} Change per day; undefined for fewer than two
+ * readings, or all at one time
+ */
+const slopePerDay = (readings) => {
+  if (readings.length < 2) return undefined;
+  const meanTime = readings.reduce((sum, r) => sum + r.time, 0) / readings.length;
+  const meanValue = readings.reduce((sum, r) => sum + r.value, 0) / readings.length;
+  let covariance = 0;
+  let variance = 0;
+  readings.forEach((r) => {
+    covariance += (r.time - meanTime) * (r.value - meanValue);
+    variance += (r.time - meanTime) ** 2;
+  });
+  if (variance === 0) return undefined;
+  return (covariance / variance) * ONE_DAY;
 };
 
 /**
@@ -1261,6 +1298,8 @@ export {
   getStatisticsType,
   statisticsSeries,
   bucketCount,
+  movingAverage,
+  slopePerDay,
   isStateInCorner,
   getInfoHeight,
   getCardHeight,

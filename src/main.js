@@ -50,6 +50,9 @@ import {
   NBSP,
   STATISTICS_PERIOD_THRESHOLDS,
   STATISTICS_PERIOD_FALLBACK,
+  TREND_SLOPES,
+  TREND_PERIOD_FIELDS,
+  TREND_WIDTH_FACTOR,
 } from './const';
 import {
   isNumeric, isEntryAnimated, formatEntityName, entityNamesChanged, isNameItems,
@@ -94,6 +97,7 @@ class MiniGraphCard extends LitElement {
     this.points = [];
     this.gradient = [];
     this.rangeGradient = [];
+    this.trendLine = [];
     this.tooltip = {};
     // Pointer state, with three different lifetimes:
     // _pointerType & _pointerOrigin describe the last press & must survive
@@ -295,6 +299,7 @@ class MiniGraphCard extends LitElement {
           // a line next to bars puts its points at the bars' centres
           barCentres: this.mixesLinesAndBars,
           range: this._isRange[index] ? entity.range : undefined,
+          trend: entity.trend,
           fitsMeasurements: fitsMeasurements(this.config, index),
           statistics: !!entity.statistics,
           overallFuncName: this.showsOverall(index)
@@ -868,9 +873,9 @@ class MiniGraphCard extends LitElement {
   * @returns {TemplateResult} Lit template result
   */
   renderStateTime() {
-    // "tooltip" - a selected point/bar
+    // "tooltip" - a selected point/bar; without one, the trend if there is one
     if (this.tooltip.value === undefined) {
-      return html``;
+      return this.renderStateTrend(0);
     }
     const { range } = this.tooltip;
     return html`
@@ -1122,6 +1127,56 @@ class MiniGraphCard extends LitElement {
       <mask id=${`line-${this.id}-${index}`}>
         ${path}
       </mask>
+    `;
+  }
+
+  /**
+   * The trend line of an entity: its moving average, drawn faintly behind
+   * its own line in its colour.
+   * @param {string} path From Graph.getTrendPath()
+   * @param {number} index Index of an entry in config.entities
+   * @returns {SVGTemplateResult|undefined} SVG element
+   */
+  renderSvgTrend(path, index) {
+    if (!path) return;
+    const lineWidth = getFirstDefinedItem(
+      this.config.entities[index].line_width,
+      this.config.line_width,
+    );
+    return svg`
+      <path class='line--trend' fill='none'
+        stroke=${this.computeColor(undefined, index)}
+        stroke-width=${lineWidth * TREND_WIDTH_FACTOR}
+        d=${path} />`;
+  }
+
+  /**
+   * An entity's trend as a slope under its state: "↘ -0,3 kg/week", the
+   * period in the user's language.
+   * @param {number} index Index of an entry in config.entities
+   * @returns {TemplateResult} Lit template result; empty without a slope
+   */
+  renderStateTrend(index) {
+    const { trend } = this.config.entities[index];
+    const graph = this.Graph && this.Graph[index];
+    if (!trend || !trend.slope || !graph || graph.slope === undefined) return html``;
+    const perPeriod = graph.slope * TREND_SLOPES[trend.slope];
+    const decimals = Math.max(1, getFirstDefinedItem(
+      this.config.entities[index].decimals, this.config.decimals, 1,
+    ));
+    const number = formatNumber(perPeriod, this._hass.locale, {
+      maximumFractionDigits: decimals,
+      minimumFractionDigits: decimals,
+      signDisplay: 'exceptZero',
+    });
+    const rounded = Number(perPeriod.toFixed(decimals));
+    const arrow = rounded > 0 ? '↗' : rounded < 0 ? '↘' : '→';
+    const period = new Intl.DisplayNames([this._hass.locale.language], { type: 'dateTimeField' })
+      .of(TREND_PERIOD_FIELDS[trend.slope]);
+    return html`
+      <div class="state__time state__trend">
+        ${arrow} ${number} ${this.computeUom(index)}/${period}
+      </div>
     `;
   }
 
@@ -1601,6 +1656,7 @@ class MiniGraphCard extends LitElement {
           ${this.renderSvgPart(this.bar, this.renderSvgBars, this.config.bar_spacing === -1 && reversed)}
           ${this.renderSvgPart(this.fill, this.renderSvgFill, reversed)}
           ${this.renderSvgPart(this.fill, this.renderSvgFillRect, reversed)}
+          ${this.renderSvgPart(this.trendLine, this.renderSvgTrend, reversed)}
           ${this.renderSvgPart(this.line, this.renderSvgLine, reversed)}
           ${this.renderSvgPart(this.line, this.renderSvgLineRect, reversed)}
         </g>
@@ -2694,6 +2750,7 @@ class MiniGraphCard extends LitElement {
         } else {
           const line = this.Graph[i].getPath();
           if (config.entities[i].show_line !== false) this.line[i] = line;
+          if (config.entities[i].trend) this.trendLine[i] = this.Graph[i].getTrendPath();
           if (config.show.fill
             && config.entities[i].show_fill !== false) this.fill[i] = this.Graph[i].getFill(line);
           // Always computed: "hover_mode: nearest" needs the coordinates even

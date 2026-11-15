@@ -4,6 +4,8 @@ import {
   AGGREGATE_FUNCS,
   RANGE_FUNCS,
   RANGE_COLOR_BY,
+  DEFAULT_TREND,
+  TREND_SLOPES,
   AXIS_LABELS,
   OVERALL_PREFIX,
   STATISTICS_PERIODS,
@@ -381,6 +383,35 @@ const checkRange = (range, aggregateFunc, path, ownEntity) => {
 };
 
 /**
+ * An entity's trend option: true for the defaults, or { days, slope } -
+ * slope false to show none. Unknown values warn and keep the default.
+ * @param {*} trend The option as configured
+ * @param {string} path Where it sits, for the log
+ * @returns {{days: number, slope: (string|false)}|undefined} The trend, or
+ * undefined for none
+ */
+const checkTrend = (trend, path) => {
+  if (trend === undefined || trend === null || trend === false) return undefined;
+  if (trend === true) return { ...DEFAULT_TREND };
+  if (typeof trend !== 'object' || Array.isArray(trend)) {
+    log(`Option ${path} must be true or { days, slope }; using the defaults`);
+    return { ...DEFAULT_TREND };
+  }
+  let { days } = DEFAULT_TREND;
+  if (trend.days !== undefined) {
+    if (isNumeric(trend.days) && Number(trend.days) > 0) days = Number(trend.days);
+    else log(`Option ${path}.days must be a number above 0; using ${days}`);
+  }
+  let { slope } = DEFAULT_TREND;
+  if (trend.slope !== undefined) {
+    const periods = Object.keys(TREND_SLOPES);
+    if (trend.slope === false || periods.includes(trend.slope)) ({ slope } = trend);
+    else log(`Option ${path}.slope must be one of ${periods.join(', ')} or false; using ${slope}`);
+  }
+  return { days, slope };
+};
+
+/**
  * Warn if line_style is defined along with animate=true.
  * @param {object} config Config object
  */
@@ -498,6 +529,7 @@ const checkPointsPerHour = (config) => {
 export {
   checkAxisLabels,
   checkRange,
+  checkTrend,
   checkShowState,
   checkEntities,
   checkGroupBy,

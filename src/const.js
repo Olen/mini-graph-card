@@ -87,6 +87,13 @@ const V = 2;
 const BUCKET = 3;
 const ONE_HOUR = 1000 * 3600;
 const ONE_DAY = ONE_HOUR * 24;
+// a trend line: its moving average's window in days, & the slope's period
+const DEFAULT_TREND = { days: 7, slope: 'week' };
+const TREND_SLOPES = { day: 1, week: 7, month: 30 };
+// the Intl.DisplayNames field naming each period, so it reads in the user's language
+const TREND_PERIOD_FIELDS = { day: 'day', week: 'weekOfYear', month: 'month' };
+// a trend line is drawn this many times as wide as the entity's own line
+const TREND_WIDTH_FACTOR = 2;
 // group_by buckets that are calendar days, counted in days rather than hours
 const CALENDAR_BUCKET_DAYS = { date: 1, week: 7 };
 
@@ -248,6 +255,10 @@ export {
   BUCKET,
   ONE_HOUR,
   ONE_DAY,
+  DEFAULT_TREND,
+  TREND_SLOPES,
+  TREND_PERIOD_FIELDS,
+  TREND_WIDTH_FACTOR,
   CALENDAR_BUCKET_DAYS,
   HOVER_NEAREST,
   HOVER_POINT,

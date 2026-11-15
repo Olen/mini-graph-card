@@ -36,6 +36,7 @@ import {
   checkAxisLabels,
   checkPointsPerHour,
   checkRange,
+  checkTrend,
 } from './checkOption';
 import {
   getFactor, parseGraphHeight, parseGrid, isOpposingBars, isBarEntity, isRangeEntity,
@@ -324,6 +325,8 @@ export default (config) => {
       entity.format = checkStringOption(entity, 'format', VALUE_FORMATS, conf.format);
       entity.graph = checkStringOption(entity, 'graph', ['line', 'bar', 'range'], undefined);
       entity.baseline = checkNumericOption(entity, 'baseline', undefined, { allowString: true });
+      entity.trend = checkTrend(entity.trend, `entities[${i}].trend`);
+      if (entity.trend === undefined) delete entity.trend;
       entity.state_map = checkStateMap(entity.state_map, `entities[${i}].state_map`);
 
       if (entity.color_thresholds) {
