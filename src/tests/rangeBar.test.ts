@@ -201,7 +201,7 @@ describe('Graph range bars from one entity', () => {
 
   it('leave a bucket without readings empty', () => {
     const graph = makeGraph({});
-    graph.update([at(3.5, 10), at(0.5, 30)]);
+    graph.update([at(5, 0), at(3.5, 10), at(0.5, 30)]);
     expect(graph.ranges.map(range => range.index)).toEqual([0, 3]);
   });
 
@@ -252,8 +252,9 @@ describe('Graph range bars from other entities', () => {
     const graph = makeGraph({
       low: 'sensor.dia', high: 'last', marker: false, gaps,
     });
-    graph.setRangeHistory('sensor.dia', [at(3.5, 80), at(1.5, 75)]);
-    graph.update([at(3.5, 120), at(1.5, 118)]);
+    // each opens with the value held before the window
+    graph.setRangeHistory('sensor.dia', [at(5, 85), at(3.5, 80), at(1.5, 75)]);
+    graph.update([at(5, 125), at(3.5, 120), at(1.5, 118)]);
     return graph;
   };
 
@@ -286,8 +287,8 @@ describe('Graph range bars from other entities', () => {
 
   it('put low below high whichever entity holds which', () => {
     const graph = makeGraph({ low: 'sensor.higher', high: 'last' });
-    graph.setRangeHistory('sensor.higher', [at(3.5, 90)]);
-    graph.update([at(3.5, 30)]);
+    graph.setRangeHistory('sensor.higher', [at(5, 95), at(3.5, 90)]);
+    graph.update([at(5, 35), at(3.5, 30)]);
     expect(graph.ranges[0]).toMatchObject({ low: 30, high: 90 });
   });
 
@@ -305,15 +306,15 @@ describe('Graph range bar gaps', () => {
 
   it('are not filled by a restart writing the same value again', () => {
     const graph = pressure();
-    graph.setRangeHistory('sensor.dia', [at(3.5, 80), at(1.5, 80)]);
-    graph.update([at(3.5, 120), at(1.5, 120)]);
+    graph.setRangeHistory('sensor.dia', [at(5, 85), at(3.5, 80), at(1.5, 80)]);
+    graph.update([at(5, 125), at(3.5, 120), at(1.5, 120)]);
     expect(graph.ranges.map(range => range.index)).toEqual([0]);
   });
 
   it('are filled by a change in either entity', () => {
     const graph = pressure();
-    graph.setRangeHistory('sensor.dia', [at(3.5, 80), at(1.5, 79)]);
-    graph.update([at(3.5, 120), at(1.5, 120)]);
+    graph.setRangeHistory('sensor.dia', [at(5, 85), at(3.5, 80), at(1.5, 79)]);
+    graph.update([at(5, 125), at(3.5, 120), at(1.5, 120)]);
     expect(spans(graph)).toEqual([
       {
         index: 0, low: 80, high: 120, marker: undefined,
@@ -352,6 +353,13 @@ describe('Graph range bar gaps', () => {
     expect(spans(graph)).toEqual([{
       index: 2, low: 111, high: 111, marker: 111,
     }]);
+  });
+
+  it('do not take a history\'s first reading for a measurement', () => {
+    // it may be the state the window opened with, stamped just inside it
+    const graph = makeGraph({ high: 'last', low: 'last' });
+    graph.update([at(3.99, 120), at(1.5, 109)]);
+    expect(graph.ranges.map(range => range.index)).toEqual([2]);
   });
 
   it('do not take the first statistics row for a measurement', () => {
@@ -401,7 +409,7 @@ describe('Graph.getRanges()', () => {
   });
 
   it('keeps a range with no height visible', () => {
-    const graph = makeGraph({});
+    const graph = makeGraph({ gaps: false });
     graph.update([at(3.5, 50)]);
     [graph.min, graph.max] = [0, 100];
     const [range] = graph.getRanges(0);
@@ -457,33 +465,55 @@ describe('Graph.getRanges() by measurements', () => {
       fitsMeasurements: true,
       ...over,
     });
-    graph.update(hoursAgo.map(hours => at(hours, hours)));
+    // opened with a value held from before the window
+    graph.update([at(20, -1), ...hoursAgo.map(hours => at(hours, hours))]);
     [graph.min, graph.max] = [0, 10];
     return graph.getRanges(0).map(({ x, width }) => [x, width]);
   };
 
+  // the space between each bar & the next
+  const gapsOf = (bars: number[][]) => bars.slice(1).map(([x], i) => x - (bars[i][0] + bars[i][1]));
+  const round = (values: number[]) => values.map(value => Math.round(value * 1000) / 1000);
+
   it('keeps 1 px between measurements in neighbouring periods', () => {
     // buckets 3, 4 & 5
-    expect(measured([6.5, 5.5, 4.5])).toEqual([[300.5, 99], [400.5, 99], [500.5, 99]]);
+    const bars = measured([6.5, 5.5, 4.5]);
+    expect(round(gapsOf(bars))).toEqual([1, 1]);
   });
 
-  it('shows a missed measurement as a wider gap, the bars as wide as usual', () => {
-    // buckets 1, 2, 3 & 7: the usual distance is 100 px
-    expect(measured([8.5, 7.5, 6.5, 2.5])).toEqual([
-      [100.5, 99], [200.5, 99], [300.5, 99], [700.5, 99],
-    ]);
+  it('draws every bar one width, a missed measurement as a wider gap', () => {
+    // buckets 1, 2, 3 & 7
+    const bars = measured([8.5, 7.5, 6.5, 2.5]);
+    expect(new Set(bars.map(([, width]) => width)).size).toBe(1);
+    const [first, second, missed] = round(gapsOf(bars));
+    expect([first, second]).toEqual([1, 1]);
+    expect(missed).toBeGreaterThan(200);
   });
 
-  it('makes every bar as wide as the closest two allow, centred on its time', () => {
+  it('makes the bars as wide as the closest two allow', () => {
     // mostly 400 px apart, but two of them in neighbouring periods
-    expect(measured([9.5, 5.5, 4.5, 0.5])).toEqual([
-      [0.5, 99], [400.5, 99], [500.5, 99], [900.5, 99],
-    ]);
+    const bars = measured([9.5, 5.5, 4.5, 0.5]);
+    expect(Math.min(...round(gapsOf(bars)))).toBe(1);
+    expect(bars[0][1]).toBeGreaterThan(80);
   });
 
-  it('keeps a bar at an end of the graph inside it', () => {
-    // buckets 0 & 9: 900 px apart, but only 50 px to each edge
-    expect(measured([9.5, 0.5])).toEqual([[0, 499.5], [500.5, 499.5]]);
+  it('draws the bars at the ends whole, inside the graph', () => {
+    [[9.9, 8.5], [9.5, 0.5], [0.5, 0.2]].forEach((hours) => {
+      const bars = measured(hours);
+      expect(bars[0][0]).toBeGreaterThanOrEqual(0);
+      const [x, width] = bars[bars.length - 1];
+      expect(x + width).toBeLessThanOrEqual(1000);
+    });
+  });
+
+  it('keeps the bars in the order of their times', () => {
+    const bars = measured([9.5, 7.5, 3.5, 0.5]);
+    expect(bars.map(([x]) => x)).toEqual([...bars.map(([x]) => x)].sort((p, q) => p - q));
+  });
+
+  it('makes no bar wider than a tenth of the graph', () => {
+    // 900 px apart, but a bar of 899 px would hide what it stands for
+    measured([9.5, 0.5]).forEach(([, width]) => expect(width).toBe(100));
   });
 
   it('draws a bar at least 2 px wide', () => {
@@ -496,7 +526,7 @@ describe('Graph.getRanges() by measurements', () => {
       range: checkRange({}, 'avg', 'range'),
       fitsMeasurements: true,
     });
-    graph.update([at(10.5, 1), at(9.5, 2)]);
+    graph.update([at(300, 0), at(10.5, 1), at(9.5, 2)]);
     [graph.min, graph.max] = [0, 10];
     expect(graph.getRanges(0).map(bar => bar.width)).toEqual([2, 2]);
   });
@@ -504,9 +534,9 @@ describe('Graph.getRanges() by measurements', () => {
   it('keeps the slots when the card says so', () => {
     expect(measured([6.5, 2.5], { fitsMeasurements: false, total_bars_in_group: 2 })[0][1])
       .toBeLessThan(99);
-    // a slot per period from the first reading on, measured or not
+    // a slot per period, measured or not
     expect(measured([6.5, 2.5], { range: checkRange({ gaps: false }, 'avg', 'range') }))
-      .toHaveLength(7);
+      .toHaveLength(10);
   });
 });
 

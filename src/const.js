@@ -33,6 +33,8 @@ const MIN_RANGE_HEIGHT = 2;
 const MIN_RANGE_WIDTH = 2;
 const RANGE_GAP = 1;
 const LONE_RANGE_SHARE = 10;
+// ...and none wider than this share of the width
+const MAX_RANGE_SHARE = 10;
 // what a range bar's low, high & marker may be computed with
 const RANGE_FUNCS = ['min', 'max', 'avg', 'median', 'first', 'last'];
 // what a range bar is coloured by: one of its values, or along its span
@@ -233,6 +235,7 @@ export {
   MIN_RANGE_WIDTH,
   RANGE_GAP,
   LONE_RANGE_SHARE,
+  MAX_RANGE_SHARE,
   OVERALL_PREFIX,
   DEFAULT_STATIC_VALUE_LABEL_OFFSET,
   NBSP,

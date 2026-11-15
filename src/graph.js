@@ -9,6 +9,7 @@ import {
   MIN_RANGE_WIDTH,
   RANGE_GAP,
   LONE_RANGE_SHARE,
+  MAX_RANGE_SHARE,
 } from './const';
 import { log } from './utils';
 import {
@@ -390,10 +391,10 @@ export default class Graph {
   _changedSince(item, previous) {
     const hasRange = item.min !== undefined && item.max !== undefined;
     if (this._statistics && hasRange && parseFloat(item.min) !== parseFloat(item.max)) return true;
-    // Statistics start at the window, with no row before it to compare with:
-    // the first one holds what was measured earlier. A history's first reading
-    // is new, though - the history includes the state the window opened with.
-    if (previous === undefined) return !this._statistics;
+    // Nothing before it to compare with: the first statistics row holds what
+    // was measured earlier, and a history starts with the state the window
+    // opened with - stamped at the window's start, so it can land inside it.
+    if (previous === undefined) return false;
     return parseFloat(this._endValue(item)) !== parseFloat(this._endValue(previous));
   }
 
@@ -746,32 +747,26 @@ export default class Graph {
   }
 
   /**
-   * Range bars at the time of their period, all as wide as the closest two
-   * allow: RANGE_GAP apart there, and never narrower than MIN_RANGE_WIDTH. A
-   * missed measurement thus shows as a wider gap. A bar is centred on its
-   * period's time; one at an end of the graph is cut off at the edge.
+   * Range bars at the time of their period, all one width: as wide as the
+   * closest two allow - RANGE_GAP apart there - but no wider than
+   * 1 / MAX_RANGE_SHARE of the graph nor narrower than MIN_RANGE_WIDTH. A
+   * missed measurement thus shows as a wider gap. The times are laid out on a
+   * width one bar shorter, so the bars at the ends are drawn whole.
    * @returns {function(object, number): {x: number, width: number}} The layout
    */
   _measurementLayout() {
-    const step = this._width / this._bucketCount();
-    const centres = this.ranges.map(range => this._margin[X] + step * (range.index + 0.5));
-    const distances = centres.slice(1).map((centre, i) => centre - centres[i]);
-    const closest = distances.length > 0
-      ? Math.min(...distances)
-      : this._width / LONE_RANGE_SHARE;
+    const total = this._width;
     const left = this._margin[X];
-    const right = this._margin[X] + this._width;
-    return (range, i) => {
-      const centre = centres[i];
-      const half = closest / 2 - RANGE_GAP / 2;
-      const leftHalf = Math.min(half, centre - left);
-      const rightHalf = Math.min(half, right - centre);
-      if (leftHalf + rightHalf >= MIN_RANGE_WIDTH) {
-        return { x: centre - leftHalf, width: leftHalf + rightHalf };
-      }
-      const x = Math.min(Math.max(centre - MIN_RANGE_WIDTH / 2, left), right - MIN_RANGE_WIDTH);
-      return { x, width: MIN_RANGE_WIDTH };
-    };
+    const step = total / this._bucketCount();
+    const times = this.ranges.map(range => step * (range.index + 0.5));
+    const distances = times.slice(1).map((time, i) => time - times[i]);
+    const closest = distances.length > 0 ? Math.min(...distances) : total / LONE_RANGE_SHARE;
+    // squeezing the times into total - width brings the closest two nearer
+    // too, so the width is the one which leaves them RANGE_GAP apart after it
+    const fitting = (closest - RANGE_GAP) / (1 + closest / total);
+    const width = Math.max(MIN_RANGE_WIDTH, Math.min(fitting, total / MAX_RANGE_SHARE));
+    const squeeze = (total - width) / total;
+    return (range, i) => ({ x: left + times[i] * squeeze, width });
   }
 
   /**

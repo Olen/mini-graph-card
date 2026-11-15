@@ -518,6 +518,9 @@ class MiniGraphCard extends LitElement {
   }
 
   shouldUpdate(changedProps) {
+    // A card can get its config before Home Assistant has sent hass - inside a
+    // tabbed card it does. Nothing can be drawn or formatted until it has.
+    if (!this._hass) return false;
     if (UPDATE_PROPS.some(prop => changedProps.has(prop))) {
       this.color = this.computeColor(
         this.tooltip.value !== undefined
@@ -787,13 +790,17 @@ class MiniGraphCard extends LitElement {
     }
     if (this._isStaticValue[index]) {
       return this.config.entities[index].static_value;
-    } else if (entityConfig.attribute) {
-      // current attribute value
-      return getObjectAttr(this.entity[index].attributes, entityConfig.attribute);
-    } else {
-      // current state value
-      return this.entity[index].state;
     }
+    // A card can render before Home Assistant has sent the entity's state -
+    // inside a tabbed card it often does. There is no value to show yet.
+    const stateObj = this.entity[index];
+    if (!stateObj) return undefined;
+    if (entityConfig.attribute) {
+      // current attribute value
+      return getObjectAttr(stateObj.attributes, entityConfig.attribute);
+    }
+    // current state value
+    return stateObj.state;
   }
 
   /**
