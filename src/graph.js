@@ -14,6 +14,7 @@ import {
 import { log } from './utils';
 import {
   getIntervalEndDate, getLog10, timeWeightedAverage, bucketCount, movingAverage, slopePerDay,
+  trendWindowDays,
 } from './others';
 
 export default class Graph {
@@ -240,7 +241,8 @@ export default class Graph {
     const interval = ONE_HOUR / this._points_per_hour;
     const windowStart = this._endTime - this._hours_to_show * ONE_HOUR;
     const times = this.coords.map(coord => windowStart + (coord[BUCKET] + 0.5) * interval);
-    const averages = movingAverage(numeric, times, (this._trend.days * ONE_DAY) / 2);
+    const days = trendWindowDays(this._trend.days, this._hours_to_show);
+    const averages = movingAverage(numeric, times, (days * ONE_DAY) / 2);
     this.trend = this.coords
       .map((coord, i) => [coord[X], 0, averages[i], coord[BUCKET]])
       .filter(point => point[V] !== undefined);

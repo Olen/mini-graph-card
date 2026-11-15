@@ -7,7 +7,7 @@
 import {
   expect, describe, it, vi, beforeEach, afterEach,
 } from 'vitest';
-import { movingAverage, slopePerDay } from '../others';
+import { movingAverage, slopePerDay, trendWindowDays } from '../others';
 import { checkTrend } from '../checkOption';
 import buildConfig from '../buildConfig';
 import Graph from '../graph';
@@ -37,6 +37,22 @@ describe('movingAverage()', () => {
   });
 });
 
+describe('trendWindowDays()', () => {
+  it('takes a sixth of the graph with auto', () => {
+    expect(trendWindowDays('auto', 720)).toBe(5);
+    expect(trendWindowDays('auto', 1440)).toBe(10);
+  });
+
+  it('keeps auto within 2 & 30 days', () => {
+    expect(trendWindowDays('auto', 168)).toBe(2);
+    expect(trendWindowDays('auto', 8760)).toBe(30);
+  });
+
+  it('takes the days asked for', () => {
+    expect(trendWindowDays(7, 8760)).toBe(7);
+  });
+});
+
 describe('slopePerDay()', () => {
   it('is the change per day along the best straight line', () => {
     const readings = [80, 79.5, 79, 78.5].map((value, day) => ({ time: day * DAY, value }));
@@ -56,13 +72,13 @@ describe('slopePerDay()', () => {
 });
 
 describe('checkTrend()', () => {
-  it('takes true for a week-wide average with a slope per week', () => {
-    expect(checkTrend(true, 'trend')).toEqual({ days: 7, slope: 'week' });
+  it('takes true for an average sized to the graph, with a slope per week', () => {
+    expect(checkTrend(true, 'trend')).toEqual({ days: 'auto', slope: 'week' });
   });
 
   it('takes a window & a slope period, or no slope', () => {
     expect(checkTrend({ days: 14, slope: 'month' }, 'trend')).toEqual({ days: 14, slope: 'month' });
-    expect(checkTrend({ slope: false }, 'trend')).toEqual({ days: 7, slope: false });
+    expect(checkTrend({ slope: false }, 'trend')).toEqual({ days: 'auto', slope: false });
   });
 
   it('has none when not set', () => {
@@ -72,13 +88,13 @@ describe('checkTrend()', () => {
 
   it('warns & keeps the default on a value it does not know', () => {
     const warn = mockLog();
-    expect(checkTrend({ days: 0, slope: 'year' }, 'trend')).toEqual({ days: 7, slope: 'week' });
+    expect(checkTrend({ days: 0, slope: 'year' }, 'trend')).toEqual({ days: 'auto', slope: 'week' });
     expect(warn).toHaveBeenCalledTimes(2);
   });
 
   it('reaches an entity through buildConfig', () => {
     const { config } = buildConfig({ entities: [{ entity: 'sensor.weight', trend: true }, 'sensor.b'] });
-    expect(config.entities[0].trend).toEqual({ days: 7, slope: 'week' });
+    expect(config.entities[0].trend).toEqual({ days: 'auto', slope: 'week' });
     expect(config.entities[1].trend).toBeUndefined();
   });
 });

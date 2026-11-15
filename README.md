@@ -1391,7 +1391,7 @@ aggregate_func: last
 
 | Name | Default | Description |
 |------|---------|-------------|
-| days | `7` | How wide the moving average is, in days.
+| days | `auto` | How wide the moving average is, in days. `auto` takes a sixth of the graph's length, from 2 to 30 days: about 5 days for a month, 30 for half a year.
 | slope | `week` | The period the slope is given per: `day`, `week` or `month`; `false` for none.
 
 - The average is centred: each point is the mean of the readings half the
@@ -1485,7 +1485,7 @@ The following theme variables can be set in your HA theme to customize the appea
 | mcg-label-static-border-radius | 1em | Border radius of the static values' labels.
 | mcg-bar-seam-width | 0.5px | Width of the seam drawn between bars when `bar_spacing: 0`.
 | mcg-bar-seam-opacity | 0.3 | Opacity of that seam, which is drawn in the card's background colour.
-| mcg-trend-opacity | 0.35 | Opacity of a [trend](#trend) line.
+| mcg-trend-opacity | 0.6 | Opacity of a [trend](#trend) line.
 | mcg-range-opacity | 0.4 | Opacity of a [range bar](#range-bars)'s span; its marker is drawn in full colour.
 | mcg-range-marker-width | 2px | Width of a range bar's marker line.
 

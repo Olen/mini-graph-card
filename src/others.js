@@ -41,6 +41,9 @@ import {
   GRID_MAX_LINES,
   GRID_AXES,
   ONE_DAY,
+  TREND_AUTO_SHARE,
+  TREND_AUTO_MIN_DAYS,
+  TREND_AUTO_MAX_DAYS,
 } from './const';
 
 /**
@@ -221,6 +224,21 @@ const movingAverage = (readings, times, halfWindow) => times.map((time) => {
   if (near.length === 0) return undefined;
   return near.reduce((sum, reading) => sum + reading.value, 0) / near.length;
 });
+
+/**
+ * How many days a trend's moving average spans: the days asked for, or with
+ * "auto" a sixth of the graph's length - 5 days of a month, 30 of half a year
+ * - so a short graph's trend is not flattened to its mean, nor a long one's
+ * left as uneven as its readings.
+ * @param {number|string} days The trend's days option
+ * @param {number} hoursToShow The graph's length
+ * @returns {number} Days
+ */
+const trendWindowDays = (days, hoursToShow) => {
+  if (days !== 'auto') return days;
+  const share = hoursToShow / 24 / TREND_AUTO_SHARE;
+  return Math.min(Math.max(share, TREND_AUTO_MIN_DAYS), TREND_AUTO_MAX_DAYS);
+};
 
 /**
  * The slope of the least-squares line through some readings.
@@ -1299,6 +1317,7 @@ export {
   statisticsSeries,
   bucketCount,
   movingAverage,
+  trendWindowDays,
   slopePerDay,
   isStateInCorner,
   getInfoHeight,

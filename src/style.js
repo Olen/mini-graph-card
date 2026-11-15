@@ -500,7 +500,7 @@ const style = css`
     cursor: pointer;
   }
   .line--trend {
-    opacity: var(--mcg-trend-opacity, .35);
+    opacity: var(--mcg-trend-opacity, .6);
     stroke-linecap: round;
     pointer-events: none;
   }
