@@ -414,6 +414,23 @@ const checkTrend = (trend, path) => {
 };
 
 /**
+ * An entity's ignore_values: one number or a list of them. Anything else in
+ * it warns and is dropped.
+ * @param {*} values The option as configured
+ * @param {string} path Where it sits, for the log
+ * @returns {number[]|undefined} The values, or undefined for none
+ */
+const checkIgnoreValues = (values, path) => {
+  if (values === undefined || values === null) return undefined;
+  const list = Array.isArray(values) ? values : [values];
+  const numbers = list.filter(value => isNumeric(value, true)).map(Number);
+  if (numbers.length !== list.length) {
+    log(`Option ${path} must be a number or a list of numbers; ignoring the rest`);
+  }
+  return numbers.length > 0 ? numbers : undefined;
+};
+
+/**
  * Warn if line_style is defined along with animate=true.
  * @param {object} config Config object
  */
@@ -532,6 +549,7 @@ export {
   checkAxisLabels,
   checkRange,
   checkTrend,
+  checkIgnoreValues,
   checkShowState,
   checkEntities,
   checkGroupBy,

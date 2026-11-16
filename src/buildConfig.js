@@ -37,6 +37,7 @@ import {
   checkPointsPerHour,
   checkRange,
   checkTrend,
+  checkIgnoreValues,
 } from './checkOption';
 import {
   getFactor, parseGraphHeight, parseGrid, isOpposingBars, isBarEntity, isRangeEntity,
@@ -327,6 +328,8 @@ export default (config) => {
       entity.baseline = checkNumericOption(entity, 'baseline', undefined, { allowString: true });
       entity.trend = checkTrend(entity.trend, `entities[${i}].trend`);
       if (entity.trend === undefined) delete entity.trend;
+      entity.ignore_values = checkIgnoreValues(entity.ignore_values, `entities[${i}].ignore_values`);
+      if (entity.ignore_values === undefined) delete entity.ignore_values;
       entity.state_map = checkStateMap(entity.state_map, `entities[${i}].state_map`);
 
       if (entity.color_thresholds) {

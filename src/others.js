@@ -261,6 +261,22 @@ const slopePerDay = (readings) => {
 };
 
 /**
+ * A series without the readings an entity marks as no value at all - a
+ * sensor reporting -1 for "nothing measured yet". A statistics row is left
+ * out when its mean, min or max is such a value, for the period it covers
+ * is made of it in part.
+ * @param {Array<object>} series A [{last_changed, state, min?, max?}] series
+ * @param {number[]} [ignoreValues] The values to leave out
+ * @returns {Array<object>} The series without them
+ */
+const withoutIgnored = (series, ignoreValues) => {
+  if (!ignoreValues || ignoreValues.length === 0) return series;
+  const ignored = value => value !== undefined && value !== null
+    && ignoreValues.includes(parseFloat(value));
+  return series.filter(item => !ignored(item.state) && !ignored(item.min) && !ignored(item.max));
+};
+
+/**
  * How many buckets a window holds. hours_to_show * points_per_hour is a whole
  * number whenever points_per_hour was derived from it, but floating point can
  * leave it a hair above one - 96 / 4368 * 4368 is 96.00000000000001 - and a
@@ -1316,6 +1332,7 @@ export {
   getStatisticsType,
   statisticsSeries,
   bucketCount,
+  withoutIgnored,
   movingAverage,
   trendWindowDays,
   slopePerDay,

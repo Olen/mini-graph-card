@@ -397,6 +397,7 @@ properties of the Entity object detailed in the following table (as per `sensor.
 | graph | string |         | `line`, `bar` or `range`: draw this entity differently from the card's `show.graph`, see [Lines and bars together](#lines-and-bars-together) and [Range bars](#range-bars).
 | range | object |         | Where a range bar's low, high & marker come from, see [Range bars](#range-bars).
 | trend | boolean / object |         | Draw a moving-average trend line behind the entity's line and show its slope under the state, see [Trend](#trend).
+| ignore_values | number / list |         | Values the entity reports instead of no value - say `-1` for "nothing measured yet" - left out of the graph, and shown as unknown when it is the current state. A statistics row partly made of one (its min or max) is left out too.
 | state_map | [state map object](#state-map-object) |         | This entity's own state map, instead of the card's.
 | show_line | boolean |         | Set to false to hide the line.
 | show_fill | boolean |         | Set to false to hide the fill.

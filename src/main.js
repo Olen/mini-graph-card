@@ -63,7 +63,8 @@ import {
   axisLabelShown, showsZeroLabel, boundsForZeroPosition, sharesScale, sharedBounds,
   widenToMinRange,
   getIntervalEndDate, iconFor,
-  getStatisticsType, statisticsSeries, bucketCount, getCardSizeUnits, getGridOptions,
+  getStatisticsType, statisticsSeries, bucketCount, withoutIgnored,
+  getCardSizeUnits, getGridOptions,
   getInfoHeight, isStateInCorner, findNearestPoint, findNearestBar,
   getDesiredCardHeight, getGraphHeightPx, getGridTimes, getGridValues, getGridInterval,
   getLabelStride, getChromeHeight,
@@ -804,6 +805,9 @@ class MiniGraphCard extends LitElement {
       // current attribute value
       return getObjectAttr(stateObj.attributes, entityConfig.attribute);
     }
+    // a value the entity marks as none - say -1 for "nothing measured yet"
+    const { ignore_values: ignoreValues } = entityConfig;
+    if (ignoreValues && ignoreValues.includes(parseFloat(stateObj.state))) return 'unknown';
     // current state value
     return stateObj.state;
   }
@@ -2882,7 +2886,9 @@ class MiniGraphCard extends LitElement {
       if (statistics.type !== undefined && statistics.type !== type) {
         this.logOnce(`Statistics type ${statistics.type} is not available for ${entity.entity_id}; using ${type}`);
       }
-      this.applyHistory(entity, index, statisticsSeries(stats, type));
+      this.applyHistory(entity, index, withoutIgnored(
+        statisticsSeries(stats, type), this.config.entities[index].ignore_values,
+      ));
       return;
     }
 
@@ -2968,7 +2974,9 @@ class MiniGraphCard extends LitElement {
       }
     }
 
-    this.applyHistory(entity, index, stateHistory);
+    this.applyHistory(entity, index, withoutIgnored(
+      stateHistory, this.config.entities[index].ignore_values,
+    ));
   }
 
   /**
